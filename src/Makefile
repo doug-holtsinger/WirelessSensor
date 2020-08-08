@@ -4,12 +4,21 @@ OUTPUT_DIRECTORY := ../_build
 
 SDK_ROOT := C:/NordicSDK/nRF5_SDK_16.0.0
 PROJ_DIR := ./
+PROJ_INC_DIR := .
+LSM6DS3_SRC_DIR := ./LSM6DS3
+LSM6DS3_INC_DIR := ./LSM6DS3
+CONFIG_DIR := ../config
+VERBOSE := 1
 
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
   LINKER_SCRIPT  := $(PROJ_DIR)/gcc_nrf52.ld
 
 # Source files common to all targets
 SRC_FILES += \
+  $(PROJ_DIR)/main.cpp \
+  $(PROJ_DIR)/TwoWire.cpp \
+  $(LSM6DS3_SRC_DIR)/LSM6DS3_ACC_GYRO_Driver.c \
+  $(LSM6DS3_SRC_DIR)/LSM6DS3Sensor.cpp \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52840.S \
   $(SDK_ROOT)/components/libraries/bsp/bsp.c \
   $(SDK_ROOT)/components/libraries/bsp/bsp_btn_ble.c \
@@ -78,7 +87,6 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/crypto/nrf_crypto_init.c \
   $(SDK_ROOT)/components/libraries/crypto/nrf_crypto_rng.c \
   $(SDK_ROOT)/components/libraries/crypto/nrf_crypto_shared.c \
-  $(PROJ_DIR)/main.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_ble.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_soc.c \
@@ -134,6 +142,9 @@ SRC_FILES += \
 
 # Include folders common to all targets
 INC_FOLDERS += \
+  $(CONFIG_DIR) \
+  $(PROJ_INC_DIR) \
+  $(LSM6DS3_INC_DIR) \
   $(SDK_ROOT)/components/nfc/ndef/generic/message \
   $(SDK_ROOT)/components/nfc/t2t_lib \
   $(SDK_ROOT)/components/nfc/t4t_parser/hl_detection_procedure \
@@ -207,7 +218,6 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/crc16 \
   $(SDK_ROOT)/components/nfc/t4t_parser/apdu \
   $(SDK_ROOT)/components/libraries/util \
-  ../config \
   $(SDK_ROOT)/components/libraries/csense_drv \
   $(SDK_ROOT)/components/libraries/csense \
   $(SDK_ROOT)/components/libraries/balloc \
@@ -357,7 +367,7 @@ LIB_FILES += -lc -lnosys -lm
 .PHONY: default help
 
 # Default target - first one defined
-default: nrf52840_xxaa
+default: nrf52840_xxaa segger_cb
 
 # Print all targets that can be built
 help:
@@ -393,7 +403,10 @@ flash_softdevice:
 erase:
 	nrfjprog -f nrf52 --eraseall
 
+segger_cb:
+	nm $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out | grep _SEGGER_RTT
+
 SDK_CONFIG_FILE := $(PROJ_DIR)/sdk_config.h
 CMSIS_CONFIG_TOOL := $(SDK_ROOT)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar
 sdk_config:
-	'C:\Program Files\Java\jdk-10.0.1\bin\java.exe' -jar $(CMSIS_CONFIG_TOOL) $(SDK_CONFIG_FILE)
+	'C:\Program Files\Java\jdk-10.0.1\bin\java.exe' -jar $(CMSIS_CONFIG_TOOL) $(CONFIG_DIR)/$(SDK_CONFIG_FILE)

@@ -82,29 +82,18 @@
 #include "nrf_log_default_backends.h"
 
 #include "boards.h"
+
+#include "TwoWire.h"
+#include "LSM6DS3Sensor.h"
 #include "nrfx_twi.h"
 
 #define USE_BLE 1
 
+LSM6DS3Sensor* AccGyr;
+TwoWire* dev_i2c;
 
-
-/* TWI instance ID. */
-#if TWI0_ENABLED 
-#define TWI_INSTANCE_ID     0
-#elif TWI0_ENABLED 
-#define TWI_INSTANCE_ID     1
-#endif
-
- /* Number of possible TWI addresses. */
- #define TWI_ADDRESSES      127
-
-/* TWI instance. */
-static const nrfx_twi_t m_twi = NRFX_TWI_INSTANCE(TWI_INSTANCE_ID);
-/* Indicates if operation on TWI has ended. */
-static volatile bool m_xfer_done = false;
-static uint16_t        heart_rate;
+static uint16_t heart_rate;
 static uint32_t heart_rate_cnt = 0;
-
 
 
 #define DEVICE_NAME                         "Nordic_HRM"                            /**< Name of device. Will be included in the advertising data. */
@@ -330,52 +319,119 @@ static void battery_level_meas_timeout_handler(void * p_context)
 
 void read_twi_sensor()
 {
-    ret_code_t      err_code = NRF_SUCCESS;
-    uint8_t address = 0x6A;  /* 1C */
-    uint8_t reg_address = 0x0F; 
-    uint8_t sample_data = 0xBB;
-    uint8_t busy_cnt = 0;
+    LSM6DS3StatusTypeDef lsm_err_code = LSM6DS3_STATUS_OK;
+    // float data_f = 0.0;
+    uint8_t reg_data = 0;
+    int32_t accelerometer[3];
+    // int32_t gyroscope[3];
    
-    if (heart_rate_cnt > 15)
+    if (heart_rate_cnt > 30)
     {
-        // DSH-FIXME -- what are the correct parameters and usage here?
-        m_xfer_done = false;
-        NRF_LOG_INFO("Reading TWI Sensor");
-        nrfx_twi_xfer_desc_t xfer = NRFX_TWI_XFER_DESC_TXRX(
-		    address ,
-		    &reg_address,
-		    sizeof(reg_address),
-		    &sample_data, 
-		    sizeof(sample_data));
-        err_code = nrfx_twi_xfer(&m_twi, &xfer, 0);
 #if 0
-	// force into the error
-	error_info_t  e = {
-		.err_code = err_code,
-		.line_num = __LINE__,
-		.p_file_name = (uint8_t *)__FILE__,
-	};	
-        app_error_fault_handler(NRF_FAULT_ID_SDK_ERROR, 0, (uint32_t)&e);
+        NRF_LOG_INFO("Reading TWI Sensor");
+        // lsm_err_code = AccGyr->ReadID(&sample_data);
+
+        lsm_err_code = AccGyr->Get_X_ODR(&data_f);
+        NRF_LOG_INFO("Get_X_ODR (0x10) data = %f", data_f);
+
+        lsm_err_code = AccGyr->Get_G_ODR(&data_f);
+        NRF_LOG_INFO("Get_G_ODR (0x11) data = %f", data_f);
+
+        lsm_err_code = AccGyr->Get_X_FS(&data_f);
+        NRF_LOG_INFO("Get_X_FS (0x10) data = %f", data_f);
+
+        lsm_err_code = AccGyr->Get_G_FS(&data_f);
+        NRF_LOG_INFO("Get_G_FS (0x11) data = %f", data_f);
+
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_FIFO_CTRL1, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("FIFO_CTRL (0x06) data = 0x%hhx", reg_data);
+
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_FIFO_CTRL2, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("FIFO_CTRL2 (0x07) data = 0x%hhx", reg_data);
+
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_FIFO_CTRL3, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("FIFO_CTRL3 (0x08) data = 0x%hhx", reg_data);
+
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_FIFO_CTRL4, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("FIFO_CTRL4 (0x09) data = 0x%hhx", reg_data);
+
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_FIFO_CTRL5, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("FIFO_CTRL5 (0x0A) data = 0x%hhx", reg_data);
+
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_ORIENT_CFG_G, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("ORIENT_CFG_G  (0x0B) data = 0x%hhx", reg_data);
+
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_CTRL1_XL, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("CTRL1_XL   (0x10) data = 0x%hhx", reg_data);
+
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_CTRL2_G, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("CTRL2_G    (0x11) data = 0x%hhx", reg_data);
+
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_CTRL3_C, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("CTRL3_C    (0x12) data = 0x%hhx", reg_data);
+
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_CTRL4_C, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("CTRL4_C    (0x13) data = 0x%hhx", reg_data);
+
+        lsm_err_code = AccGyr->WriteReg(LSM6DS3_ACC_GYRO_INT1_CTRL, 0xFF);
+        APP_ERROR_CHECK(lsm_err_code);
+
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_INT1_CTRL, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("INT1_CTRL  (0x0D) data = 0x%hhx", reg_data);
+
+        lsm_err_code = AccGyr->WriteReg(LSM6DS3_ACC_GYRO_INT1_CTRL, 0x00);
+        APP_ERROR_CHECK(lsm_err_code);
+
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_INT1_CTRL, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("INT1_CTRL  (0x0D) data = 0x%hhx", reg_data);
+
 #endif
 
-	if (err_code != NRF_ERROR_BUSY)
-	{
-            APP_ERROR_CHECK(err_code);
-	}
-        while (m_xfer_done == false) {
-	    busy_cnt++;
-        }
-        NRF_LOG_INFO("Read TWI Sensor err_code=0x%x busy=%d data=0x%x", 
-			  err_code, busy_cnt, sample_data);
-    } 
+        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_STATUS_REG, &reg_data);
+        APP_ERROR_CHECK(lsm_err_code);
+        // NRF_LOG_INFO("STATUS_REG (0x1E) data = 0x%hhx", reg_data);
 
-    if (err_code == NRF_SUCCESS)
+	if ((reg_data & LSM6DS3_ACC_GYRO_XLDA_MASK) == LSM6DS3_ACC_GYRO_XLDA_DATA_AVAIL) {
+            lsm_err_code = AccGyr->Get_X_Axes(accelerometer);
+            APP_ERROR_CHECK(lsm_err_code);
+            NRF_LOG_INFO("X data = %d %d %d", 
+			accelerometer[0],
+			accelerometer[1],
+			accelerometer[2]
+			);
+	}
+
+#if 0
+        lsm_err_code = AccGyr->Get_G_Axes(gyroscope);
+        APP_ERROR_CHECK(lsm_err_code);
+        NRF_LOG_INFO("G data = %d %d %d", 
+			gyroscope[0],
+			gyroscope[1],
+			gyroscope[2]
+			);
+#endif
+
+    }
+
+    if (lsm_err_code == LSM6DS3_STATUS_OK)
     {
-        heart_rate = (address << 8) | sample_data;
+        heart_rate = accelerometer[0] ;
 	bsp_board_led_on(BSP_BOARD_LED_2);
     } else 
     {
-        heart_rate = (address << 8) | 0xAA;
+        heart_rate = 0xAA;
 	bsp_board_led_on(BSP_BOARD_LED_1);
     }
 
@@ -749,6 +805,7 @@ static void conn_params_init(void)
 }
 
 
+#if 0
 /**@brief Function for putting the chip into sleep mode.
  *
  * @note This function will not return.
@@ -768,7 +825,7 @@ static void sleep_mode_enter(void)
     err_code = sd_power_system_off();
     APP_ERROR_CHECK(err_code);
 }
-
+#endif
 
 /**@brief Function for handling advertising events.
  *
@@ -789,7 +846,7 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
             break;
 
         case BLE_ADV_EVT_IDLE:
-            sleep_mode_enter();
+            // FIXME sleep_mode_enter();
             break;
 
         default:
@@ -830,8 +887,8 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             NRF_LOG_DEBUG("PHY update request.");
             ble_gap_phys_t const phys =
             {
-                .rx_phys = BLE_GAP_PHY_AUTO,
                 .tx_phys = BLE_GAP_PHY_AUTO,
+                .rx_phys = BLE_GAP_PHY_AUTO,
             };
             err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
             APP_ERROR_CHECK(err_code);
@@ -918,7 +975,7 @@ void bsp_event_handler(bsp_event_t event)
     switch (event)
     {
         case BSP_EVENT_SLEEP:
-            sleep_mode_enter();
+            // FIXME sleep_mode_enter();
             break;
 
         case BSP_EVENT_DISCONNECT:
@@ -1068,53 +1125,15 @@ static void idle_state_handle(void)
 
 
 /**
- * @brief TWI events handler.
  */
-void twi_handler(nrfx_twi_evt_t const * p_event, void * p_context)
+void LSM6DS3SensorInit(void)
 {
-
-    switch (p_event->type)
-    {
-        case NRFX_TWI_EVT_DONE :
-            m_xfer_done = true;
-            break;
-        case NRFX_TWI_EVT_ADDRESS_NACK:
-            m_xfer_done = true;
-            break;
-        case NRFX_TWI_EVT_DATA_NACK:
-            m_xfer_done = true;
-            break;
-        case NRFX_TWI_EVT_OVERRUN:
-            m_xfer_done = true;
-            break;
-        default:
-            break;
-    }
+    dev_i2c = new TwoWire();
+    AccGyr = new LSM6DS3Sensor(dev_i2c);
+    AccGyr->Enable_X();
+    AccGyr->Enable_G();
+    // AccGyr->Enable_6D_Orientation();
 }
-
-/**
- * @brief TWI initialization.
- */
-void twi_init (void)
-{
-    ret_code_t err_code;
-
-    const nrfx_twi_config_t twi_config = {
-       .scl                = TWI0_SCL_PIN, 
-       .sda                = TWI0_SDA_PIN, 
-       .frequency          = NRFX_TWI_DEFAULT_CONFIG_FREQUENCY,
-       .interrupt_priority = NRFX_TWI_DEFAULT_CONFIG_IRQ_PRIORITY,
-       .hold_bus_uninit    = NRFX_TWI_DEFAULT_CONFIG_HOLD_BUS_UNINIT 
-    };
-
-    //DSH-FIXME -- null for last argument is it OK?
-    err_code = nrfx_twi_init(&m_twi, &twi_config, twi_handler, NULL);
-    APP_ERROR_CHECK(err_code);
-
-    nrfx_twi_enable(&m_twi);
-}
-
-
 
 /**@brief Function for application main entry.
  */
@@ -1135,8 +1154,7 @@ int main(void)
     sensor_simulator_init();
     conn_params_init();
     peer_manager_init();
-    twi_init();
-
+    LSM6DS3SensorInit();
 
     // Start execution.
     NRF_LOG_INFO("Heart Rate Sensor example started.");

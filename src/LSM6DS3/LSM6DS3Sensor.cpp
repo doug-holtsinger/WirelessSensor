@@ -39,10 +39,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 
-#include "Arduino.h"
-#include "Wire.h"
+#include "TwoWire.h"
 #include "LSM6DS3Sensor.h"
-
+#include <string.h>
 
 /* Class Implementation ------------------------------------------------------*/
 
@@ -1183,7 +1182,7 @@ LSM6DS3StatusTypeDef LSM6DS3Sensor::Reset_Step_Counter(void)
     return LSM6DS3_STATUS_ERROR;
   }
   
-  delay(10);
+  // FIXME delay(10);
   
   if ( LSM6DS3_ACC_GYRO_W_PedoStepReset( (void *)this, LSM6DS3_ACC_GYRO_PEDO_RST_STEP_DISABLED ) == MEMS_ERROR )
   {
@@ -2077,7 +2076,7 @@ LSM6DS3StatusTypeDef LSM6DS3Sensor::Get_Event_Status( LSM6DS3_Event_Status_t *st
 {
   uint8_t Wake_Up_Src = 0, Tap_Src = 0, D6D_Src = 0, Func_Src = 0, Md1_Cfg = 0, Md2_Cfg = 0, Int1_Ctrl = 0;
 
-  memset((void *)status, 0x0, sizeof(LSM6DS3_Event_Status_t));
+  // FIXME memset((void *)status, 0x0, sizeof(LSM6DS3_Event_Status_t));
 
   if(ReadReg(LSM6DS3_ACC_GYRO_WAKE_UP_SRC, &Wake_Up_Src ) == LSM6DS3_STATUS_ERROR )
   {

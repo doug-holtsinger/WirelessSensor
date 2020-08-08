@@ -45,7 +45,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 
-#include "Wire.h"
+#include "TwoWire.h"
 #include "LSM6DS3_ACC_GYRO_Driver.h"
 
 /* Defines -------------------------------------------------------------------*/
@@ -199,20 +199,7 @@ class LSM6DS3Sensor
      */
     uint8_t IO_Read(uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByteToRead)
     {
-      dev_i2c->beginTransmission(((uint8_t)(((address) >> 1) & 0x7F)));
-      dev_i2c->write(RegisterAddr);
-      dev_i2c->endTransmission(false);
-
-      dev_i2c->requestFrom(((uint8_t)(((address) >> 1) & 0x7F)), (byte) NumByteToRead);
-
-      int i=0;
-      while (dev_i2c->available())
-      {
-        pBuffer[i] = dev_i2c->read();
-        i++;
-      }
-
-      return 0;
+        return dev_i2c->IO_Read( pBuffer, RegisterAddr, NumByteToRead);
     }
     
     /**
@@ -224,15 +211,7 @@ class LSM6DS3Sensor
      */
     uint8_t IO_Write(uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByteToWrite)
     {
-      dev_i2c->beginTransmission(((uint8_t)(((address) >> 1) & 0x7F)));
-
-      dev_i2c->write(RegisterAddr);
-      for (int i = 0 ; i < NumByteToWrite ; i++)
-        dev_i2c->write(pBuffer[i]);
-
-      dev_i2c->endTransmission(true);
-
-      return 0;
+        return dev_i2c->IO_Write( pBuffer, RegisterAddr, NumByteToWrite);
     }
 
   private:
