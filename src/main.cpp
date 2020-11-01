@@ -769,7 +769,7 @@ static void on_conn_params_evt(ble_conn_params_evt_t * p_evt)
 
     if (p_evt->evt_type == BLE_CONN_PARAMS_EVT_FAILED)
     {
-        // DSH NRF_LOG_INFO("%d on_conn_params_evt Disconnect", __LINE__);
+        NRF_LOG_INFO("%d on_conn_params_evt Disconnect", __LINE__);
         err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_CONN_INTERVAL_UNACCEPTABLE);
         APP_ERROR_CHECK(err_code);
     }
@@ -968,7 +968,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
         default:
             // No implementation needed.
-            // DSH NRF_LOG_INFO("%d ble_evt_handler default handler", __LINE__);
+            NRF_LOG_INFO("%d ble_evt_handler default handler", __LINE__);
             break;
     }
 }
@@ -1015,7 +1015,7 @@ void bsp_event_handler(bsp_event_t event)
             break;
 
         case BSP_EVENT_DISCONNECT:
-            //  DSH NRF_LOG_INFO("%d bsp_event_handler Disconnect", __LINE__);
+            NRF_LOG_INFO("%d bsp_event_handler Disconnect", __LINE__);
             err_code = sd_ble_gap_disconnect(m_conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             if (err_code != NRF_ERROR_INVALID_STATE)
