@@ -94,13 +94,15 @@ TwoWire* dev_i2c;
 
 static uint16_t heart_rate;
 static uint32_t heart_rate_cnt = 0;
+static int32_t accelerometer[3];
+static int32_t gyroscope[3];
 
 
 #define DEVICE_NAME                         "Nordic_HRM"                            /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                    300                                     /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
 
-#define APP_ADV_DURATION                    18000                                   /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
+#define APP_ADV_DURATION                    (18000*20)                                   /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
 
 #define APP_BLE_CONN_CFG_TAG                1                                       /**< A tag identifying the SoftDevice BLE configuration. */
 #define APP_BLE_OBSERVER_PRIO               3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
@@ -322,8 +324,6 @@ void read_twi_sensor()
     LSM6DS3StatusTypeDef lsm_err_code = LSM6DS3_STATUS_OK;
     // float data_f = 0.0;
     uint8_t reg_data = 0;
-    int32_t accelerometer[3];
-    // int32_t gyroscope[3];
    
     if (heart_rate_cnt > 30)
     {
@@ -406,17 +406,17 @@ void read_twi_sensor()
 	if ((reg_data & LSM6DS3_ACC_GYRO_XLDA_MASK) == LSM6DS3_ACC_GYRO_XLDA_DATA_AVAIL) {
             lsm_err_code = AccGyr->Get_X_Axes(accelerometer);
             APP_ERROR_CHECK(lsm_err_code);
-            NRF_LOG_INFO("X data = %d %d %d", 
-			accelerometer[0],
-			accelerometer[1],
-			accelerometer[2]
-			);
+	}
+	if ((reg_data & LSM6DS3_ACC_GYRO_GDA_MASK) == LSM6DS3_ACC_GYRO_GDA_DATA_AVAIL) {
+            lsm_err_code = AccGyr->Get_G_Axes(gyroscope);
+            APP_ERROR_CHECK(lsm_err_code);
 	}
 
 #if 0
-        lsm_err_code = AccGyr->Get_G_Axes(gyroscope);
-        APP_ERROR_CHECK(lsm_err_code);
-        NRF_LOG_INFO("G data = %d %d %d", 
+        NRF_LOG_INFO("X data = %d %d %d    G data = %d %d %d", 
+			accelerometer[0],
+			accelerometer[1],
+			accelerometer[2],
 			gyroscope[0],
 			gyroscope[1],
 			gyroscope[2]
@@ -623,6 +623,9 @@ static void gatt_init(void)
 {
     ret_code_t err_code = nrf_ble_gatt_init(&m_gatt, gatt_evt_handler);
     APP_ERROR_CHECK(err_code);
+    //DSH4
+    err_code = nrf_ble_gatt_att_mtu_periph_set(&m_gatt, BLE_GATT_ATT_MTU_DEFAULT);
+    APP_ERROR_CHECK(err_code);
 }
 
 
@@ -766,6 +769,7 @@ static void on_conn_params_evt(ble_conn_params_evt_t * p_evt)
 
     if (p_evt->evt_type == BLE_CONN_PARAMS_EVT_FAILED)
     {
+        // DSH NRF_LOG_INFO("%d on_conn_params_evt Disconnect", __LINE__);
         err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_CONN_INTERVAL_UNACCEPTABLE);
         APP_ERROR_CHECK(err_code);
     }
@@ -845,8 +849,37 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
             APP_ERROR_CHECK(err_code);
             break;
 
+        case BLE_ADV_EVT_DIRECTED_HIGH_DUTY:
+        case BLE_ADV_EVT_DIRECTED:
+            NRF_LOG_INFO("Directed advertising.");
+            err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
+            APP_ERROR_CHECK(err_code);
+            break;
+
+        case BLE_ADV_EVT_SLOW:
+            NRF_LOG_INFO("Slow advertising.");
+            err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
+            APP_ERROR_CHECK(err_code);
+            break;
+
+       case BLE_ADV_EVT_FAST_WHITELIST:
+       case BLE_ADV_EVT_SLOW_WHITELIST:
+            NRF_LOG_INFO("Whitelist advertising.");
+	    break;
+
+       case BLE_ADV_EVT_WHITELIST_REQUEST:
+            NRF_LOG_INFO("Whitelist Request.");
+	    break;
+
+       case BLE_ADV_EVT_PEER_ADDR_REQUEST: 
+            NRF_LOG_INFO("Peer Address Request.");
+	    break;
+
         case BLE_ADV_EVT_IDLE:
+            NRF_LOG_INFO("No advertising.");
             // FIXME sleep_mode_enter();
+            err_code = bsp_indication_set(BSP_INDICATE_USER_STATE_OFF);
+            APP_ERROR_CHECK(err_code);
             break;
 
         default:
@@ -880,6 +913,8 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             NRF_LOG_INFO("Disconnected, reason %d.",
                           p_ble_evt->evt.gap_evt.params.disconnected.reason);
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
+            err_code = bsp_indication_set(BSP_INDICATE_FATAL_ERROR);
+            APP_ERROR_CHECK(err_code);
             break;
 
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
@@ -933,6 +968,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
         default:
             // No implementation needed.
+            // DSH NRF_LOG_INFO("%d ble_evt_handler default handler", __LINE__);
             break;
     }
 }
@@ -979,6 +1015,7 @@ void bsp_event_handler(bsp_event_t event)
             break;
 
         case BSP_EVENT_DISCONNECT:
+            //  DSH NRF_LOG_INFO("%d bsp_event_handler Disconnect", __LINE__);
             err_code = sd_ble_gap_disconnect(m_conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             if (err_code != NRF_ERROR_INVALID_STATE)
@@ -1056,6 +1093,9 @@ static void advertising_init(void)
     init.config.ble_adv_fast_enabled  = true;
     init.config.ble_adv_fast_interval = APP_ADV_INTERVAL;
     init.config.ble_adv_fast_timeout  = APP_ADV_DURATION;
+
+    init.config.ble_adv_on_disconnect_disabled = false;
+
 
     init.evt_handler = on_adv_evt;
 
@@ -1164,7 +1204,7 @@ int main(void)
     // Enter main loop.
     for (;;)
     {
-	read_twi_sensor();
+	// read_twi_sensor();
         idle_state_handle();
     }
 }
