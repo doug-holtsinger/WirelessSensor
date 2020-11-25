@@ -102,7 +102,7 @@ static int32_t gyroscope[3];
 #define MANUFACTURER_NAME                   "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                    300                                     /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
 
-#define APP_ADV_DURATION                    (18000*20)                                   /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
+#define APP_ADV_DURATION                    BLE_GAP_ADV_TIMEOUT_GENERAL_UNLIMITED   /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
 
 #define APP_BLE_CONN_CFG_TAG                1                                       /**< A tag identifying the SoftDevice BLE configuration. */
 #define APP_BLE_OBSERVER_PRIO               3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
@@ -412,7 +412,7 @@ void read_twi_sensor()
             APP_ERROR_CHECK(lsm_err_code);
 	}
 
-#if 0
+#if 1
         NRF_LOG_INFO("X data = %d %d %d    G data = %d %d %d", 
 			accelerometer[0],
 			accelerometer[1],
@@ -427,6 +427,7 @@ void read_twi_sensor()
 
     if (lsm_err_code == LSM6DS3_STATUS_OK)
     {
+	    // 16 bit   32 bit
         heart_rate = accelerometer[0] ;
 	bsp_board_led_on(BSP_BOARD_LED_2);
     } else 
@@ -623,7 +624,7 @@ static void gatt_init(void)
 {
     ret_code_t err_code = nrf_ble_gatt_init(&m_gatt, gatt_evt_handler);
     APP_ERROR_CHECK(err_code);
-    //DSH4
+
     err_code = nrf_ble_gatt_att_mtu_periph_set(&m_gatt, BLE_GATT_ATT_MTU_DEFAULT);
     APP_ERROR_CHECK(err_code);
 }
@@ -957,7 +958,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             NRF_LOG_INFO("BLE_GAP_EVT_LESC_DHKEY_REQUEST");
             break;
 
-         case BLE_GAP_EVT_AUTH_STATUS:
+        case BLE_GAP_EVT_AUTH_STATUS:
              NRF_LOG_INFO("BLE_GAP_EVT_AUTH_STATUS: status=0x%x bond=0x%x lv4: %d kdist_own:0x%x kdist_peer:0x%x",
                           p_ble_evt->evt.gap_evt.params.auth_status.auth_status,
                           p_ble_evt->evt.gap_evt.params.auth_status.bonded,
@@ -966,9 +967,11 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                           *((uint8_t *)&p_ble_evt->evt.gap_evt.params.auth_status.kdist_peer));
             break;
 
+        case BLE_GATTS_EVT_HVN_TX_COMPLETE:
+            break;
         default:
             // No implementation needed.
-            NRF_LOG_INFO("%d ble_evt_handler default handler", __LINE__);
+            NRF_LOG_INFO("%s %d ble_evt_handler default handler for event %d", __FILE__, __LINE__, p_ble_evt->header.evt_id);
             break;
     }
 }
@@ -1204,7 +1207,7 @@ int main(void)
     // Enter main loop.
     for (;;)
     {
-	// read_twi_sensor();
+	read_twi_sensor();
         idle_state_handle();
     }
 }
