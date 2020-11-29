@@ -131,7 +131,7 @@ class LSM6DS3Sensor
 {
   public:
     LSM6DS3Sensor                                     (TwoWire *i2c);
-    LSM6DS3Sensor                                     (TwoWire *i2c, uint8_t address);
+    LSM6DS3Sensor                                     (TwoWire *i2c, uint8_t addr);
     LSM6DS3StatusTypeDef Enable_X                     (void);
     LSM6DS3StatusTypeDef Enable_G                     (void);
     LSM6DS3StatusTypeDef Disable_X                    (void);
@@ -199,7 +199,7 @@ class LSM6DS3Sensor
      */
     uint8_t IO_Read(uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByteToRead)
     {
-        return dev_i2c->IO_Read( pBuffer, RegisterAddr, NumByteToRead);
+        return dev_i2c->IO_Read( address, pBuffer, RegisterAddr, NumByteToRead);
     }
     
     /**
@@ -211,7 +211,7 @@ class LSM6DS3Sensor
      */
     uint8_t IO_Write(uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByteToWrite)
     {
-        return dev_i2c->IO_Write( pBuffer, RegisterAddr, NumByteToWrite);
+        return dev_i2c->IO_Write( address, pBuffer, RegisterAddr, NumByteToWrite);
     }
 
   private:

@@ -62,7 +62,7 @@
 /**
  * @brief TWI initialization.
  */
-TwoWire::TwoWire(void)
+TwoWire::TwoWire()
 {
     ret_code_t err_code;
 
@@ -84,7 +84,7 @@ TwoWire::TwoWire(void)
     nrfx_twi_enable(&m_twi);
 }
 
-uint8_t TwoWire::IO_Read(uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByteToRead)
+uint8_t TwoWire::IO_Read(uint8_t address, uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByteToRead)
 {
     ret_code_t err_code = NRF_SUCCESS;
 
@@ -107,7 +107,7 @@ uint8_t TwoWire::IO_Read(uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByt
     return p_xfer_stat->m_xfer_err_code; 
 }
 
-uint8_t TwoWire::IO_Write(uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByteToWrite)
+uint8_t TwoWire::IO_Write(uint8_t address, uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByteToWrite)
 {
     ret_code_t err_code = NRF_SUCCESS;
 #define TWI_WRITE_BUFFER_SIZE_MAX 32

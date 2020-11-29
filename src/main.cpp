@@ -85,17 +85,19 @@
 
 #include "TwoWire.h"
 #include "LSM6DS3Sensor.h"
+#include "LIS3MDLSensor.h"
 #include "nrfx_twi.h"
 
 #define USE_BLE 1
 
 LSM6DS3Sensor* AccGyr;
+LIS3MDLSensor* Magneto;
 TwoWire* dev_i2c;
 
 static uint16_t heart_rate;
-static uint32_t heart_rate_cnt = 0;
 static int32_t accelerometer[3];
 static int32_t gyroscope[3];
+static int32_t magnetometer[3];
 
 
 #define DEVICE_NAME                         "Nordic_HRM"                            /**< Name of device. Will be included in the advertising data. */
@@ -158,7 +160,7 @@ APP_TIMER_DEF(m_rr_interval_timer_id);                              /**< RR inte
 APP_TIMER_DEF(m_sensor_contact_timer_id);                           /**< Sensor contact detected timer. */
 
 static uint16_t m_conn_handle         = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
-static bool     m_rr_interval_enabled = true;                       /**< Flag for enabling and disabling the registration of new RR interval measurements (the purpose of disabling this is just to test sending HRM without RR interval data. */
+static bool     m_rr_interval_enabled = false;                       /**< Flag for enabling and disabling the registration of new RR interval measurements (the purpose of disabling this is just to test sending HRM without RR interval data. */
 
 static sensorsim_cfg_t   m_battery_sim_cfg;                         /**< Battery Level sensor simulator configuration. */
 static sensorsim_state_t m_battery_sim_state;                       /**< Battery Level sensor simulator state. */
@@ -322,11 +324,11 @@ static void battery_level_meas_timeout_handler(void * p_context)
 void read_twi_sensor()
 {
     LSM6DS3StatusTypeDef lsm_err_code = LSM6DS3_STATUS_OK;
+    LIS3MDLStatusTypeDef lis_err_code = LIS3MDL_STATUS_OK;
     // float data_f = 0.0;
-    uint8_t reg_data = 0;
+    // uint8_t reg_data = 0;
+    static int xmit_sensor_data = 0;
    
-    if (heart_rate_cnt > 30)
-    {
 #if 0
         NRF_LOG_INFO("Reading TWI Sensor");
         // lsm_err_code = AccGyr->ReadID(&sample_data);
@@ -399,35 +401,28 @@ void read_twi_sensor()
 
 #endif
 
-        lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_STATUS_REG, &reg_data);
+    // 
+    // Read LSM6DS3
+    // 
+#if 0
+    lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_STATUS_REG, &reg_data);
+    APP_ERROR_CHECK(lsm_err_code);
+
+    if ((reg_data & LSM6DS3_ACC_GYRO_XLDA_MASK) == LSM6DS3_ACC_GYRO_XLDA_DATA_AVAIL) {
+        lsm_err_code = AccGyr->Get_X_Axes(accelerometer);
         APP_ERROR_CHECK(lsm_err_code);
-        // NRF_LOG_INFO("STATUS_REG (0x1E) data = 0x%hhx", reg_data);
-
-	if ((reg_data & LSM6DS3_ACC_GYRO_XLDA_MASK) == LSM6DS3_ACC_GYRO_XLDA_DATA_AVAIL) {
-            lsm_err_code = AccGyr->Get_X_Axes(accelerometer);
-            APP_ERROR_CHECK(lsm_err_code);
-	}
-	if ((reg_data & LSM6DS3_ACC_GYRO_GDA_MASK) == LSM6DS3_ACC_GYRO_GDA_DATA_AVAIL) {
-            lsm_err_code = AccGyr->Get_G_Axes(gyroscope);
-            APP_ERROR_CHECK(lsm_err_code);
-	}
-
-#if 1
-        NRF_LOG_INFO("X data = %d %d %d    G data = %d %d %d", 
-			accelerometer[0],
-			accelerometer[1],
-			accelerometer[2],
-			gyroscope[0],
-			gyroscope[1],
-			gyroscope[2]
-			);
+    }
+    if ((reg_data & LSM6DS3_ACC_GYRO_GDA_MASK) == LSM6DS3_ACC_GYRO_GDA_DATA_AVAIL) {
+        lsm_err_code = AccGyr->Get_G_Axes(gyroscope);
+        APP_ERROR_CHECK(lsm_err_code);
+    }
 #endif
 
-    }
+    lis_err_code = Magneto->GetAxes(magnetometer);
+    APP_ERROR_CHECK(lis_err_code);
 
-    if (lsm_err_code == LSM6DS3_STATUS_OK)
+    if (lsm_err_code == LSM6DS3_STATUS_OK && lis_err_code == LIS3MDL_STATUS_OK)
     {
-	    // 16 bit   32 bit
         heart_rate = accelerometer[0] ;
 	bsp_board_led_on(BSP_BOARD_LED_2);
     } else 
@@ -435,6 +430,38 @@ void read_twi_sensor()
         heart_rate = 0xAA;
 	bsp_board_led_on(BSP_BOARD_LED_1);
     }
+
+
+    xmit_sensor_data = 2;
+    if (xmit_sensor_data == 0)
+    {
+        NRF_LOG_INFO("A data = %d %d %d", 
+			accelerometer[0],
+			accelerometer[1],
+			accelerometer[2]
+			);
+        xmit_sensor_data = 1;
+    } else if (xmit_sensor_data == 1)
+    {
+        NRF_LOG_INFO("G data = %d %d %d", 
+			gyroscope[0],
+			gyroscope[1],
+			gyroscope[2]
+			);
+	 xmit_sensor_data = 2;
+    } else if (xmit_sensor_data == 2)
+    {
+        NRF_LOG_INFO("M data = %d (0x%08x) %d (0x%08x) %d(0x%08x) ", 
+			magnetometer[0],
+			magnetometer[0],
+			magnetometer[1],
+			magnetometer[1],
+			magnetometer[2],
+			magnetometer[2]
+			);
+	 xmit_sensor_data = 0;
+    }
+
 
 }
 
@@ -468,13 +495,6 @@ static void heart_rate_meas_timeout_handler(void * p_context)
     }
 #endif
 
-    // Disable RR Interval recording every third heart rate measurement.
-    // NOTE: An application will normally not do this. It is done here just for testing generation
-    // of messages without RR Interval measurements.
-    m_rr_interval_enabled = ((heart_rate_cnt % 3) != 0);
-    heart_rate_cnt++;
-    //DSH-FIX
-    m_rr_interval_enabled = false;
  
 }
 
@@ -1167,15 +1187,25 @@ static void idle_state_handle(void)
 }
 
 
+void twi_init(void)
+{
+    dev_i2c = new TwoWire();
+}
+
 /**
  */
 void LSM6DS3SensorInit(void)
 {
-    dev_i2c = new TwoWire();
-    AccGyr = new LSM6DS3Sensor(dev_i2c);
+    AccGyr = new LSM6DS3Sensor(dev_i2c, TWI_ADDRESS_LSM6DS3);
     AccGyr->Enable_X();
     AccGyr->Enable_G();
     // AccGyr->Enable_6D_Orientation();
+}
+
+void LIS3MDLSensorInit(void)
+{
+    Magneto = new LIS3MDLSensor(dev_i2c, TWI_ADDRESS_LIS3MDL);
+    Magneto->Enable();
 }
 
 /**@brief Function for application main entry.
@@ -1197,7 +1227,9 @@ int main(void)
     sensor_simulator_init();
     conn_params_init();
     peer_manager_init();
+    twi_init();
     LSM6DS3SensorInit();
+    LIS3MDLSensorInit();
 
     // Start execution.
     NRF_LOG_INFO("Heart Rate Sensor example started.");

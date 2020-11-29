@@ -53,7 +53,9 @@
 #endif
 
 /* Number of possible TWI addresses. */
-#define TWI_ADDRESSES      127
+#define TWI_ADDRESSES           127
+#define TWI_ADDRESS_LSM6DS3	0x6A
+#define TWI_ADDRESS_LIS3MDL     0x1C
 
 struct TwoWireXferStatus {
     /* Indicates if operation on TWI has ended. */
@@ -69,13 +71,12 @@ class TwoWire
 public:
     TwoWire();
     ~TwoWire();
-    uint8_t IO_Read(uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByteToRead);
-    uint8_t IO_Write(uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByteToWrite);
+    uint8_t IO_Read(uint8_t address, uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByteToRead);
+    uint8_t IO_Write(uint8_t address, uint8_t* pBuffer, uint8_t RegisterAddr, uint16_t NumByteToWrite);
     volatile TwoWireXferStatus* p_xfer_stat;
 private:
     /* TWI instance. */
     const nrfx_twi_t m_twi = NRFX_TWI_INSTANCE(TWI_INSTANCE_ID);
-    uint8_t address = 0x6A ;
 
 };
 

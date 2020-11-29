@@ -51,7 +51,7 @@
  */
 LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c) : dev_i2c(i2c)
 {
-  address = LSM6DS3_ACC_GYRO_I2C_ADDRESS_HIGH;
+  address = TWI_ADDRESS_LSM6DS3;
   
   /* Enable register address automatically incremented during a multiple byte
      access with a serial interface. */
@@ -140,7 +140,7 @@ LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c) : dev_i2c(i2c)
  * @param i2c object of an helper class which handles the I2C peripheral
  * @param address the address of the component's instance
  */
-LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c, uint8_t address) : dev_i2c(i2c), address(address)
+LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c, uint8_t addr) : dev_i2c(i2c), address(addr)
 { 
   /* Enable register address automatically incremented during a multiple byte
      access with a serial interface. */
