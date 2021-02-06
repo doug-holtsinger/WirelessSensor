@@ -107,7 +107,8 @@ LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c) : dev_i2c(i2c)
   }
 
   /* Full scale selection. */
-  if ( Set_G_FS( 2000.0f ) == LSM6DS3_STATUS_ERROR )
+  // if ( Set_G_FS( 2000.0f ) == LSM6DS3_STATUS_ERROR )
+  if ( Set_G_FS( 125.0f ) == LSM6DS3_STATUS_ERROR )
   {
     return;
   }
