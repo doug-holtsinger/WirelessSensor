@@ -9,6 +9,8 @@ LSM6DS3_SRC_DIR := ./LSM6DS3
 LSM6DS3_INC_DIR := ./LSM6DS3
 LIS3MDL_SRC_DIR := ./LIS3MDL
 LIS3MDL_INC_DIR := ./LIS3MDL
+AHRS_SRC_DIR := ./AHRS
+AHRS_INC_DIR := ./AHRS
 CONFIG_DIR := ../config
 VERBOSE := 1
 
@@ -23,6 +25,7 @@ SRC_FILES += \
   $(LSM6DS3_SRC_DIR)/LSM6DS3Sensor.cpp \
   $(LIS3MDL_SRC_DIR)/LIS3MDL_MAG_Driver.c \
   $(LIS3MDL_SRC_DIR)/LIS3MDLSensor.cpp \
+  $(AHRS_SRC_DIR)/MahonyAHRS.c \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52840.S \
   $(SDK_ROOT)/components/libraries/bsp/bsp.c \
   $(SDK_ROOT)/components/libraries/bsp/bsp_btn_ble.c \
@@ -150,6 +153,7 @@ INC_FOLDERS += \
   $(PROJ_INC_DIR) \
   $(LSM6DS3_INC_DIR) \
   $(LIS3MDL_INC_DIR) \
+  $(AHRS_INC_DIR) \
   $(SDK_ROOT)/components/nfc/ndef/generic/message \
   $(SDK_ROOT)/components/nfc/t2t_lib \
   $(SDK_ROOT)/components/nfc/t4t_parser/hl_detection_procedure \
