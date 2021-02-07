@@ -31,6 +31,7 @@ volatile float twoKi = twoKiDef;											// 2 * integral gain (Ki)
 volatile float q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f;					// quaternion of sensor frame relative to auxiliary frame
 volatile float integralFBx = 0.0f,  integralFBy = 0.0f, integralFBz = 0.0f;	// integral error terms scaled by Ki
 
+float roll, pitch, yaw;
 
 //---------------------------------------------------------------------------------------------------
 // Function declarations
@@ -226,6 +227,16 @@ void MahonyAHRSupdate(float gx, float gy, float gz, float ax, float ay, float az
 	q3 *= recipNorm;
 }
 
+void MahonyAHRSComputeAngles() {
+  roll = atan2f(q0 * q1 + q2 * q3, 0.5f - q1 * q1 - q2 * q2);
+  roll = roll * 57.29578f;
+
+  pitch = asinf(-2.0f * (q1 * q3 - q0 * q2));
+  pitch = pitch * 57.29578f;
+
+  yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
+  yaw =  yaw * 57.29578f + 180.0f;
+}
 
 //====================================================================================================
 // END OF CODE
