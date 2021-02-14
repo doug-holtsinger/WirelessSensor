@@ -107,8 +107,7 @@ LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c) : dev_i2c(i2c)
   }
 
   /* Full scale selection. */
-  // if ( Set_G_FS( 2000.0f ) == LSM6DS3_STATUS_ERROR )
-  if ( Set_G_FS( 125.0f ) == LSM6DS3_STATUS_ERROR )
+  if ( Set_G_FS( 2000.0f ) == LSM6DS3_STATUS_ERROR )
   {
     return;
   }
@@ -128,11 +127,11 @@ LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c) : dev_i2c(i2c)
     return;
   }
 
-  X_Last_ODR = 104.0f;
+  X_Last_ODR = 104.0f; // 416.0f;   // original 104.0f;
 
   X_isEnabled = 0;
   
-  G_Last_ODR = 104.0f;
+  G_Last_ODR = 104.0f; // 416.0f;   // original 104.0f;
 
   G_isEnabled = 0;
 };
