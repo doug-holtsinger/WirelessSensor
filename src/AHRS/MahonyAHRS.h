@@ -21,6 +21,9 @@ extern volatile float twoKp;			// 2 * proportional gain (Kp)
 extern volatile float twoKi;			// 2 * integral gain (Ki)
 extern volatile float q0, q1, q2, q3;	// quaternion of sensor frame relative to auxiliary frame
 extern float roll, pitch, yaw;
+extern float axN, ayN, azN;
+extern float gxN, gyN, gzN;
+extern float mxN, myN, mzN;
 
 //---------------------------------------------------------------------------------------------------
 // Function declarations
