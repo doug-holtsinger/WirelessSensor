@@ -105,7 +105,7 @@
 #define UART_RX_BUF_SIZE 256                         /**< UART RX buffer size. */
 
 /* print defines */
-#define PRINTF_FLOAT_FORMAT "%c%ld.%02ld"
+#define PRINTF_FLOAT_FORMAT " %c%ld.%02ld"
 #define PRINTF_FLOAT_VALUE(val) (uint8_t)(((val) < 0 && (val) > -1.0) ? '-' : ' '),   \
                            (int32_t)(val),                                       \
                            (int32_t)((((val) > 0) ? (val) - (int32_t)(val)       \
@@ -113,7 +113,7 @@
 
 
 /* DEBUG defines */
-#define USE_BLE 1
+// #define USE_BLE 1
 
 LSM6DS3Sensor* AccGyr;
 LIS3MDLSensor* Magneto;
@@ -149,7 +149,7 @@ static int32_t magnetometer_min[3] = { 0, 0, 0 };
 static int32_t magnetometer_max[3] = { 0, 0, 0 };
 static bool magnetometer_zero_data = false;
 static int xmit_sensor_data = 3;
-static bool show_input_ahrs = false;
+static uint32_t show_input_ahrs = 0;
 static float gx, gy, gz, ax, ay, az, mx, my, mz;
 
 
@@ -249,33 +249,47 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 //DSH-FIXME
 void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
 {
-	assert_info_t* ap = (assert_info_t *)info;
-	error_info_t*  ep = (error_info_t *)info;
+    assert_info_t* ap = (assert_info_t *)info;
+    error_info_t*  ep = (error_info_t *)info;
 
-	ret_code_t err_code_orig = 0;
-	uint16_t line_num = 0;
-	uint8_t const * p_file = NULL;
+    ret_code_t err_code_orig = 0;
+    uint16_t line_num = 0;
+    uint8_t const * p_file = NULL;
 
-	if (id == NRF_FAULT_ID_SDK_ERROR) {
-		err_code_orig = ep->err_code;
-		line_num = ep->line_num & 0xFFFF;
-		p_file = ep->p_file_name;
-	}
-	if (id == NRF_FAULT_ID_SDK_ASSERT) {
-		err_code_orig = 0xEEEE; 
-		line_num = ap->line_num & 0xFFFF;
-		p_file = ap->p_file_name;
-	}
+    switch (id) 
+    {
+	case NRF_FAULT_ID_SDK_ERROR:
+            err_code_orig = ep->err_code;
+            line_num = ep->line_num & 0xFFFF;
+            p_file = ep->p_file_name;
+	    break;
+	case NRF_FAULT_ID_SDK_ASSERT:
+            err_code_orig = 0xEEEE; 
+            line_num = ap->line_num & 0xFFFF;
+            p_file = ap->p_file_name;
+	    break;
+	case NRF_FAULT_ID_SD_ASSERT:
+            // NRF softdevice fault assert
+            err_code_orig = 0xEEE0;
+	    break;
+	case NRF_FAULT_ID_APP_MEMACC:
+            // NRF invalid memory access 
+            err_code_orig = 0xEEE1;
+	    break;
+        default:
+	    // Unknown error
+            err_code_orig = 0xEEE2; 
+	    break;
+    }
 
-	bsp_board_leds_off();
-	bsp_board_led_on(BSP_BOARD_LED_1);
-	bsp_board_led_off(BSP_BOARD_LED_2);
-	bsp_board_led_off(BSP_BOARD_LED_3);
+    bsp_board_leds_off();
+    bsp_board_led_on(BSP_BOARD_LED_1);
+    bsp_board_led_off(BSP_BOARD_LED_2);
+    bsp_board_led_off(BSP_BOARD_LED_3);
 
-        NRF_LOG_ERROR("ERROR: id: 0x%x err_code: 0x%x File: %s Line: %d\n",
-			id, err_code_orig, p_file, line_num);
+     NRF_LOG_ERROR("ERROR: id: 0x%x err_code: 0x%x File: %s Line: %d\n", id, err_code_orig, p_file, line_num);
 
-	while (1) {}
+    while (1) {}
 }
 
 
@@ -388,136 +402,112 @@ static void battery_level_meas_timeout_handler(void * p_context)
     battery_level_update();
 }
 
-void read_twi_sensor()
+void cmd_get()
 {
-    LSM6DS3StatusTypeDef lsm_err_code = LSM6DS3_STATUS_OK;
-    LIS3MDLStatusTypeDef lis_err_code = LIS3MDL_STATUS_OK;
     uint8_t   rx_data;
     uint32_t err_code;
-    uint8_t reg_data = 0;
-  
+
     err_code = app_uart_get(&rx_data);
     if (err_code == NRF_SUCCESS) {
         if (rx_data == 'm') 
-	{
+        {
             // magnetometer
             xmit_sensor_data = 3;
             calibrate_enable = false;
         } else if (rx_data == 'g') 
-	{
+        {
             // gyro
             xmit_sensor_data = 2;
             calibrate_enable = false;
         } else if (rx_data == 'a') 
-	{
+        {
             // accelerometer
             xmit_sensor_data = 1;
             calibrate_enable = false;
         } else if (rx_data == 'q') 
-	{
+        {
             xmit_sensor_data = 0;
             calibrate_enable = false;
         } else if (rx_data == 'i') 
-	{
-	    show_input_ahrs = !show_input_ahrs;
-	} else if (rx_data == 'c') {
+        {
+            show_input_ahrs = ( show_input_ahrs + 1 ) % 3;
+        } else if (rx_data == 'c') {
             // calibrate command
             calibrate_enable = !calibrate_enable;
-	    if (calibrate_enable)
-	        printf("Calibrate Enable\r\n");
-	    else
-	        printf("Calibrate Disable\r\n");
-	} else if (rx_data == 'e') {
+            if (calibrate_enable)
+                printf("Calibrate Enable\r\n");
+            else
+                printf("Calibrate Disable\r\n");
+        } else if (rx_data == 'e') {
             // reset calibration values
             calibrate_reset = true;
-	    printf("Calibrate Reset\r\n");
-	} else if (rx_data == 'y') {
+            printf("Calibrate Reset\r\n");
+        } else if (rx_data == 'y') {
             show_yaw = !show_yaw;
-	} else if (rx_data == 'p') {
+        } else if (rx_data == 'p') {
             show_pitch = !show_pitch;
-	} else if (rx_data == 'r') {
+        } else if (rx_data == 'r') {
             show_roll = !show_roll;
-	} else if (rx_data == 'z') {
+        } else if (rx_data == 'z') {
             if (xmit_sensor_data == 2) {
                 gyroscope_zero_data = !gyroscope_zero_data;
-		if (gyroscope_zero_data) 
-		    printf("Gyroscope Data Disabled\r\n");
-		else
-		    printf("Gyroscope Data Enabled\r\n");
-	    } else if (xmit_sensor_data == 1) {
-                accelerometer_zero_data = !accelerometer_zero_data;
-		if (accelerometer_zero_data) 
-		    printf("Accelerometer Data Disabled\r\n");
-		else
-		    printf("Accelerometer Data Enabled\r\n");
-	    } else if (xmit_sensor_data == 3) {
-                magnetometer_zero_data = !magnetometer_zero_data;
-		if (magnetometer_zero_data) 
-		    printf("Magnetometer Data Disabled\r\n");
-		else
-		    printf("Magnetometer Data Enabled\r\n");
-	    }
-	} else if (rx_data == 'o') {
+            if (gyroscope_zero_data) 
+                printf("Gyroscope Data Disabled\r\n");
+            else
+                printf("Gyroscope Data Enabled\r\n");
+        } else if (xmit_sensor_data == 1) {
+            accelerometer_zero_data = !accelerometer_zero_data;
+            if (accelerometer_zero_data) 
+                printf("Accelerometer Data Disabled\r\n");
+            else
+                printf("Accelerometer Data Enabled\r\n");
+        } else if (xmit_sensor_data == 3) {
+            magnetometer_zero_data = !magnetometer_zero_data;
+            if (magnetometer_zero_data) 
+                printf("Magnetometer Data Disabled\r\n");
+            else
+                printf("Magnetometer Data Enabled\r\n");
+            }
+        } else if (rx_data == 'o') {
             printf("Enter proportional gain (u) or down (d) : %lu\r\n", (uint32_t)(twoKp * 1000.0));
-	    rx_data = getchar();
+            rx_data = getchar();
             if (rx_data == 'u') 
                 twoKp += 0.1f;
             else if (rx_data == 'd' && twoKp >= 0.1f)
                 twoKp -= 0.1f;
             printf("twoKp : %lu\r\n", (uint32_t)(twoKp * 1000.0));
-	} else if (rx_data == 'n') {
+        } else if (rx_data == 'n') {
             printf("Enter integral gain (u) or down (d) : %lu\r\n", (uint32_t)(twoKi * 1000.0));
-	    rx_data = getchar();
+            rx_data = getchar();
             if (rx_data == 'u') 
                 twoKi += 0.1f;
             else if (rx_data == 'd' && twoKi >= 0.1f)
                 twoKi -= 0.1f;
             printf("twoKi : %lu\r\n", (uint32_t)(twoKi * 1000.0));
-	} else if (rx_data == 's') {
-            printf("Enter sampleFreq (u) or down (d) : %lu\r\n", (uint32_t)(sampleFreq));
-	    rx_data = getchar();
-            if (rx_data == 'u') 
-                sampleFreq += 32.0f;
-            else if (rx_data == 'd' && sampleFreq >= 32.0f)
-                sampleFreq -= 32.0f;
-            printf("sampleFreq : %lu\r\n", (uint32_t)(sampleFreq));
-	} else if (rx_data == 't') {
+        } else if (rx_data == 's') {
+                printf("Enter sampleFreq (u) or down (d) : %lu\r\n", (uint32_t)(sampleFreq));
+        rx_data = getchar();
+                if (rx_data == 'u') 
+                    sampleFreq += 32.0f;
+                else if (rx_data == 'd' && sampleFreq >= 32.0f)
+                    sampleFreq -= 32.0f;
+                printf("sampleFreq : %lu\r\n", (uint32_t)(sampleFreq));
+        } else if (rx_data == 't') {
             printf("Enter gyro sensitivity (u) or down (d) : %lu\r\n", (uint32_t)(gyroscope_sensitivity));
-	    rx_data = getchar();
+            rx_data = getchar();
             if (rx_data == 'u') 
                 gyroscope_sensitivity++; 
             else if (rx_data == 'd' && gyroscope_sensitivity >= 1)
                 gyroscope_sensitivity--; 
             printf("gyroscope_sensitivity : %lu\r\n", (uint32_t)(gyroscope_sensitivity));
-	} else {
-	    printf("Invalid command %c\r\n", rx_data);
-	}
-
+        } else {
+            printf("Invalid command %c\r\n", rx_data);
+        }
     }
+}
 
-
-    //
-    // Read LSM6DS3
-    //
-    lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_STATUS_REG, &reg_data);
-    APP_ERROR_CHECK(lsm_err_code);
-
-    if ((reg_data & LSM6DS3_ACC_GYRO_XLDA_MASK) == LSM6DS3_ACC_GYRO_XLDA_DATA_AVAIL) {
-        lsm_err_code = AccGyr->Get_X_Axes(accelerometer_uncal);
-        APP_ERROR_CHECK(lsm_err_code);
-    }
-    if ((reg_data & LSM6DS3_ACC_GYRO_GDA_MASK) == LSM6DS3_ACC_GYRO_GDA_DATA_AVAIL) {
-        lsm_err_code = AccGyr->Get_G_Axes(gyroscope_uncal);
-        APP_ERROR_CHECK(lsm_err_code);
-    }
-
-    //
-    // Read LIS3MDL 
-    //
-
-    lis_err_code = Magneto->GetAxes(magnetometer_uncal);
-    APP_ERROR_CHECK(lis_err_code);
-
+void calibrate_data()
+{
     //
     //  magnetometer calibration -- done while moving
     //
@@ -530,7 +520,7 @@ void read_twi_sensor()
                 magnetometer_min[i] = magnetometer_uncal[i];
             } else if (magnetometer_uncal[i] > magnetometer_max[i]) {
                 magnetometer_max[i] = magnetometer_uncal[i];
-	    }
+            }
         }
     }
     if (xmit_sensor_data == 3 && calibrate_reset)
@@ -538,7 +528,7 @@ void read_twi_sensor()
         calibrate_reset = false;
         for (int i = 0 ; i < 3 ; i++) {
             magnetometer_min[i] = magnetometer_max[i] = 0; 
-	}
+            }
     }
 
     //
@@ -553,7 +543,7 @@ void read_twi_sensor()
                 gyroscope_min[i] = gyroscope_uncal[i];
             } else if (gyroscope_uncal[i] > gyroscope_max[i]) {
                 gyroscope_max[i] = gyroscope_uncal[i];
-	    }
+            }
         }
     }
     if (xmit_sensor_data == 2 && calibrate_reset)
@@ -561,7 +551,7 @@ void read_twi_sensor()
         calibrate_reset = false;
         for (int i = 0 ; i < 3 ; i++) {
             gyroscope_min[i] = gyroscope_max[i] = 0; 
-	}
+        }
     }
 
 #ifdef ACCEL_CALIBRATE
@@ -577,7 +567,7 @@ void read_twi_sensor()
                 accelerometer_min[i] = accelerometer_uncal[i];
             } else if (accelerometer_uncal[i] > accelerometer_max[i]) {
                 accelerometer_max[i] = accelerometer_uncal[i];
-	    }
+            }
         }
     }
     if (xmit_sensor_data == 1 && calibrate_reset)
@@ -585,105 +575,180 @@ void read_twi_sensor()
         calibrate_reset = false;
         for (int i = 0 ; i < 3 ; i++) {
             accelerometer_min[i] = accelerometer_max[i] = 0; 
-	}
+        }
     }
 #endif
 
     // adjust
     for (int i = 0 ; i < 3 ; i++) {
-	    magnetometer_cal[i] = magnetometer_uncal[i] - ((magnetometer_max[i] + magnetometer_min[i]) / 2);
+        magnetometer_cal[i] = magnetometer_uncal[i] - ((magnetometer_max[i] + magnetometer_min[i]) / 2);
 #ifdef ACCEL_CALIBRATE
-	    accelerometer_cal[i] = accelerometer_uncal[i] - ((accelerometer_max[i] + accelerometer_min[i]) / 2);
+        accelerometer_cal[i] = accelerometer_uncal[i] - ((accelerometer_max[i] + accelerometer_min[i]) / 2);
 #else
-	    accelerometer_cal[i] = accelerometer_uncal[i]; 
+        accelerometer_cal[i] = accelerometer_uncal[i]; 
 #endif
-	    gyroscope_cal[i] = ( gyroscope_uncal[i] - ((gyroscope_max[i] + gyroscope_min[i]) / 2) ) >> gyroscope_sensitivity;
+        gyroscope_cal[i] = ( gyroscope_uncal[i] - ((gyroscope_max[i] + gyroscope_min[i]) / 2) ) >> gyroscope_sensitivity;
     }
 
-    if (lsm_err_code != LSM6DS3_STATUS_OK || lis_err_code != LIS3MDL_STATUS_OK)
-    {
-        heart_rate = 0xAAAA;
-	bsp_board_led_on(BSP_BOARD_LED_1);
-    } else
-    {
-	bsp_board_led_on(BSP_BOARD_LED_2);
-        if (xmit_sensor_data == 0)
-        {
-	    gx = (float)gyroscope_cal[0];
-	    gy = (float)gyroscope_cal[1];
-	    gz = (float)gyroscope_cal[2];
-	    ax = (float)accelerometer_cal[0];
-	    ay = (float)accelerometer_cal[1];
-	    az = (float)accelerometer_cal[2];
-	    mx = (float)magnetometer_cal[0];
-	    my = (float)magnetometer_cal[1];
-	    mz = (float)magnetometer_cal[2];
-	    if (gyroscope_zero_data)
-	    {
-		    gz = gy = gx = 0.0f;
-	    }
-	    if (accelerometer_zero_data)
-	    {
-		    az = ay = ax = 0.0f;
-	    }
-	    if (magnetometer_zero_data)
-	    {
-		    mz = my = mx = 0.0f;
-	    }
-            MahonyAHRSupdate(gx, gy, gz, ax, ay, az, mx, my, mz);
-	    MahonyAHRSComputeAngles();
+}
 
-	    if (show_input_ahrs) {
-	        if (show_roll)
-                    printf("gyro = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(gx), PRINTF_FLOAT_VALUE(gy), PRINTF_FLOAT_VALUE(gz) );
-	        if (show_pitch)
-                    printf("acce = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(ax), PRINTF_FLOAT_VALUE(ay), PRINTF_FLOAT_VALUE(az) );
-	        if (show_yaw)
-                    printf("magn = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(mx), PRINTF_FLOAT_VALUE(my), PRINTF_FLOAT_VALUE(mz) );
-	    } else {
-	        if (show_roll)
+void AHRS() 
+{
+    if (xmit_sensor_data == 0)
+    {
+        gx = (float)gyroscope_cal[0];
+        gy = (float)gyroscope_cal[1];
+        gz = (float)gyroscope_cal[2];
+        ax = (float)accelerometer_cal[0];
+        ay = (float)accelerometer_cal[1];
+        az = (float)accelerometer_cal[2];
+        mx = (float)magnetometer_cal[0];
+        my = (float)magnetometer_cal[1];
+        mz = (float)magnetometer_cal[2];
+        if (gyroscope_zero_data)
+        {
+            gz = gy = gx = 0.0f;
+        }
+        if (accelerometer_zero_data)
+        {
+            az = ay = ax = 0.0f;
+        }
+        if (magnetometer_zero_data)
+        {
+            mz = my = mx = 0.0f;
+        }
+        MahonyAHRSupdate(gx, gy, gz, ax, ay, az, mx, my, mz);
+        MahonyAHRSComputeAngles();
+    }
+
+}
+
+
+void show_data()
+{
+
+    if (xmit_sensor_data == 0) {
+        if (show_input_ahrs == 1) {
+            if (show_roll)
+                   printf("gyro = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(gx), PRINTF_FLOAT_VALUE(gy), PRINTF_FLOAT_VALUE(gz) );
+            if (show_pitch)
+                  printf("acce = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(ax), PRINTF_FLOAT_VALUE(ay), PRINTF_FLOAT_VALUE(az) );
+            if (show_yaw)
+                   printf("magn = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(mx), PRINTF_FLOAT_VALUE(my), PRINTF_FLOAT_VALUE(mz) );
+	} else if (show_input_ahrs == 2) {
+           if (show_roll)
+               printf("gyro normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(gxN), PRINTF_FLOAT_VALUE(gyN), PRINTF_FLOAT_VALUE(gzN) );
+           if (show_pitch)
+                printf("acce normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(axN), PRINTF_FLOAT_VALUE(ayN), PRINTF_FLOAT_VALUE(azN) );
+           if (show_yaw)
+                printf("magn normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(mxN), PRINTF_FLOAT_VALUE(myN), PRINTF_FLOAT_VALUE(mzN) );
+        } else {
+            if (show_roll)
                     printf("Roll  = " PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(roll));
-	        if (show_pitch)
+            if (show_pitch)
                     printf("Pitch = " PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(pitch));
-	        if (show_yaw)
+            if (show_yaw)
                     printf("Yaw   = " PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(yaw));
+        }
+        heart_rate = (int)q0;
+    } else if (xmit_sensor_data == 1)
+    {
+        NRF_LOG_INFO("A = %04d %04d %04d  |  %04d %04d %04d ", 
+            accelerometer_cal[0],
+            accelerometer_cal[1],
+            accelerometer_cal[2],
+            accelerometer_uncal[0],
+            accelerometer_uncal[1],
+            accelerometer_uncal[2]
+            );
+        heart_rate = accelerometer_cal[0] ;
+    } else if (xmit_sensor_data == 2)
+    {
+        NRF_LOG_INFO("G = %04d %04d %04d  |  %04d %04d %04d ", 
+            gyroscope_cal[0],
+            gyroscope_cal[1],
+            gyroscope_cal[2],
+            gyroscope_uncal[0],
+            gyroscope_uncal[1],
+            gyroscope_uncal[2]
+            );
+        heart_rate = gyroscope_cal[0] ;
+    } else if (xmit_sensor_data == 3)
+    {
+        NRF_LOG_INFO("M = %04d %04d %04d  |  %04d %04d %04d ", 
+            magnetometer_cal[0],
+            magnetometer_cal[1],
+            magnetometer_cal[2],
+            magnetometer_uncal[0],
+            magnetometer_uncal[1],
+            magnetometer_uncal[2]
+            );
+        heart_rate = magnetometer_cal[0] ;
+    }
+}
+
+void read_twi_sensor()
+{
+    LSM6DS3StatusTypeDef lsm_err_code = LSM6DS3_STATUS_OK;
+    LIS3MDLStatusTypeDef lis_err_code = LIS3MDL_STATUS_OK;
+    uint8_t reg_data = 0;
+    static uint32_t cmd_get_cnt = 0;
+    bool new_data_avail = false;
+    static uint32_t new_data_cnt = 0;
+    static uint32_t poll_cnt = 0;
+
+    //if ((cmd_get_cnt++ & 0x3F) == 0)
+    //{
+        cmd_get_cnt++;
+        cmd_get();
+    //}
+
+    //
+    // Read LSM6DS3
+    //
+    lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_STATUS_REG, &reg_data);
+    APP_ERROR_CHECK(lsm_err_code);
+
+    if ((reg_data & LSM6DS3_ACC_GYRO_XLDA_MASK) == LSM6DS3_ACC_GYRO_XLDA_DATA_AVAIL) {
+        new_data_avail = true;
+        lsm_err_code = AccGyr->Get_X_Axes(accelerometer_uncal);
+        APP_ERROR_CHECK(lsm_err_code);
+    }
+    if ((reg_data & LSM6DS3_ACC_GYRO_GDA_MASK) == LSM6DS3_ACC_GYRO_GDA_DATA_AVAIL) {
+        new_data_avail = true;
+        lsm_err_code = AccGyr->Get_G_Axes(gyroscope_uncal);
+        APP_ERROR_CHECK(lsm_err_code);
+    }
+
+    //
+    // Read LIS3MDL 
+    //
+
+    lis_err_code = Magneto->GetAxes(magnetometer_uncal);
+    APP_ERROR_CHECK(lis_err_code);
+
+    poll_cnt++;
+    if (new_data_avail)
+    {
+	new_data_cnt++;
+        calibrate_data();
+        if (lsm_err_code != LSM6DS3_STATUS_OK || lis_err_code != LIS3MDL_STATUS_OK)
+        {
+            heart_rate = 0xAAAA;
+            bsp_board_led_on(BSP_BOARD_LED_1);
+        } else
+        {
+            AHRS();
+            if ((cmd_get_cnt & 0x1F) == 0)
+            {
+                show_data();
+		// printf("%ld %ld\r\n", new_data_cnt, poll_cnt);
 	    }
-            heart_rate = (int)q0;
-	} else if (xmit_sensor_data == 1)
-        {
-            NRF_LOG_INFO("A = %04d %04d %04d  |  %04d %04d %04d ", 
-			accelerometer_cal[0],
-			accelerometer_cal[1],
-			accelerometer_cal[2],
-			accelerometer_uncal[0],
-			accelerometer_uncal[1],
-			accelerometer_uncal[2]
-			);
-            heart_rate = accelerometer_cal[0] ;
-        } else if (xmit_sensor_data == 2)
-        {
-            NRF_LOG_INFO("G = %04d %04d %04d  |  %04d %04d %04d ", 
-			gyroscope_cal[0],
-			gyroscope_cal[1],
-			gyroscope_cal[2],
-			gyroscope_uncal[0],
-			gyroscope_uncal[1],
-			gyroscope_uncal[2]
-			);
-            heart_rate = gyroscope_cal[0] ;
-        } else if (xmit_sensor_data == 3)
-        {
-            NRF_LOG_INFO("M = %04d %04d %04d  |  %04d %04d %04d ", 
-			magnetometer_cal[0],
-			magnetometer_cal[1],
-			magnetometer_cal[2],
-			magnetometer_uncal[0],
-			magnetometer_uncal[1],
-			magnetometer_uncal[2]
-			);
-            heart_rate = magnetometer_cal[0] ;
+
         }
     }
+
+
 
 }
 
@@ -1108,15 +1173,15 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
        case BLE_ADV_EVT_FAST_WHITELIST:
        case BLE_ADV_EVT_SLOW_WHITELIST:
             NRF_LOG_INFO("Whitelist advertising.");
-	    break;
+            break;
 
        case BLE_ADV_EVT_WHITELIST_REQUEST:
             NRF_LOG_INFO("Whitelist Request.");
-	    break;
+            break;
 
        case BLE_ADV_EVT_PEER_ADDR_REQUEST: 
             NRF_LOG_INFO("Peer Address Request.");
-	    break;
+            break;
 
         case BLE_ADV_EVT_IDLE:
             NRF_LOG_INFO("No advertising.");
@@ -1423,6 +1488,7 @@ static void power_management_init(void)
  *
  * @details If there is no pending log operation, then sleep until next the next event occurs.
  */
+#if 0
 static void idle_state_handle(void)
 {
     ret_code_t err_code;
@@ -1435,7 +1501,7 @@ static void idle_state_handle(void)
         nrf_pwr_mgmt_run();
     }
 }
-
+#endif
 
 void twi_init(void)
 {
@@ -1490,8 +1556,8 @@ int main(void)
     // Enter main loop.
     for (;;)
     {
-	read_twi_sensor();
-        idle_state_handle();
+        read_twi_sensor();
+        // idle_state_handle();
     }
 }
 
