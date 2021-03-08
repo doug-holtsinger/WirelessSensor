@@ -570,7 +570,7 @@ static const long long LSM6DS3_GYRO_Sensitivity_List[5] =
   35000,  /* FS @1000 */
   70000,  /* FS @2000 */
 };
-mems_status_t LSM6DS3_ACC_Get_AngularRate(void *handle, int *buff, u8_t from_fifo)
+mems_status_t LSM6DS3_ACC_Get_AngularRate(void *handle, int32_t *buff, u8_t from_fifo)
 {
   LSM6DS3_ACC_GYRO_FS_125_t fs_125;
   LSM6DS3_ACC_GYRO_FS_G_t fs;
@@ -750,6 +750,7 @@ mems_status_t LSM6DS3_ACC_GYRO_R_EmbeddedAccess(void *handle, LSM6DS3_ACC_GYRO_E
   return MEMS_SUCCESS;
 }
 
+#if 0
 /*******************************************************************************
 * Function Name  : LSM6DS3_ACC_GYRO_W_Stamping_Time_Frame
 * Description    : Write TPH
@@ -793,6 +794,7 @@ mems_status_t LSM6DS3_ACC_GYRO_R_Stamping_Time_Frame(void *handle, u8_t *value)
 
   return MEMS_SUCCESS;
 }
+#endif
 
 /*******************************************************************************
 * Function Name  : LSM6DS3_ACC_GYRO_W_FIFO_Watermark
@@ -3766,6 +3768,7 @@ mems_status_t LSM6DS3_ACC_GYRO_R_FUNC_EN(void *handle, LSM6DS3_ACC_GYRO_FUNC_EN_
   return MEMS_SUCCESS;
 }
 
+#if 0
 /*******************************************************************************
 * Function Name  : LSM6DS3_ACC_GYRO_W_I2C_MASTER_Enable
 * Description    : Write MASTER_ON
@@ -4045,6 +4048,7 @@ mems_status_t LSM6DS3_ACC_GYRO_R_DRDY_ON_INT1(void *handle, LSM6DS3_ACC_GYRO_DRD
 
   return MEMS_SUCCESS;
 }
+#endif
 
 /*******************************************************************************
 * Function Name  : LSM6DS3_ACC_GYRO_R_Z_WU
@@ -6446,6 +6450,7 @@ mems_status_t LSM6DS3_ACC_GYRO_SH0_Program(void *handle, u8_t SlvAddr, u8_t Reg,
   return MEMS_SUCCESS;
 }
 
+#if 0
 /* Read a remote device through I2C Sensor Hub Slave 0 */
 mems_status_t LSM6DS3_ACC_GYRO_SH0_ReadMem(void *handle, u8_t SlvAddr, u8_t Reg, u8_t *Bufp, u8_t len, u8_t stop)
 {
@@ -6507,3 +6512,4 @@ mems_status_t LSM6DS3_ACC_GYRO_SH0_WriteByte(void *handle, u8_t SlvAddr, u8_t Re
 
   return MEMS_SUCCESS;
 }
+#endif

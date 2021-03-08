@@ -139,10 +139,12 @@ class LSM6DS3Sensor
     LSM6DS3StatusTypeDef ReadID                       (uint8_t *p_id);
     LSM6DS3StatusTypeDef Get_X_Axes                   (int32_t *pData);
     LSM6DS3StatusTypeDef Get_G_Axes                   (int32_t *pData);
+    LSM6DS3StatusTypeDef Get_AngularRate              (int32_t *pData);
     LSM6DS3StatusTypeDef Get_X_Sensitivity            (float *pfData);
     LSM6DS3StatusTypeDef Get_G_Sensitivity            (float *pfData);
     LSM6DS3StatusTypeDef Get_X_AxesRaw                (int16_t *pData);
     LSM6DS3StatusTypeDef Get_G_AxesRaw                (int16_t *pData);
+    LSM6DS3StatusTypeDef Get_G_AxesRawBytes           (uint8_t *pData);
     LSM6DS3StatusTypeDef Get_X_ODR                    (float *odr);
     LSM6DS3StatusTypeDef Get_G_ODR                    (float *odr);
     LSM6DS3StatusTypeDef Set_X_ODR                    (float odr);
@@ -151,6 +153,7 @@ class LSM6DS3Sensor
     LSM6DS3StatusTypeDef Get_G_FS                     (float *fullScale);
     LSM6DS3StatusTypeDef Set_X_FS                     (float fullScale);
     LSM6DS3StatusTypeDef Set_G_FS                     (float fullScale);
+    LSM6DS3StatusTypeDef Enable_G_Filter              (LSM6DS3_ACC_GYRO_HPCF_G_t FilterHZ);
     LSM6DS3StatusTypeDef Enable_Free_Fall_Detection   (void);
     LSM6DS3StatusTypeDef Enable_Free_Fall_Detection   (LSM6DS3_Interrupt_Pin_t int_pin);
     LSM6DS3StatusTypeDef Disable_Free_Fall_Detection  (void);

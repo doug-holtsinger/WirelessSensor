@@ -43,6 +43,13 @@
 #include "LSM6DS3Sensor.h"
 #include <string.h>
 
+#define GYROSCOPE_FS     2000.0f
+#define GYROSCOPE_ODR    416.0f 
+
+#define ACCELEROMETER_FS     2.0f
+#define ACCELEROMETER_ODR    416.0f 
+// original 104.0f;
+
 /* Class Implementation ------------------------------------------------------*/
 
 /** Constructor
@@ -79,7 +86,7 @@ LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c) : dev_i2c(i2c)
   }
   
   /* Full scale selection. */
-  if ( Set_X_FS( 2.0f ) == LSM6DS3_STATUS_ERROR )
+  if ( Set_X_FS( ACCELEROMETER_FS ) == LSM6DS3_STATUS_ERROR )
   {
     return;
   }
@@ -107,7 +114,7 @@ LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c) : dev_i2c(i2c)
   }
 
   /* Full scale selection. */
-  if ( Set_G_FS( 2000.0f ) == LSM6DS3_STATUS_ERROR )
+  if ( Set_G_FS( GYROSCOPE_FS ) == LSM6DS3_STATUS_ERROR )  // was 2000.0f
   {
     return;
   }
@@ -127,11 +134,11 @@ LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c) : dev_i2c(i2c)
     return;
   }
 
-  X_Last_ODR = 416.0f; // 416.0f;   // original 104.0f;
+  X_Last_ODR = ACCELEROMETER_ODR; 
 
   X_isEnabled = 0;
   
-  G_Last_ODR = 416.0f; // 416.0f;   // original 104.0f;
+  G_Last_ODR = GYROSCOPE_ODR;
 
   G_isEnabled = 0;
 };
@@ -168,7 +175,7 @@ LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c, uint8_t addr) : dev_i2c(i2c), address
   }
   
   /* Full scale selection. */
-  if ( Set_X_FS( 2.0f ) == LSM6DS3_STATUS_ERROR )
+  if ( Set_X_FS( ACCELEROMETER_FS ) == LSM6DS3_STATUS_ERROR )
   {
     return;
   }
@@ -196,7 +203,7 @@ LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c, uint8_t addr) : dev_i2c(i2c), address
   }
 
   /* Full scale selection. */
-  if ( Set_G_FS( 2000.0f ) == LSM6DS3_STATUS_ERROR )
+  if ( Set_G_FS( GYROSCOPE_FS ) == LSM6DS3_STATUS_ERROR )   // was 2000.0f
   {
     return;
   }
@@ -216,11 +223,11 @@ LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c, uint8_t addr) : dev_i2c(i2c), address
     return;
   }
 
-  X_Last_ODR = 416.0f;
+  X_Last_ODR = ACCELEROMETER_ODR; 
 
   X_isEnabled = 0;
   
-  G_Last_ODR = 416.0f;
+  G_Last_ODR = GYROSCOPE_ODR;
 
   G_isEnabled = 0;
 };
@@ -267,6 +274,24 @@ LSM6DS3StatusTypeDef LSM6DS3Sensor::Enable_G(void)
   }
   
   G_isEnabled = 1;
+  
+  return LSM6DS3_STATUS_OK;
+}
+
+LSM6DS3StatusTypeDef LSM6DS3Sensor::Enable_G_Filter(LSM6DS3_ACC_GYRO_HPCF_G_t FilterHZ)
+{
+  if ( LSM6DS3_ACC_GYRO_W_HPCF_G( (void *)this, FilterHZ ) == MEMS_ERROR )
+  {
+      return LSM6DS3_STATUS_ERROR;
+  }
+  if ( LSM6DS3_ACC_GYRO_W_HPFilter_En( (void *)this, LSM6DS3_ACC_GYRO_HP_EN_ENABLED ) == MEMS_ERROR )
+  {
+      return LSM6DS3_STATUS_ERROR;
+  }
+  if ( LSM6DS3_ACC_GYRO_W_HP_G_RST( (void *)this, LSM6DS3_ACC_GYRO_HP_G_RST_ON ) == MEMS_ERROR )
+  {
+      return LSM6DS3_STATUS_ERROR;
+  }
   
   return LSM6DS3_STATUS_OK;
 }
@@ -544,6 +569,40 @@ LSM6DS3StatusTypeDef LSM6DS3Sensor::Get_G_AxesRaw(int16_t *pData)
   pData[0] = ( ( ( ( int16_t )regValue[1] ) << 8 ) + ( int16_t )regValue[0] );
   pData[1] = ( ( ( ( int16_t )regValue[3] ) << 8 ) + ( int16_t )regValue[2] );
   pData[2] = ( ( ( ( int16_t )regValue[5] ) << 8 ) + ( int16_t )regValue[4] );
+  
+  return LSM6DS3_STATUS_OK;
+}
+
+/**
+ * @brief  Read raw data from LSM6DS3 Gyroscope
+ * @param  pData the pointer where the gyroscope raw data are stored
+ * @retval LSM6DS3_STATUS_OK in case of success, an error code otherwise
+ */
+LSM6DS3StatusTypeDef LSM6DS3Sensor::Get_G_AxesRawBytes(uint8_t *pData)
+{
+  
+  /* Read output registers from LSM6DS3_ACC_GYRO_OUTX_L_G to LSM6DS3_ACC_GYRO_OUTZ_H_G. */
+  if ( LSM6DS3_ACC_GYRO_GetRawGyroData( (void *)this, pData) == MEMS_ERROR )
+  {
+    return LSM6DS3_STATUS_ERROR;
+  }
+
+  return LSM6DS3_STATUS_OK;
+}
+
+
+/**
+ * @brief  Read data from LSM6DS3 Gyroscope
+ * @param  pData the pointer where the gyroscope data are stored
+ * @retval LSM6DS3_STATUS_OK in case of success, an error code otherwise
+ */
+LSM6DS3StatusTypeDef LSM6DS3Sensor::Get_AngularRate(int32_t *pData)
+{
+  /* Read output registers from LSM6DS3_ACC_GYRO_OUTX_L_G to LSM6DS3_ACC_GYRO_OUTZ_H_G. */
+  if ( LSM6DS3_ACC_Get_AngularRate( (void *)this, pData, 0) == MEMS_ERROR )
+  {
+    return LSM6DS3_STATUS_ERROR;
+  }
   
   return LSM6DS3_STATUS_OK;
 }
