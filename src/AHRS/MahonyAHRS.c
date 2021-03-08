@@ -107,12 +107,16 @@ void MahonyAHRSupdateIMU(float gx, float gy, float gz, float ax, float ay, float
         gx += twoKp * halfex;
         gy += twoKp * halfey;
         gz += twoKp * halfez;
+
     }
     
     // Integrate rate of change of quaternion
     gx *= (0.5f * (1.0f / sampleFreq));    // pre-multiply common factors
     gy *= (0.5f * (1.0f / sampleFreq));
     gz *= (0.5f * (1.0f / sampleFreq));
+        gxN = gx;
+        gyN = gy;
+        gzN = gz;
     qa = q0;
     qb = q1;
     qc = q2;
