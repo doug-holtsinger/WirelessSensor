@@ -20,8 +20,8 @@
 // Definitions
 
 #define sampleFreqDef    416.0f      // 416.0f    // sample frequency in Hz  512.0f original
-#define twoKpDef    (2.0f * 5.0f)    // 2 * proportional gain 0.5f original
-#define twoKiDef    (2.0f * 0.0f)    // 2 * integral gain
+#define twoKpDef    (2.0f * 0.5f)    // 2 * proportional gain 0.5f original
+#define twoKiDef    (2.0f * 0.2f)    // 2 * integral gain
 
 //---------------------------------------------------------------------------------------------------
 // Variable definitions
@@ -35,6 +35,8 @@ float roll, pitch, yaw;
 float axN, ayN, azN;
 float gxN, gyN, gzN;
 float mxN, myN, mzN;
+
+unsigned int ideal_data[3];
 
 //---------------------------------------------------------------------------------------------------
 // Function declarations
@@ -154,6 +156,10 @@ void MahonyAHRSupdate(float gx, float gy, float gz, float ax, float ay, float az
         ax *= recipNorm;
         ay *= recipNorm;
         az *= recipNorm;     
+	if (ideal_data[0])
+        {
+            ax = 1.0f; ay = 0.0f ; az = 0.0f;
+        }
 	axN = ax;
 	ayN = ay;
 	azN = az;
@@ -163,6 +169,10 @@ void MahonyAHRSupdate(float gx, float gy, float gz, float ax, float ay, float az
         mx *= recipNorm;
         my *= recipNorm;
         mz *= recipNorm;   
+	if (ideal_data[2])
+        {
+            mx = 1.0f; my = 0.0f ; mz = 0.0f;
+        }
 	mxN = mx;
 	myN = my;
 	mzN = mz;
@@ -197,6 +207,11 @@ void MahonyAHRSupdate(float gx, float gy, float gz, float ax, float ay, float az
         halfex = (ay * halfvz - az * halfvy) + (my * halfwz - mz * halfwy);
         halfey = (az * halfvx - ax * halfvz) + (mz * halfwx - mx * halfwz);
         halfez = (ax * halfvy - ay * halfvx) + (mx * halfwy - my * halfwx);
+
+	if (ideal_data[1])
+        {
+            gx = 0.0f; gy = 0.0f ; gz = 0.0f;
+        }
 
         // Compute and apply integral feedback if enabled
         if(twoKi > 0.0f) {
@@ -242,6 +257,7 @@ void MahonyAHRSComputeAngles() {
   roll = atan2f(q0 * q1 + q2 * q3, 0.5f - q1 * q1 - q2 * q2);
   roll = roll * 57.29578f;
 
+  // attitude = asin(2*qx*qy + 2*qz*qw)
   pitch = asinf(-2.0f * (q1 * q3 - q0 * q2));
   pitch = pitch * 57.29578f;
 

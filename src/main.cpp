@@ -126,6 +126,8 @@ static bool calibrate_reset = false;
 static bool show_pitch = true;
 static bool show_yaw   = false;
 static bool show_roll  = false;
+unsigned int ideal_data[3] = { 0, 0, 0 };
+static bool zero_data[3] = { false, false, false };
 
 static int32_t accelerometer_uncal[3];
 static int32_t accelerometer_cal[3];
@@ -133,7 +135,6 @@ static int32_t accelerometer_cal[3];
 static int32_t accelerometer_min[3] = { 0, 0, 0 };
 static int32_t accelerometer_max[3] = { 0, 0, 0 };
 #endif
-static bool accelerometer_zero_data = false;
 
 #define GYROSCOPE_MAX_ALLOWED  0x1000
 
@@ -142,14 +143,12 @@ static int32_t gyroscope_uncal[3];
 static float gyroscope_cal[3];
 static int32_t gyroscope_min[3] =  { 0, 0, 0 };
 static int32_t gyroscope_max[3] =  { 0, 0, 0 };
-static bool gyroscope_zero_data  = false;
 static int32_t gyroscope_sensitivity = 17;
 
 static int32_t magnetometer_uncal[3];
 static int32_t magnetometer_cal[3];
 static int32_t magnetometer_min[3] = { 0, 0, 0 };
 static int32_t magnetometer_max[3] = { 0, 0, 0 };
-static bool magnetometer_zero_data = false;
 static int xmit_sensor_data = 2;
 static uint32_t show_input_ahrs = 0;
 static float gx, gy, gz, ax, ay, az, mx, my, mz;
@@ -404,7 +403,7 @@ static void battery_level_meas_timeout_handler(void * p_context)
     battery_level_update();
 }
 
-void cmd_get()
+void cmd_get(uint32_t* cmd_cnt)
 {
     uint8_t   rx_data;
     uint32_t err_code;
@@ -443,6 +442,7 @@ void cmd_get()
         } else if (rx_data == 'e') {
             // reset calibration values
             calibrate_reset = true;
+	    *cmd_cnt = 0;
             printf("Calibrate Reset\r\n");
         } else if (rx_data == 'y') {
             show_yaw = !show_yaw;
@@ -452,23 +452,43 @@ void cmd_get()
             show_roll = !show_roll;
         } else if (rx_data == 'z') {
             if (xmit_sensor_data == 2) {
-                gyroscope_zero_data = !gyroscope_zero_data;
-            if (gyroscope_zero_data) 
+                zero_data[1] = !zero_data[1];
+            if (zero_data[1]) 
                 printf("Gyroscope Data Disabled\r\n");
             else
                 printf("Gyroscope Data Enabled\r\n");
-        } else if (xmit_sensor_data == 1) {
-            accelerometer_zero_data = !accelerometer_zero_data;
-            if (accelerometer_zero_data) 
-                printf("Accelerometer Data Disabled\r\n");
+            } else if (xmit_sensor_data == 1) {
+                zero_data[0] = !zero_data[0];
+                if (zero_data[0]) 
+                    printf("Accelerometer Data Disabled\r\n");
+                else
+                    printf("Accelerometer Data Enabled\r\n");
+            } else if (xmit_sensor_data == 3) {
+                zero_data[2] = !zero_data[2];
+                if (zero_data[2]) 
+                    printf("Magnetometer Data Disabled\r\n");
+                else
+                    printf("Magnetometer Data Enabled\r\n");
+            }
+        } else if (rx_data == 'd') {
+            if (xmit_sensor_data == 2) {
+                ideal_data[1] = ideal_data[1] ? 0 : 1;
+            if (ideal_data[1]) 
+                printf("Gyroscope Data Ideal\r\n");
             else
-                printf("Accelerometer Data Enabled\r\n");
-        } else if (xmit_sensor_data == 3) {
-            magnetometer_zero_data = !magnetometer_zero_data;
-            if (magnetometer_zero_data) 
-                printf("Magnetometer Data Disabled\r\n");
-            else
-                printf("Magnetometer Data Enabled\r\n");
+                printf("Gyroscope Data Real\r\n");
+            } else if (xmit_sensor_data == 1) {
+                ideal_data[0] = ideal_data[0] ? 0 : 1;
+                if (ideal_data[0]) 
+                    printf("Accelerometer Data Ideal\r\n");
+                else
+                    printf("Accelerometer Data Real\r\n");
+            } else if (xmit_sensor_data == 3) {
+                ideal_data[2] = ideal_data[2] ? 0 : 1;
+                if (ideal_data[2]) 
+                    printf("Magnetometer Data Ideal\r\n");
+                else
+                    printf("Magnetometer Data Real\r\n");
             }
         } else if (rx_data == 'o') {
             printf("Enter proportional gain (u) or down (d) : %lu\r\n", (uint32_t)(twoKp * 1000.0));
@@ -610,18 +630,30 @@ void AHRS()
         mx = (float)magnetometer_cal[0];
         my = (float)magnetometer_cal[1];
         mz = (float)magnetometer_cal[2];
-        if (gyroscope_zero_data)
+        if (zero_data[1])
         {
             gz = gy = gx = 0.0f;
         }
-        if (accelerometer_zero_data)
+        if (zero_data[0])
         {
             az = ay = ax = 0.0f;
         }
-        if (magnetometer_zero_data)
+        if (zero_data[2])
         {
             mz = my = mx = 0.0f;
         }
+	if (ideal_data[0])
+	{
+            ax = 1000.0f; ay = 0.0f ; az = 0.0f;
+	}
+	if (ideal_data[1])
+	{
+            gx = 0.0f; gy = 0.0f ; gz = 0.0f;
+	}
+	if (ideal_data[2])
+	{
+            mx = 400.0f; my = 0.0f ; mz = 0.0f;
+	}
         MahonyAHRSupdate(gx, gy, gz, ax, ay, az, mx, my, mz);
         MahonyAHRSComputeAngles();
     }
@@ -629,7 +661,7 @@ void AHRS()
 }
 
 
-void show_data()
+void show_data(uint32_t cnt)
 {
 
     if (xmit_sensor_data == 0) {
@@ -649,11 +681,11 @@ void show_data()
                 printf("magn normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(mxN), PRINTF_FLOAT_VALUE(myN), PRINTF_FLOAT_VALUE(mzN) );
         } else {
             if (show_roll)
-                    printf("Roll  = " PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(roll));
+                    printf("Roll  = " PRINTF_FLOAT_FORMAT " cnt = %lu\r\n", PRINTF_FLOAT_VALUE(roll), cnt);
             if (show_pitch)
-                    printf("Pitch = " PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(pitch));
+                    printf("Pitch = " PRINTF_FLOAT_FORMAT " cnt = %lu\r\n", PRINTF_FLOAT_VALUE(pitch), cnt);
             if (show_yaw)
-                    printf("Yaw   = " PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(yaw));
+                    printf("Yaw   = " PRINTF_FLOAT_FORMAT " cnt = %lu\r\n", PRINTF_FLOAT_VALUE(yaw), cnt);
         }
         heart_rate = (int)q0;
     } else if (xmit_sensor_data == 1)
@@ -681,9 +713,12 @@ void show_data()
                 gyroscope_uncal[2]
             );
        } else {
-            NRF_LOG_INFO("G cal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n",
+            NRF_LOG_INFO("G cal X Y = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT ,
                 PRINTF_FLOAT_VALUE(gyroscope_cal[0]),
                 PRINTF_FLOAT_VALUE(gyroscope_cal[1])
+            );
+            NRF_LOG_INFO("G cal Z   = " PRINTF_FLOAT_FORMAT,
+                PRINTF_FLOAT_VALUE(gyroscope_cal[2])
             );
        }
 #else
@@ -722,11 +757,11 @@ void read_twi_sensor()
     static uint32_t new_data_cnt = 0;
     static uint32_t poll_cnt = 0;
 
-    //if ((cmd_get_cnt++ & 0x3F) == 0)
-    //{
+    if ((cmd_get_cnt++ & 0xFF) == 0)
+    {
         cmd_get_cnt++;
-        cmd_get();
-    //}
+        cmd_get(&cmd_get_cnt);
+    }
 
     //
     // Read LSM6DS3
@@ -747,22 +782,6 @@ void read_twi_sensor()
         // lsm_err_code = AccGyr->Get_G_AxesRawBytes(gyroscope_uncal_bytes);
         // lsm_err_code = AccGyr->Get_AngularRate(gyroscope_uncal);
         APP_ERROR_CHECK(lsm_err_code);
-
-
-#if 0
-	gyroscope_uncal[0] = (int8_t)gyroscope_uncal_bytes[1];
-	gyroscope_uncal[1] = (int8_t)gyroscope_uncal_bytes[3];
-	gyroscope_uncal[2] = (int8_t)gyroscope_uncal_bytes[5];
-
-	gyroscope_uncal[0] <<= 8;
-	gyroscope_uncal[1] <<= 8;
-	gyroscope_uncal[2] <<= 8;
-
-	gyroscope_uncal[0] += gyroscope_uncal_bytes[0];
-	gyroscope_uncal[1] += gyroscope_uncal_bytes[2];
-	gyroscope_uncal[2] += gyroscope_uncal_bytes[4];
-#endif
-
     }
 
     //
@@ -784,16 +803,14 @@ void read_twi_sensor()
         } else
         {
             AHRS();
-            if ((cmd_get_cnt & 0x1F) == 0)
+            if ((cmd_get_cnt & 0xFF) == 0)
             {
-                show_data();
+                show_data(cmd_get_cnt);
 		// printf("%ld %ld\r\n", new_data_cnt, poll_cnt);
 	    }
 
         }
     }
-
-
 
 }
 
