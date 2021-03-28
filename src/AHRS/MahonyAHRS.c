@@ -19,7 +19,7 @@
 //---------------------------------------------------------------------------------------------------
 // Definitions
 
-#define sampleFreqDef    416.0f      // 416.0f    // sample frequency in Hz  512.0f original
+#define sampleFreqDef    352.0f   // 416.0f      // 416.0f    // sample frequency in Hz  512.0f original
 #define twoKpDef    (2.0f * 0.5f)    // 2 * proportional gain 0.5f original
 #define twoKiDef    (2.0f * 0.2f)    // 2 * integral gain
 
@@ -29,6 +29,7 @@ volatile float sampleFreq = sampleFreqDef;
 volatile float twoKp = twoKpDef;    // 2 * proportional gain (Kp)
 volatile float twoKi = twoKiDef;    // 2 * integral gain (Ki)
 volatile float q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f;    // quaternion of sensor frame relative to auxiliary frame
+volatile float q0X = 1.0f, q1X = 0.0f, q2X = 0.0f, q3X = 0.0f;    // quaternion of sensor frame relative to auxiliary frame
 volatile float integralFBx = 0.0f,  integralFBy = 0.0f, integralFBz = 0.0f;    // integral error terms scaled by Ki
 
 float roll, pitch, yaw;
@@ -227,16 +228,27 @@ void MahonyAHRSupdate(float gx, float gy, float gz, float ax, float ay, float az
             integralFBz = 0.0f;
         }
 
+    q0X = gz;
+    q1X = halfez;
+
         // Apply proportional feedback
         gx += twoKp * halfex;
         gy += twoKp * halfey;
         gz += twoKp * halfez;
+
+    q2X = gz;
+
     }
-    
+   
+    // some on gz, and gx and gy, but after division by sampling thereis little on gz 
+
     // Integrate rate of change of quaternion
     gx *= (0.5f * (1.0f / sampleFreq));    // pre-multiply common factors
     gy *= (0.5f * (1.0f / sampleFreq));
     gz *= (0.5f * (1.0f / sampleFreq));
+
+    q3X = gz;
+
     qa = q0;
     qb = q1;
     qc = q2;
@@ -244,13 +256,18 @@ void MahonyAHRSupdate(float gx, float gy, float gz, float ax, float ay, float az
     q1 += (qa * gx + qc * gz - q3 * gy);
     q2 += (qa * gy - qb * gz + q3 * gx);
     q3 += (qa * gz + qb * gy - qc * gx); 
-    
+
+    // yaw lag in q3, q3 += added components have no real effect, mostly 0
+    //  gz has no effect on yaw
+
     // Normalise quaternion
     recipNorm = invSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
     q0 *= recipNorm;
     q1 *= recipNorm;
     q2 *= recipNorm;
     q3 *= recipNorm;
+
+    // yaw lag in q0 q3
 }
 
 void MahonyAHRSComputeAngles() {

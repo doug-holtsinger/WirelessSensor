@@ -131,6 +131,7 @@ static bool zero_data[3] = { false, false, false };
 
 static int32_t accelerometer_uncal[3];
 static int32_t accelerometer_cal[3];
+// #define ACCEL_CALIBRATE
 #ifdef ACCEL_CALIBRATE
 static int32_t accelerometer_min[3] = { 0, 0, 0 };
 static int32_t accelerometer_max[3] = { 0, 0, 0 };
@@ -143,7 +144,7 @@ static int32_t gyroscope_uncal[3];
 static float gyroscope_cal[3];
 static int32_t gyroscope_min[3] =  { 0, 0, 0 };
 static int32_t gyroscope_max[3] =  { 0, 0, 0 };
-static int32_t gyroscope_sensitivity = 17;
+static int32_t gyroscope_sensitivity = 16;
 
 static int32_t magnetometer_uncal[3];
 static int32_t magnetometer_cal[3];
@@ -431,7 +432,7 @@ void cmd_get(uint32_t* cmd_cnt)
             calibrate_enable = false;
         } else if (rx_data == 'i') 
         {
-            show_input_ahrs = ( show_input_ahrs + 1 ) % 3;
+            show_input_ahrs = ( show_input_ahrs + 1 ) % 4;
         } else if (rx_data == 'c') {
             // calibrate command
             calibrate_enable = !calibrate_enable;
@@ -507,13 +508,13 @@ void cmd_get(uint32_t* cmd_cnt)
                 twoKi -= 0.1f;
             printf("twoKi : %lu\r\n", (uint32_t)(twoKi * 1000.0));
         } else if (rx_data == 's') {
-                printf("Enter sampleFreq (u) or down (d) : %lu\r\n", (uint32_t)(sampleFreq));
-        rx_data = getchar();
-                if (rx_data == 'u') 
-                    sampleFreq += 32.0f;
-                else if (rx_data == 'd' && sampleFreq >= 32.0f)
-                    sampleFreq -= 32.0f;
-                printf("sampleFreq : %lu\r\n", (uint32_t)(sampleFreq));
+            printf("Enter sampleFreq (u) or down (d) : %lu\r\n", (uint32_t)(sampleFreq));
+            rx_data = getchar();
+            if (rx_data == 'u') 
+                sampleFreq += 32.0f;
+            else if (rx_data == 'd' && sampleFreq >= 32.0f)
+                sampleFreq -= 32.0f;
+            printf("sampleFreq : %lu\r\n", (uint32_t)(sampleFreq));
         } else if (rx_data == 't') {
             printf("Enter gyro sensitivity (u) or down (d) : %ld\r\n", gyroscope_sensitivity);
             rx_data = getchar();
@@ -679,6 +680,13 @@ void show_data(uint32_t cnt)
                 printf("acce normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(axN), PRINTF_FLOAT_VALUE(ayN), PRINTF_FLOAT_VALUE(azN) );
            if (show_yaw)
                 printf("magn normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(mxN), PRINTF_FLOAT_VALUE(myN), PRINTF_FLOAT_VALUE(mzN) );
+	} else if (show_input_ahrs == 3) {
+           if (show_roll)
+               printf("q0X q2X q3X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(q0X), PRINTF_FLOAT_VALUE(q2X), PRINTF_FLOAT_VALUE(q3X) );
+           if (show_pitch)
+               printf("q1X  q2X  q3X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(q1X), PRINTF_FLOAT_VALUE(q2X), PRINTF_FLOAT_VALUE(q3X) );
+           if (show_yaw)
+               printf("q0X  q1X  q2X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(q0X), PRINTF_FLOAT_VALUE(q1X), PRINTF_FLOAT_VALUE(q2X) );
         } else {
             if (show_roll)
                     printf("Roll  = " PRINTF_FLOAT_FORMAT " cnt = %lu\r\n", PRINTF_FLOAT_VALUE(roll), cnt);
@@ -803,7 +811,7 @@ void read_twi_sensor()
         } else
         {
             AHRS();
-            if ((cmd_get_cnt & 0xFF) == 0)
+            if ((cmd_get_cnt & 0x07) == 0)
             {
                 show_data(cmd_get_cnt);
 		// printf("%ld %ld\r\n", new_data_cnt, poll_cnt);
