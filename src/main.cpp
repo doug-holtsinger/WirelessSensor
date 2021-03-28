@@ -131,25 +131,29 @@ static bool zero_data[3] = { false, false, false };
 
 static int32_t accelerometer_uncal[3];
 static int32_t accelerometer_cal[3];
-// #define ACCEL_CALIBRATE
+#define ACCEL_CALIBRATE
 #ifdef ACCEL_CALIBRATE
+static int32_t accelerometer_bias;
 static int32_t accelerometer_min[3] = { 0, 0, 0 };
 static int32_t accelerometer_max[3] = { 0, 0, 0 };
+#define ACCELEROMETER_MIN_THRESHOLD 100
 #endif
-
-#define GYROSCOPE_MAX_ALLOWED  0x1000
 
 static int32_t gyroscope_uncal[3];
 // static uint8_t gyroscope_uncal_bytes[6];
 static float gyroscope_cal[3];
+#define GYROSCOPE_MIN_THRESHOLD 0.05
 static int32_t gyroscope_min[3] =  { 0, 0, 0 };
 static int32_t gyroscope_max[3] =  { 0, 0, 0 };
 static int32_t gyroscope_sensitivity = 16;
 
 static int32_t magnetometer_uncal[3];
+static int32_t magnetometer_uncal_last[3];
 static int32_t magnetometer_cal[3];
 static int32_t magnetometer_min[3] = { 0, 0, 0 };
 static int32_t magnetometer_max[3] = { 0, 0, 0 };
+static int32_t magnetometer_diff = 0;
+#define MAGNETOMETER_MIN_THRESHOLD 15
 static int xmit_sensor_data = 2;
 static uint32_t show_input_ahrs = 0;
 static float gx, gy, gz, ax, ay, az, mx, my, mz;
@@ -538,11 +542,11 @@ void calibrate_data()
     {
         for (int i = 0 ; i < 3 ; i++) {
             if (magnetometer_min[i] == 0 && magnetometer_max[i] == 0) {
-                magnetometer_min[i] = magnetometer_max[i] = magnetometer_uncal[i];
+                magnetometer_min[i] = magnetometer_max[i] = magnetometer_uncal_last[i] = magnetometer_uncal[i];
             } else if (magnetometer_uncal[i] < magnetometer_min[i]) {
-                magnetometer_min[i] = magnetometer_uncal[i];
+                magnetometer_min[i] = magnetometer_uncal_last[i] = magnetometer_uncal[i];
             } else if (magnetometer_uncal[i] > magnetometer_max[i]) {
-                magnetometer_max[i] = magnetometer_uncal[i];
+                magnetometer_max[i] = magnetometer_uncal_last[i] = magnetometer_uncal[i];
             }
         }
     }
@@ -551,7 +555,7 @@ void calibrate_data()
         calibrate_reset = false;
         for (int i = 0 ; i < 3 ; i++) {
             magnetometer_min[i] = magnetometer_max[i] = 0; 
-            }
+        }
     }
 
     //
@@ -587,12 +591,19 @@ void calibrate_data()
     if (xmit_sensor_data == 1 && calibrate_enable)
     {
         for (int i = 0 ; i < 3 ; i++) {
+            if (i == 2) 
+            {
+                accelerometer_bias = 1000;    // 1G bias
+            } else
+	    {
+                accelerometer_bias = 0;
+	    }
             if (accelerometer_min[i] == 0 && accelerometer_max[i] == 0) {
-                accelerometer_min[i] = accelerometer_max[i] = accelerometer_uncal[i];
-            } else if (accelerometer_uncal[i] < accelerometer_min[i]) {
-                accelerometer_min[i] = accelerometer_uncal[i];
-            } else if (accelerometer_uncal[i] > accelerometer_max[i]) {
-                accelerometer_max[i] = accelerometer_uncal[i];
+                accelerometer_min[i] = accelerometer_max[i] = (accelerometer_uncal[i] - accelerometer_bias);
+            } else if ((accelerometer_uncal[i] - accelerometer_bias) < accelerometer_min[i]) {
+                accelerometer_min[i] = accelerometer_uncal[i] - accelerometer_bias;
+            } else if ((accelerometer_uncal[i] - accelerometer_bias) > accelerometer_max[i]) {
+                accelerometer_max[i] = accelerometer_uncal[i] - accelerometer_bias;
             }
         }
     }
@@ -605,15 +616,34 @@ void calibrate_data()
     }
 #endif
 
-    // adjust
+    // adjust values.
     for (int i = 0 ; i < 3 ; i++) {
-        magnetometer_cal[i] = magnetometer_uncal[i] - ((magnetometer_max[i] + magnetometer_min[i]) / 2);
 #ifdef ACCEL_CALIBRATE
         accelerometer_cal[i] = accelerometer_uncal[i] - ((accelerometer_max[i] + accelerometer_min[i]) / 2);
+        if (abs(accelerometer_cal[i]) < ACCELEROMETER_MIN_THRESHOLD)
+        {
+            accelerometer_cal[i] = 0;
+        }
 #else
         accelerometer_cal[i] = accelerometer_uncal[i]; 
 #endif
+
         gyroscope_cal[i] = ( gyroscope_uncal[i] - ((gyroscope_max[i] + gyroscope_min[i]) / 2) ) / (float)(1ULL << gyroscope_sensitivity) ;
+        if (gyroscope_cal[i] > -GYROSCOPE_MIN_THRESHOLD && 
+            gyroscope_cal[i] < GYROSCOPE_MIN_THRESHOLD)
+        {
+            gyroscope_cal[i] = 0;
+        }
+
+
+        magnetometer_diff = abs(magnetometer_uncal[i] - magnetometer_uncal_last[i]);
+        if (magnetometer_diff < MAGNETOMETER_MIN_THRESHOLD || gyroscope_cal[i] == 0)
+        {
+            magnetometer_uncal[i] = magnetometer_uncal_last[i];
+        }
+        magnetometer_uncal_last[i] = magnetometer_uncal[i];
+
+        magnetometer_cal[i] = magnetometer_uncal[i] - ((magnetometer_max[i] + magnetometer_min[i]) / 2);
     }
 
 }
