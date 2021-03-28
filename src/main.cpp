@@ -841,7 +841,7 @@ void read_twi_sensor()
         } else
         {
             AHRS();
-            if ((cmd_get_cnt & 0x07) == 0)
+            if ((cmd_get_cnt & 0x0F) == 0)
             {
                 show_data(cmd_get_cnt);
 		// printf("%ld %ld\r\n", new_data_cnt, poll_cnt);
