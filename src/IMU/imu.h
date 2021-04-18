@@ -11,9 +11,11 @@
 #include "LSM6DS3Sensor.h"
 #include "LIS3MDLSensor.h"
 
-#define ACCELEROMETER_MIN_THRESHOLD 100
+// FIXME: remove constants
+// #define ACCELEROMETER_MIN_THRESHOLD 100
 #define GYROSCOPE_MIN_THRESHOLD 0.05
 #define MAGNETOMETER_MIN_THRESHOLD 15
+#define NOISE_THRESHOLD_MULTIPLIER 2
 
 /* print defines */
 #define PRINTF_FLOAT_FORMAT " %c%ld.%02ld"
@@ -58,12 +60,15 @@ class IMU {
     public:
         IMU();
         void update(void);
+        // FIXME: fold init() into constructor
         void init(void);
         void cmd(IMU_CMD_t& cmd);
         void print_data();
         TwoWire* dev_i2c;
     private:
         void sensor_init(void);
+        void calibrate_zero_offset(void);
+        void reset_calibration(void);
         void calibrate_data(void);
         void AHRS(void);
 
@@ -81,14 +86,15 @@ class IMU {
         int32_t accelerometer_uncal[3];
         int32_t accelerometer_cal[3];
         int32_t accelerometer_bias;
+        uint32_t accelerometer_min_threshold[3] = { 0, 0, 0 };
         int32_t accelerometer_min[3] = { 0, 0, 0 };
         int32_t accelerometer_max[3] = { 0, 0, 0 };
 
         int32_t gyroscope_uncal[3];
-        // static uint8_t gyroscope_uncal_bytes[6];
         float gyroscope_cal[3];
         int32_t gyroscope_min[3] =  { 0, 0, 0 };
         int32_t gyroscope_max[3] =  { 0, 0, 0 };
+        // FIXME: remove constant
         int32_t gyroscope_sensitivity = 16;
 
         int32_t magnetometer_uncal[3];
@@ -97,6 +103,7 @@ class IMU {
         int32_t magnetometer_min[3] = { 0, 0, 0 };
         int32_t magnetometer_max[3] = { 0, 0, 0 };
         int32_t magnetometer_diff = 0;
+        uint32_t magnetometer_min_threshold[3] = { 0, 0, 0 };
         IMU_SENSOR_t sensor_select = IMU_AHRS;
         uint32_t show_input_ahrs = 0;
         float gx, gy, gz, ax, ay, az, mx, my, mz;
