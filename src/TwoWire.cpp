@@ -50,10 +50,6 @@
 #include "app_timer.h"
 #include "fds.h"
 
-#include "nrf_log.h"
-#include "nrf_log_ctrl.h"
-#include "nrf_log_default_backends.h"
-
 #include "boards.h"
 
 #include "TwoWire.h"

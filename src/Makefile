@@ -5,6 +5,8 @@ OUTPUT_DIRECTORY := ../_build
 SDK_ROOT := C:/NordicSDK/nRF5_SDK_16.0.0
 PROJ_DIR := ./
 PROJ_INC_DIR := .
+IMU_SRC_DIR := ./IMU
+IMU_INC_DIR := ./IMU
 LSM6DS3_SRC_DIR := ./LSM6DS3
 LSM6DS3_INC_DIR := ./LSM6DS3
 LIS3MDL_SRC_DIR := ./LIS3MDL
@@ -21,6 +23,7 @@ $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
 SRC_FILES += \
   $(PROJ_DIR)/main.cpp \
   $(PROJ_DIR)/TwoWire.cpp \
+  $(IMU_SRC_DIR)/imu.cpp \
   $(LSM6DS3_SRC_DIR)/LSM6DS3_ACC_GYRO_Driver.c \
   $(LSM6DS3_SRC_DIR)/LSM6DS3Sensor.cpp \
   $(LIS3MDL_SRC_DIR)/LIS3MDL_MAG_Driver.c \
@@ -154,6 +157,7 @@ SRC_FILES += \
 INC_FOLDERS += \
   $(CONFIG_DIR) \
   $(PROJ_INC_DIR) \
+  $(IMU_INC_DIR) \
   $(LSM6DS3_INC_DIR) \
   $(LIS3MDL_INC_DIR) \
   $(AHRS_INC_DIR) \
