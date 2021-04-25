@@ -88,11 +88,20 @@ void IMU::calibrate_zero_offset(void)
             {
                 accelerometer_max[i] = accelerometer_uncal[i] - accelerometer_bias;
             }
+#if 1
             noise_threshold = NOISE_THRESHOLD_MULTIPLIER * abs( accelerometer_uncal[i] - ((accelerometer_max[i] + accelerometer_min[i]) / 2) - accelerometer_bias);
             if (noise_threshold > accelerometer_min_threshold[i])
             {
                 accelerometer_min_threshold[i] = noise_threshold;
             }
+#else
+#define ACCELEROMETER_MIN_THRESHOLD 100
+            accelerometer_cal[i] = accelerometer_uncal[i] - ((accelerometer_max[i] + accelerometer_min[i]) / 2);
+            if (abs(accelerometer_cal[i]) < ACCELEROMETER_MIN_THRESHOLD)
+            {
+                accelerometer_cal[i] = 0;
+            }
+#endif
         }
     }
 }
@@ -130,10 +139,7 @@ void IMU::calibrate_data(void)
     // calibrate raw data values using zero offset and Min thresholds.
     for (int i = 0 ; i < 3 ; i++) {
         accelerometer_cal[i] = accelerometer_uncal[i] - ((accelerometer_max[i] + accelerometer_min[i]) / 2);
-        if (accelerometer_cal[i] < 0 && (accelerometer_cal[i] + accelerometer_min_threshold[i]) >= 0)
-        {
-            accelerometer_cal[i] = 0;
-        } else if (accelerometer_cal[i] >= 0 && (accelerometer_cal[i] - accelerometer_min_threshold[i]) <= 0)
+        if ((uint32_t)abs(accelerometer_cal[i]) < accelerometer_min_threshold[i])
         {
             accelerometer_cal[i] = 0;
         }
@@ -147,7 +153,11 @@ void IMU::calibrate_data(void)
 
         magnetometer_diff = abs(magnetometer_uncal[i] - magnetometer_uncal_last[i]);
         // FIXME: remove gyro hack.
+#if 1
         if (magnetometer_diff < MAGNETOMETER_MIN_THRESHOLD || gyroscope_cal[i] == 0)
+#else
+        if (magnetometer_diff < MAGNETOMETER_MIN_THRESHOLD) 
+#endif
         {
             magnetometer_uncal[i] = magnetometer_uncal_last[i];
         }
