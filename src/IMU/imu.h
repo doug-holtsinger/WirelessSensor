@@ -13,7 +13,7 @@
 
 // FIXME: remove constants
 // #define ACCELEROMETER_MIN_THRESHOLD 100
-#define GYROSCOPE_MIN_THRESHOLD 0.05
+// #define GYROSCOPE_MIN_THRESHOLD 0.05
 #define MAGNETOMETER_MIN_THRESHOLD 15
 #define NOISE_THRESHOLD_MULTIPLIER 2
 
@@ -78,8 +78,8 @@ class IMU {
         bool calibrate_enable = false;
         bool calibrate_reset = false;
         bool show_pitch = true;
-        bool show_yaw   = false;
-        bool show_roll  = false;
+        bool show_yaw   = true;
+        bool show_roll  = true;
         unsigned int ideal_data[3] = { 0, 0, 0 };
         bool zero_data[3] = { false, false, false };
 
@@ -94,6 +94,7 @@ class IMU {
         float gyroscope_cal[3];
         int32_t gyroscope_min[3] =  { 0, 0, 0 };
         int32_t gyroscope_max[3] =  { 0, 0, 0 };
+        float gyroscope_min_threshold[3] = { 0.0, 0.0, 0.0 };
         // FIXME: remove constant
         int32_t gyroscope_sensitivity = 16;
 

@@ -5,7 +5,7 @@ TODO:
 1) Refine calibration
 - remove fixed constants
 - Angles take a long time to stabilize, accelerometer readings?
-2) Fix singularity at North Pole, can't get to 90 degree pitch
+2) Fix singularity at North and South Poles, can't get to 90 degree pitch
 3) Fix Pitch sign reversal
 4) Further testing
 5) Nordic Timer to drive AHRS to improve accuracy?

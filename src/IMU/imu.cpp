@@ -25,6 +25,7 @@ void IMU::init(void)
 void IMU::calibrate_zero_offset(void)
 {
     uint32_t noise_threshold;
+    float noise_threshold_f;
 
     //
     //  magnetometer calibration -- done while moving
@@ -61,6 +62,11 @@ void IMU::calibrate_zero_offset(void)
             {
                 gyroscope_max[i] = gyroscope_uncal[i];
             }
+            noise_threshold_f = NOISE_THRESHOLD_MULTIPLIER * abs ( gyroscope_uncal[i] - ((gyroscope_max[i] + gyroscope_min[i]) / 2) ) / (float)(1ULL << gyroscope_sensitivity) ;
+            if (noise_threshold_f > gyroscope_min_threshold[i])
+            {
+                gyroscope_min_threshold[i] = noise_threshold_f;
+            }
         }
     }
 
@@ -88,20 +94,11 @@ void IMU::calibrate_zero_offset(void)
             {
                 accelerometer_max[i] = accelerometer_uncal[i] - accelerometer_bias;
             }
-#if 1
             noise_threshold = NOISE_THRESHOLD_MULTIPLIER * abs( accelerometer_uncal[i] - ((accelerometer_max[i] + accelerometer_min[i]) / 2) - accelerometer_bias);
             if (noise_threshold > accelerometer_min_threshold[i])
             {
                 accelerometer_min_threshold[i] = noise_threshold;
             }
-#else
-#define ACCELEROMETER_MIN_THRESHOLD 100
-            accelerometer_cal[i] = accelerometer_uncal[i] - ((accelerometer_max[i] + accelerometer_min[i]) / 2);
-            if (abs(accelerometer_cal[i]) < ACCELEROMETER_MIN_THRESHOLD)
-            {
-                accelerometer_cal[i] = 0;
-            }
-#endif
         }
     }
 }
@@ -143,27 +140,23 @@ void IMU::calibrate_data(void)
         {
             accelerometer_cal[i] = 0;
         }
-
         gyroscope_cal[i] = ( gyroscope_uncal[i] - ((gyroscope_max[i] + gyroscope_min[i]) / 2) ) / (float)(1ULL << gyroscope_sensitivity) ;
-        if (gyroscope_cal[i] > -GYROSCOPE_MIN_THRESHOLD && 
-            gyroscope_cal[i] < GYROSCOPE_MIN_THRESHOLD)
+        if (gyroscope_cal[i] > -gyroscope_min_threshold[i] &&
+            gyroscope_cal[i] < gyroscope_min_threshold[i] )
         {
             gyroscope_cal[i] = 0;
         }
 
         magnetometer_diff = abs(magnetometer_uncal[i] - magnetometer_uncal_last[i]);
-        // FIXME: remove gyro hack.
-#if 1
-        if (magnetometer_diff < MAGNETOMETER_MIN_THRESHOLD || gyroscope_cal[i] == 0)
-#else
         if (magnetometer_diff < MAGNETOMETER_MIN_THRESHOLD) 
-#endif
         {
-            magnetometer_uncal[i] = magnetometer_uncal_last[i];
+            magnetometer_cal[i] = magnetometer_uncal_last[i] - ((magnetometer_max[i] + magnetometer_min[i]) / 2);
+        } else 
+        {
+            magnetometer_cal[i] = magnetometer_uncal[i] - ((magnetometer_max[i] + magnetometer_min[i]) / 2);
         }
         magnetometer_uncal_last[i] = magnetometer_uncal[i];
 
-        magnetometer_cal[i] = magnetometer_uncal[i] - ((magnetometer_max[i] + magnetometer_min[i]) / 2);
     }
 
 }
@@ -266,13 +259,18 @@ void IMU::print_data()
     {
         if (calibrate_enable)
         {
-            printf("Gyro = max-min %08x %08x %08x  |  uncal %08x %08x %08x \r\n", 
+            printf("Gyro = %08x %08x %08x  |  %08x %08x %08x \r\n", 
                 (int)(gyroscope_max[0] - gyroscope_min[0]),
                 (int)(gyroscope_max[1] - gyroscope_min[1]),
                 (int)(gyroscope_max[2] - gyroscope_min[2]),
                 (int)gyroscope_uncal[0],
                 (int)gyroscope_uncal[1],
-                (int)gyroscope_uncal[2]
+                (int)gyroscope_uncal[2]);
+
+            printf("Gyro min threshold = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n",
+                PRINTF_FLOAT_VALUE(gyroscope_min_threshold[0]),
+                PRINTF_FLOAT_VALUE(gyroscope_min_threshold[1]),
+                PRINTF_FLOAT_VALUE(gyroscope_min_threshold[2])
             );
        } else 
        {
