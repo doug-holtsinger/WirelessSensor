@@ -22,51 +22,62 @@ void IMU::init(void)
     sensor_init();
 }
 
-void IMU::calibrate_zero_offset(void)
+void IMU::calibrate_magnetometer(void)
 {
-    uint32_t noise_threshold;
-    float noise_threshold_f;
-
     //
     //  magnetometer calibration -- done while moving
     //
-    if (sensor_select == IMU_MAGNETOMETER)
+    for (int i = 0 ; i < 3 ; i++) {
+        if (magnetometer_min[i] == 0 && magnetometer_max[i] == 0) 
+        {
+            magnetometer_min[i] = magnetometer_max[i] = magnetometer_uncal_last[i] = magnetometer_uncal[i];
+        } else if (magnetometer_uncal[i] < magnetometer_min[i]) 
+        {
+            magnetometer_min[i] = magnetometer_uncal_last[i] = magnetometer_uncal[i];
+        } else if (magnetometer_uncal[i] > magnetometer_max[i]) 
+        {
+            magnetometer_max[i] = magnetometer_uncal_last[i] = magnetometer_uncal[i];
+        }
+    }
+}
+
+void IMU::calibrate_zero_offset(void)
+{
+    uint32_t noise_threshold;
+    int32_t noise_threshold_i;
+    float noise_threshold_f;
+
+    //
+    // magnetometer calibration -- done while motionless
+    //
+    for (int i = 0 ; i < 3 ; i++)
     {
-        for (int i = 0 ; i < 3 ; i++) {
-            if (magnetometer_min[i] == 0 && magnetometer_max[i] == 0) 
-            {
-                magnetometer_min[i] = magnetometer_max[i] = magnetometer_uncal_last[i] = magnetometer_uncal[i];
-            } else if (magnetometer_uncal[i] < magnetometer_min[i]) 
-            {
-                magnetometer_min[i] = magnetometer_uncal_last[i] = magnetometer_uncal[i];
-            } else if (magnetometer_uncal[i] > magnetometer_max[i]) 
-            {
-                magnetometer_max[i] = magnetometer_uncal_last[i] = magnetometer_uncal[i];
-            }
+        noise_threshold_i = NOISE_THRESHOLD_MULTIPLIER * abs( magnetometer_uncal[i] - magnetometer_uncal_last[i]); 
+        if (noise_threshold_i > magnetometer_min_threshold[i])
+        {
+            magnetometer_min_threshold[i] = noise_threshold_i;
         }
     }
 
     //
     // gyroscope calibration -- done while motionless
     //
-    if (sensor_select == IMU_GYROSCOPE)
+    for (int i = 0 ; i < 3 ; i++) 
     {
-        for (int i = 0 ; i < 3 ; i++) {
-            if (gyroscope_min[i] == 0 && gyroscope_max[i] == 0) 
-            {
-                gyroscope_min[i] = gyroscope_max[i] = gyroscope_uncal[i];
-            } else if (gyroscope_uncal[i] < gyroscope_min[i]) 
-            {
-                gyroscope_min[i] = gyroscope_uncal[i];
-            } else if (gyroscope_uncal[i] > gyroscope_max[i]) 
-            {
-                gyroscope_max[i] = gyroscope_uncal[i];
-            }
-            noise_threshold_f = NOISE_THRESHOLD_MULTIPLIER * abs ( gyroscope_uncal[i] - ((gyroscope_max[i] + gyroscope_min[i]) / 2) ) / (float)(1ULL << gyroscope_sensitivity) ;
-            if (noise_threshold_f > gyroscope_min_threshold[i])
-            {
-                gyroscope_min_threshold[i] = noise_threshold_f;
-            }
+        if (gyroscope_min[i] == 0 && gyroscope_max[i] == 0) 
+        {
+            gyroscope_min[i] = gyroscope_max[i] = gyroscope_uncal[i];
+        } else if (gyroscope_uncal[i] < gyroscope_min[i]) 
+        {
+            gyroscope_min[i] = gyroscope_uncal[i];
+        } else if (gyroscope_uncal[i] > gyroscope_max[i]) 
+        {
+            gyroscope_max[i] = gyroscope_uncal[i];
+        }
+        noise_threshold_f = NOISE_THRESHOLD_MULTIPLIER * abs ( gyroscope_uncal[i] - ((gyroscope_max[i] + gyroscope_min[i]) / 2) ) / (float)(1ULL << gyroscope_sensitivity) ;
+        if (noise_threshold_f > gyroscope_min_threshold[i])
+        {
+            gyroscope_min_threshold[i] = noise_threshold_f;
         }
     }
 
@@ -74,64 +85,55 @@ void IMU::calibrate_zero_offset(void)
     // accelerometer calibration -- done while motionless with
     // IMU Z axis pointing up.
     //
-    if (sensor_select == IMU_ACCELEROMETER)
-    {
-        for (int i = 0 ; i < 3 ; i++) {
-            if (i == 2) 
-            {
-                accelerometer_bias = 1000;    // 1G bias in Z direction
-            } else
-	    {
-                accelerometer_bias = 0;
-	    }
-            if (accelerometer_min[i] == 0 && accelerometer_max[i] == 0) 
-            {
-                accelerometer_min[i] = accelerometer_max[i] = (accelerometer_uncal[i] - accelerometer_bias);
-            } else if ((accelerometer_uncal[i] - accelerometer_bias) < accelerometer_min[i]) 
-            {
-                accelerometer_min[i] = accelerometer_uncal[i] - accelerometer_bias;
-            } else if ((accelerometer_uncal[i] - accelerometer_bias) > accelerometer_max[i]) 
-            {
-                accelerometer_max[i] = accelerometer_uncal[i] - accelerometer_bias;
-            }
-            noise_threshold = NOISE_THRESHOLD_MULTIPLIER * abs( accelerometer_uncal[i] - ((accelerometer_max[i] + accelerometer_min[i]) / 2) - accelerometer_bias);
-            if (noise_threshold > accelerometer_min_threshold[i])
-            {
-                accelerometer_min_threshold[i] = noise_threshold;
-            }
+    for (int i = 0 ; i < 3 ; i++) {
+        if (i == 2) 
+        {
+            accelerometer_bias = 1000;    // 1G bias in Z direction
+        } else
+        {
+            accelerometer_bias = 0;
+        }
+        if (accelerometer_min[i] == 0 && accelerometer_max[i] == 0) 
+        {
+            accelerometer_min[i] = accelerometer_max[i] = (accelerometer_uncal[i] - accelerometer_bias);
+        } else if ((accelerometer_uncal[i] - accelerometer_bias) < accelerometer_min[i]) 
+        {
+            accelerometer_min[i] = accelerometer_uncal[i] - accelerometer_bias;
+        } else if ((accelerometer_uncal[i] - accelerometer_bias) > accelerometer_max[i]) 
+        {
+            accelerometer_max[i] = accelerometer_uncal[i] - accelerometer_bias;
+        }
+        noise_threshold = NOISE_THRESHOLD_MULTIPLIER * abs( accelerometer_uncal[i] - ((accelerometer_max[i] + accelerometer_min[i]) / 2) - accelerometer_bias);
+        if (noise_threshold > accelerometer_min_threshold[i])
+        {
+            accelerometer_min_threshold[i] = noise_threshold;
         }
     }
 }
 
 void IMU::reset_calibration(void)
 {
-    if (sensor_select == IMU_MAGNETOMETER)
+    for (int i = 0 ; i < 3 ; i++) 
     {
-        calibrate_reset = false;
-        for (int i = 0 ; i < 3 ; i++) {
-            magnetometer_min[i] = magnetometer_max[i] = 0; 
-        }
+        magnetometer_min[i] = magnetometer_max[i] = magnetometer_min_threshold[i] = 0;
+        magnetometer_uncal_last[i] = 0;
     }
 
-    if (sensor_select == IMU_GYROSCOPE)
+    for (int i = 0 ; i < 3 ; i++) 
     {
-        calibrate_reset = false;
-        for (int i = 0 ; i < 3 ; i++) {
-            gyroscope_min[i] = gyroscope_max[i] = 0; 
-        }
+        gyroscope_min[i] = gyroscope_max[i] = gyroscope_min_threshold[i] = 0; 
     }
 
-    if (sensor_select == IMU_ACCELEROMETER)
+    for (int i = 0 ; i < 3 ; i++) 
     {
-        calibrate_reset = false;
-        for (int i = 0 ; i < 3 ; i++) {
-            accelerometer_min[i] = accelerometer_max[i] = 0; 
-        }
+        accelerometer_min[i] = accelerometer_max[i] = accelerometer_min_threshold[i] = 0;
     }
+    calibrate_reset = false;
 }
 
 void IMU::calibrate_data(void)
 {
+    int32_t magnetometer_diff = 0;
 
     // calibrate raw data values using zero offset and Min thresholds.
     for (int i = 0 ; i < 3 ; i++) {
@@ -148,7 +150,7 @@ void IMU::calibrate_data(void)
         }
 
         magnetometer_diff = abs(magnetometer_uncal[i] - magnetometer_uncal_last[i]);
-        if (magnetometer_diff < MAGNETOMETER_MIN_THRESHOLD) 
+        if (magnetometer_diff < magnetometer_min_threshold[i]) 
         {
             magnetometer_cal[i] = magnetometer_uncal_last[i] - ((magnetometer_max[i] + magnetometer_min[i]) / 2);
         } else 
@@ -257,38 +259,23 @@ void IMU::print_data()
             );
     } else if (sensor_select == IMU_GYROSCOPE)
     {
-        if (calibrate_enable)
-        {
-            printf("Gyro = %08x %08x %08x  |  %08x %08x %08x \r\n", 
-                (int)(gyroscope_max[0] - gyroscope_min[0]),
-                (int)(gyroscope_max[1] - gyroscope_min[1]),
-                (int)(gyroscope_max[2] - gyroscope_min[2]),
-                (int)gyroscope_uncal[0],
-                (int)gyroscope_uncal[1],
-                (int)gyroscope_uncal[2]);
-
-            printf("Gyro min threshold = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n",
-                PRINTF_FLOAT_VALUE(gyroscope_min_threshold[0]),
-                PRINTF_FLOAT_VALUE(gyroscope_min_threshold[1]),
-                PRINTF_FLOAT_VALUE(gyroscope_min_threshold[2])
-            );
-       } else 
-       {
-            printf("Gyro calibrated = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n",
-                PRINTF_FLOAT_VALUE(gyroscope_cal[0]),
-                PRINTF_FLOAT_VALUE(gyroscope_cal[1]),
-                PRINTF_FLOAT_VALUE(gyroscope_cal[2])
-            );
-       }
+        printf("Gyro calibrated = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n",
+            PRINTF_FLOAT_VALUE(gyroscope_cal[0]),
+            PRINTF_FLOAT_VALUE(gyroscope_cal[1]),
+            PRINTF_FLOAT_VALUE(gyroscope_cal[2])
+        );
     } else if (sensor_select == IMU_MAGNETOMETER)
     {
-        printf("Mag = %04d %04d %04d  |  %04d %04d %04d \r\n", 
+        printf("Mag = %04d %04d %04d  |  %04d %04d %04d  |  %04d %04d %04d\r\n", 
             (int)magnetometer_cal[0],
             (int)magnetometer_cal[1],
             (int)magnetometer_cal[2],
             (int)magnetometer_uncal[0],
             (int)magnetometer_uncal[1],
-            (int)magnetometer_uncal[2]
+            (int)magnetometer_uncal[2],
+            (int)magnetometer_min_threshold[0],
+            (int)magnetometer_min_threshold[1],
+            (int)magnetometer_min_threshold[2]
             );
     }
 }
@@ -333,9 +320,13 @@ void IMU::update()
         reset_calibration();
     } else if (new_data_avail)
     {
-        if (calibrate_enable)
+        if (calibrate_enable == IMU_SENSOR_CALIBRATE_ZERO_OFFSET)
         {
             calibrate_zero_offset();
+        }
+        if (calibrate_enable == IMU_SENSOR_CALIBRATE_MAGNETOMETER)
+        {
+            calibrate_magnetometer();
         }
         calibrate_data();
         AHRS();
@@ -364,37 +355,44 @@ void IMU::cmd(IMU_CMD_t& cmd)
         case IMU_PRINT_MAGNETOMETER:
             // magnetometer
             sensor_select = IMU_MAGNETOMETER;
-            calibrate_enable = false;
             break;
         case IMU_PRINT_GYROSCOPE:
             // gyro
             sensor_select = IMU_GYROSCOPE;
-            calibrate_enable = false;
             break;
         case IMU_PRINT_ACCELEROMETER:
             // accelerometer
             sensor_select = IMU_ACCELEROMETER;
-            calibrate_enable = false;
             break;
         case IMU_PRINT_AHRS:
             sensor_select = IMU_AHRS;
-            calibrate_enable = false;
             break;
         case IMU_AHRS_INPUT_TOGGLE:
             show_input_ahrs = ( show_input_ahrs + 1 ) % 4;
             break;
-        case IMU_CALIBRATE_TOGGLE:
+        case IMU_SENSOR_CALIBRATE_TOGGLE:
             // calibrate command
-            calibrate_enable = !calibrate_enable;
-            if (calibrate_enable)
-                printf("Calibrate Enable\r\n");
-            else
-                printf("Calibrate Disable\r\n");
+            switch (calibrate_enable)
+            {
+                case IMU_SENSOR_CALIBRATE_DISABLED: 
+                        calibrate_enable = IMU_SENSOR_CALIBRATE_ZERO_OFFSET; break;
+                case IMU_SENSOR_CALIBRATE_ZERO_OFFSET:
+                        calibrate_enable = IMU_SENSOR_CALIBRATE_MAGNETOMETER; break;
+                case IMU_SENSOR_CALIBRATE_MAGNETOMETER: 
+                        calibrate_enable = IMU_SENSOR_CALIBRATE_DISABLED; break;
+            }
+            if (calibrate_enable == IMU_SENSOR_CALIBRATE_DISABLED)
+                printf("Calibrate Disabled\r\n");
+            else if (calibrate_enable == IMU_SENSOR_CALIBRATE_ZERO_OFFSET)
+                printf("Calibrate Zero Offset Enable\r\n");
+            else if (calibrate_enable == IMU_SENSOR_CALIBRATE_MAGNETOMETER)
+                printf("Calibrate Magnetometer Enable\r\n");
             break;
-        case IMU_CALIBRATE_RESET:
+        case IMU_SENSOR_CALIBRATE_RESET:
             // reset calibration values
             calibrate_reset = true;
-            printf("Calibrate Reset\r\n");
+            calibrate_enable = IMU_SENSOR_CALIBRATE_DISABLED;
+            printf("Calibrate Reset/Disabled\r\n");
             break;
         case IMU_AHRS_YAW_TOGGLE:
             show_yaw = !show_yaw;

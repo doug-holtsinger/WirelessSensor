@@ -14,7 +14,7 @@
 // FIXME: remove constants
 // #define ACCELEROMETER_MIN_THRESHOLD 100
 // #define GYROSCOPE_MIN_THRESHOLD 0.05
-#define MAGNETOMETER_MIN_THRESHOLD 15
+// #define MAGNETOMETER_MIN_THRESHOLD 15
 #define NOISE_THRESHOLD_MULTIPLIER 2
 
 /* print defines */
@@ -38,8 +38,8 @@ typedef enum
     IMU_PRINT_GYROSCOPE, 
     IMU_PRINT_ACCELEROMETER,
     IMU_PRINT_AHRS,
-    IMU_CALIBRATE_TOGGLE,
-    IMU_CALIBRATE_RESET,
+    IMU_SENSOR_CALIBRATE_TOGGLE,
+    IMU_SENSOR_CALIBRATE_RESET,
     IMU_AHRS_INPUT_TOGGLE,
     IMU_AHRS_YAW_TOGGLE,
     IMU_AHRS_PITCH_TOGGLE,
@@ -56,6 +56,14 @@ typedef enum
     IMU_GYROSCOPE_SENSITIVITY_DOWN
 } IMU_CMD_t;
 
+typedef enum {
+        IMU_SENSOR_CALIBRATE_DISABLED = 0,
+        IMU_SENSOR_CALIBRATE_MIN = IMU_SENSOR_CALIBRATE_DISABLED,
+        IMU_SENSOR_CALIBRATE_ZERO_OFFSET, 
+        IMU_SENSOR_CALIBRATE_MAGNETOMETER,
+        IMU_SENSOR_CALIBRATE_MAX = IMU_SENSOR_CALIBRATE_MAGNETOMETER
+} IMU_SENSOR_CALIBRATE_t;
+
 class IMU {
     public:
         IMU();
@@ -68,6 +76,7 @@ class IMU {
     private:
         void sensor_init(void);
         void calibrate_zero_offset(void);
+        void calibrate_magnetometer(void);
         void reset_calibration(void);
         void calibrate_data(void);
         void AHRS(void);
@@ -75,7 +84,7 @@ class IMU {
         LSM6DS3Sensor* AccGyr;
         LIS3MDLSensor* Magneto;
 
-        bool calibrate_enable = false;
+        IMU_SENSOR_CALIBRATE_t calibrate_enable = IMU_SENSOR_CALIBRATE_DISABLED;
         bool calibrate_reset = false;
         bool show_pitch = true;
         bool show_yaw   = true;
@@ -103,8 +112,7 @@ class IMU {
         int32_t magnetometer_cal[3];
         int32_t magnetometer_min[3] = { 0, 0, 0 };
         int32_t magnetometer_max[3] = { 0, 0, 0 };
-        int32_t magnetometer_diff = 0;
-        uint32_t magnetometer_min_threshold[3] = { 0, 0, 0 };
+        int32_t magnetometer_min_threshold[3] = { 0, 0, 0 };
         IMU_SENSOR_t sensor_select = IMU_AHRS;
         uint32_t show_input_ahrs = 0;
         float gx, gy, gz, ax, ay, az, mx, my, mz;

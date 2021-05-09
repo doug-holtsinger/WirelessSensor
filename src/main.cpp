@@ -1130,12 +1130,12 @@ bool get_imu_cmd(IMU_CMD_t& imu_cmd)
             case 'a': imu_cmd = IMU_PRINT_ACCELEROMETER; break;
             case 'q': imu_cmd = IMU_PRINT_AHRS; break;
             case 'i': imu_cmd = IMU_AHRS_INPUT_TOGGLE; break;
-            case 'c': imu_cmd = IMU_CALIBRATE_TOGGLE; break;
-            case 'e': imu_cmd = IMU_CALIBRATE_RESET; break;
+            case 'z': imu_cmd = IMU_SENSOR_DATA_ZERO; break;
+            case 'c': imu_cmd = IMU_SENSOR_CALIBRATE_TOGGLE; break;
+            case 'e': imu_cmd = IMU_SENSOR_CALIBRATE_RESET; break;
             case 'y': imu_cmd = IMU_AHRS_YAW_TOGGLE; break;
             case 'p': imu_cmd = IMU_AHRS_PITCH_TOGGLE; break;
             case 'r': imu_cmd = IMU_AHRS_ROLL_TOGGLE; break;
-            case 'z': imu_cmd = IMU_SENSOR_DATA_ZERO; break;
             case 'd': imu_cmd = IMU_SENSOR_DATA_IDEAL; break;
             case 'o': printf("Enter proportional gain (u) or down (d)\r\n");
                       cmd = getchar();
