@@ -13,6 +13,8 @@ LIS3MDL_SRC_DIR := ./LIS3MDL
 LIS3MDL_INC_DIR := ./LIS3MDL
 AHRS_SRC_DIR := ./AHRS
 AHRS_INC_DIR := ./AHRS
+BLE_SRC_DIR := ./BLE
+BLE_INC_DIR := ./BLE
 CONFIG_DIR := ../config
 VERBOSE := 1
 
@@ -24,6 +26,7 @@ SRC_FILES += \
   $(PROJ_DIR)/main.cpp \
   $(PROJ_DIR)/TwoWire.cpp \
   $(IMU_SRC_DIR)/imu.cpp \
+  $(BLE_SRC_DIR)/ble_svcs.cpp \
   $(LSM6DS3_SRC_DIR)/LSM6DS3_ACC_GYRO_Driver.c \
   $(LSM6DS3_SRC_DIR)/LSM6DS3Sensor.cpp \
   $(LIS3MDL_SRC_DIR)/LIS3MDL_MAG_Driver.c \
@@ -158,6 +161,7 @@ INC_FOLDERS += \
   $(CONFIG_DIR) \
   $(PROJ_INC_DIR) \
   $(IMU_INC_DIR) \
+  $(BLE_INC_DIR) \
   $(LSM6DS3_INC_DIR) \
   $(LIS3MDL_INC_DIR) \
   $(AHRS_INC_DIR) \
