@@ -11,16 +11,16 @@ TODO:
 4) Further testing
 5) Nordic Timer to drive AHRS to improve accuracy?
 6) Re-organize all code
-- BLE in separate files from main.cpp
 - Place devi2c better, why does not work in constructor
-7) Visualization 
+7) Visualization code on Raspberry Pi
 8) BLE code
-- Re-enable BLE 
+- Advertising, or characteristic notification for sensor data?
 - DFU Over the Air Updates
 - Fix crashes associated with BLE 
 - Fix lack of reliable start of APP with BLE
 - Fix raspberry pi connection MTU issue
 - cleanup BLE code to remove junk
+- Remove / replace HRS and other remnants
 9) BLE application
 10) Battery Power
 11) Prototype Board 

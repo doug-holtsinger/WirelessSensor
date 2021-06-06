@@ -163,6 +163,13 @@ void IMU::calibrate_data(void)
 
 }
 
+void IMU::get_angles(float& o_roll, float& o_pitch, float& o_yaw)
+{
+    o_roll = roll;
+    o_pitch = pitch;
+    o_yaw = yaw;
+}
+
 void IMU::AHRS() 
 {
     if (sensor_select == IMU_AHRS)
@@ -201,7 +208,7 @@ void IMU::AHRS()
             mx = 400.0f; my = 0.0f ; mz = 0.0f;
 	}
         MahonyAHRSupdate(gx, gy, gz, ax, ay, az, mx, my, mz);
-        MahonyAHRSComputeAngles();
+        MahonyAHRSComputeAngles(roll, pitch, yaw);
     }
 
 }
@@ -382,11 +389,20 @@ void IMU::cmd(IMU_CMD_t& cmd)
                         calibrate_enable = IMU_SENSOR_CALIBRATE_DISABLED; break;
             }
             if (calibrate_enable == IMU_SENSOR_CALIBRATE_DISABLED)
-                printf("Calibrate Disabled\r\n");
+                for (int i=0 ; i < 100 ; i++) 
+                {
+                    printf("Calibrate Disabled\r\n");
+                }
             else if (calibrate_enable == IMU_SENSOR_CALIBRATE_ZERO_OFFSET)
-                printf("Calibrate Zero Offset Enable\r\n");
+                for (int i=0 ; i < 100 ; i++) 
+                {
+                    printf("Calibrate Zero Offset Enable\r\n");
+                }
             else if (calibrate_enable == IMU_SENSOR_CALIBRATE_MAGNETOMETER)
-                printf("Calibrate Magnetometer Enable\r\n");
+                for (int i=0 ; i < 100 ; i++) 
+                {
+                    printf("Calibrate Magnetometer Enable\r\n");
+                }
             break;
         case IMU_SENSOR_CALIBRATE_RESET:
             // reset calibration values

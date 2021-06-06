@@ -76,6 +76,7 @@
 #include "boards.h"
 
 #include "imu.h"
+#include "ble_svcs_cmd.h"
 #include "ble_svcs.h"
 
 static uint32_t cmd_get_cnt = 0;
@@ -125,18 +126,29 @@ void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
     switch (id) 
     {
 	case NRF_FAULT_ID_SDK_ERROR:
-            err_code_orig = ep->err_code;
-            line_num = ep->line_num & 0xFFFF;
-            p_file = ep->p_file_name;
+            if (ep)
+            {
+                err_code_orig = ep->err_code;
+                line_num = ep->line_num & 0xFFFF;
+                p_file = ep->p_file_name;
+            }
 	    break;
 	case NRF_FAULT_ID_SDK_ASSERT:
             err_code_orig = 0xEEEE; 
-            line_num = ap->line_num & 0xFFFF;
-            p_file = ap->p_file_name;
+            if (ap)
+            {
+                line_num = ap->line_num & 0xFFFF;
+                p_file = ap->p_file_name;
+            }
 	    break;
 	case NRF_FAULT_ID_SD_ASSERT:
             // NRF softdevice fault assert
             err_code_orig = 0xEEE0;
+            if (ap)
+            {
+                line_num = ap->line_num & 0xFFFF;
+                p_file = ap->p_file_name;
+            }
 	    break;
 	case NRF_FAULT_ID_APP_MEMACC:
             // NRF invalid memory access 
@@ -153,7 +165,7 @@ void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
     bsp_board_led_off(BSP_BOARD_LED_2);
     bsp_board_led_off(BSP_BOARD_LED_3);
 
-     NRF_LOG_ERROR("ERROR: id: 0x%x err_code: 0x%x File: %s Line: %d\n", id, err_code_orig, p_file, line_num);
+     NRF_LOG_ERROR("ERROR: id: 0x%x pc: 0x%x err_code: 0x%x File: %s Line: %d\n", id, pc, err_code_orig, p_file, line_num);
 
     while (1) {}
 }
@@ -297,18 +309,20 @@ static void idle_state_handle(void)
 }
 #endif
 
-bool get_imu_cmd(IMU_CMD_t& imu_cmd)
+void get_app_cmd(IMU_CMD_t& imu_cmd, BLE_CMD_t& ble_cmd)
 {
     uint8_t rx_data;
     char cmd;
     uint32_t err_code;
-    bool cmd_valid = false;
 
     err_code = app_uart_get(&rx_data);
+    imu_cmd = IMU_NOCMD;
+    ble_cmd = BLE_NOCMD;
     if (err_code == NRF_SUCCESS) {
-        cmd_valid = true;
         switch (rx_data)
         {
+            case 'b': ble_cmd = BLE_STOP_ADVERTISING; break;
+            case 'f': ble_cmd = BLE_MANUFACT_DATA_TOGGLE; break;
             case 'm': imu_cmd = IMU_PRINT_MAGNETOMETER; break;
             case 'g': imu_cmd = IMU_PRINT_GYROSCOPE; break;
             case 'a': imu_cmd = IMU_PRINT_ACCELEROMETER; break;
@@ -329,10 +343,7 @@ bool get_imu_cmd(IMU_CMD_t& imu_cmd)
                       } else if (cmd == 'd')
                       {
                           imu_cmd = IMU_AHRS_PROP_GAIN_DOWN;
-                      } else 
-                      {
-                          cmd_valid = false;
-                      }
+                      } 
                       break;
             case 'n': printf("Enter integral gain (u) or down (d)\r\n");
                       cmd = getchar();
@@ -342,10 +353,7 @@ bool get_imu_cmd(IMU_CMD_t& imu_cmd)
                       } else if (cmd == 'd')
                       {
                           imu_cmd = IMU_AHRS_INTEG_GAIN_DOWN;
-                      } else 
-                      {
-                          cmd_valid = false;
-                      }
+                      } 
                       break;
             case 's': printf("Enter sample frequency (u) or down (d)\r\n");
                       cmd = getchar();
@@ -355,10 +363,7 @@ bool get_imu_cmd(IMU_CMD_t& imu_cmd)
                       } else if (cmd == 'd')
                       {
                           imu_cmd = IMU_AHRS_SAMPLE_FREQ_DOWN;
-                      } else
-                      {
-                          cmd_valid = false;
-                      }
+                      } 
                       break;
             case 't': printf("Enter gyro sensitivity (u) or down (d)\r\n");
                       cmd = getchar();
@@ -368,15 +373,11 @@ bool get_imu_cmd(IMU_CMD_t& imu_cmd)
                       } else if (cmd == 'd')
                       {
                           imu_cmd = IMU_GYROSCOPE_SENSITIVITY_DOWN;
-                      } else
-                      {
-                          cmd_valid = false;
-                      }
+                      } 
                       break;
-            default: cmd_valid = false;
+            default: break;
         }
     }
-    return cmd_valid;
 }
 
 
@@ -401,6 +402,8 @@ int main(void)
 {
     IMU imu;
     IMU_CMD_t imu_cmd;
+    BLE_CMD_t ble_cmd;
+    float roll, pitch, yaw;
 
     // Initialize.
     log_init();
@@ -427,12 +430,21 @@ int main(void)
     {
         if ((cmd_get_cnt++ & 0xFF) == 0)
         {
-            if (get_imu_cmd(imu_cmd))
+            get_app_cmd(imu_cmd, ble_cmd);
+            if (imu_cmd != IMU_NOCMD)
             {
-                    imu.cmd(imu_cmd);
+                imu.cmd(imu_cmd);
+            }
+            if (ble_cmd != BLE_NOCMD)
+            {
+                ble_svcs_cmd(ble_cmd, 0);
             }
         }
         imu.update();
+
+        imu.get_angles(roll, pitch, yaw);
+        ble_svcs_data(roll, pitch, yaw);
+
         if ((cmd_get_cnt & 0x0F) == 0)
         {
             imu.print_data();

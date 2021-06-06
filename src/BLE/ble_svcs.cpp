@@ -55,25 +55,13 @@
 #include "peer_manager.h"
 #include "peer_manager_handler.h"
 
-#if 0
-#include "ble.h"
-#include "ble_advdata.h"
-#include "ble_conn_state.h"
-#include "ble_err.h"
-#include "ble_srv_common.h"
-#include "nrf_ble_gatt.h"
-#include "nrf_ble_lesc.h"
-#include "nrf_pwr_mgmt.h"
-#include "nrf_sdh_ble.h"
-#include "nrf_sdh_soc.h"
-#endif
+#include "ble_svcs_cmd.h"
 
 #include "nrf_sdh.h"
 
 #include "bsp.h"
 
 #include "app_timer.h"
-#include "sensorsim.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -89,7 +77,7 @@
 
 #define DEVICE_NAME                         "Nordic_HRM"                            /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
-#define APP_ADV_INTERVAL                    300                                     /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
+#define APP_ADV_INTERVAL                    BLE_GAP_ADV_INTERVAL_MIN /**< The advertising interval (in units of 0.625 ms. This value corresponds to 20.0 ms). */
 
 #define APP_ADV_DURATION                    BLE_GAP_ADV_TIMEOUT_GENERAL_UNLIMITED   /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
 
@@ -132,8 +120,6 @@ NRF_BLE_QWR_DEF(m_qwr);              /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising);  /**< Advertising module instance. */
 
 APP_TIMER_DEF(m_heart_rate_timer_id);                               /**< Heart rate measurement timer. */
-APP_TIMER_DEF(m_rr_interval_timer_id);                              /**< RR interval timer. */
-APP_TIMER_DEF(m_sensor_contact_timer_id);                           /**< Sensor contact detected timer. */
 
 ble_uuid_t m_adv_uuids[] =                 /**< Universally unique service identifiers. */
 {
@@ -144,13 +130,9 @@ ble_uuid_t m_adv_uuids[] =                 /**< Universally unique service ident
 uint16_t m_conn_handle         = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 bool     m_rr_interval_enabled = false;   /**< Flag for enabling and disabling the registration of new RR interval measurements (the purpose of disabling this is just to test sending HRM without RR interval data. */
 
-sensorsim_cfg_t   m_heart_rate_sim_cfg;    /**< Heart Rate sensor simulator configuration. */
-sensorsim_state_t m_heart_rate_sim_state;  /**< Heart Rate sensor simulator state. */
-sensorsim_cfg_t   m_rr_interval_sim_cfg;   /**< RR Interval sensor simulator configuration. */
-sensorsim_state_t m_rr_interval_sim_state; /**< RR Interval sensor simulator state. */
-
 static uint16_t heart_rate;
-
+bool show_manuf_data = false; 
+uint16_t print_cnt = 0;
 
 /**@brief Function for handling the Heart rate measurement timer timeout.
  *
@@ -166,7 +148,6 @@ void heart_rate_meas_timeout_handler(void * p_context)
 
     UNUSED_PARAMETER(p_context);
 
-    // heart_rate = (uint16_t)sensorsim_measure(&m_heart_rate_sim_state, &m_heart_rate_sim_cfg);
     err_code = ble_hrs_heart_rate_measurement_send(&m_hrs, heart_rate);
     if ((err_code != NRF_SUCCESS) &&
         (err_code != NRF_ERROR_INVALID_STATE) &&
@@ -181,60 +162,82 @@ void heart_rate_meas_timeout_handler(void * p_context)
  
 }
 
-
-/**@brief Function for handling the RR interval timer timeout.
- *
- * @details This function will be called each time the RR interval timer expires.
- *
- * @param[in] p_context  Pointer used for passing some arbitrary information (context) from the
- *                       app_start_timer() call to the timeout handler.
+/**@brief Function for converting float to int16
+ *  Roll -- -180 to +180
+ *  Yaw -- 0 to 360 => 360 *100 exceeds signed limits
+ *  Pitch -- -90 to +90
  */
-void rr_interval_timeout_handler(void * p_context)
+int16_t convert_float_to_int16(float anglef)
 {
-    UNUSED_PARAMETER(p_context);
+    int16_t anglei = int(anglef * 10.0); 
+    return anglei;
+}
 
-    if (m_rr_interval_enabled)
+/**@brief Function for interpreting commands
+ */
+void ble_svcs_cmd(BLE_CMD_t ble_cmd, uint16_t data)
+{
+    ret_code_t err_code;
+
+    switch (ble_cmd)
     {
-        uint16_t rr_interval;
-
-        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
-                                                  &m_rr_interval_sim_cfg);
-        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
-        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
-                                                  &m_rr_interval_sim_cfg);
-        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
-        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
-                                                  &m_rr_interval_sim_cfg);
-        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
-        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
-                                                  &m_rr_interval_sim_cfg);
-        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
-        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
-                                                  &m_rr_interval_sim_cfg);
-        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
-        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
-                                                  &m_rr_interval_sim_cfg);
-        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
+        case BLE_STOP_ADVERTISING:
+            NRF_LOG_INFO("BLE Stop Advertising.");
+            err_code = sd_ble_gap_adv_stop(m_advertising.adv_handle);
+            APP_ERROR_CHECK(err_code);
+            break;
+        case BLE_MANUFACT_DATA_TOGGLE:
+            show_manuf_data = !show_manuf_data;
+            break;
+        default: break;
     }
 }
 
-/**@brief Function for handling the Sensor Contact Detected timer timeout.
- *
- * @details This function will be called each time the Sensor Contact Detected timer expires.
- *
- * @param[in] p_context  Pointer used for passing some arbitrary information (context) from the
- *                       app_start_timer() call to the timeout handler.
+/**@brief Function for interpreting data
  */
-void sensor_contact_detected_timeout_handler(void * p_context)
+void ble_svcs_data(float& roll, float& pitch, float& yaw)
 {
-    static bool sensor_contact_detected = false;
+    ret_code_t err_code;
+    ble_advdata_t advdata;
+    ble_advdata_manuf_data_t manuf_data;
+    int16_t euler_angles[3];
 
-    UNUSED_PARAMETER(p_context);
+    euler_angles[0] = convert_float_to_int16(roll);
+    euler_angles[1] = convert_float_to_int16(pitch);
+    euler_angles[2] = convert_float_to_int16(yaw);
 
-    sensor_contact_detected = !sensor_contact_detected;
-    ble_hrs_sensor_contact_detected_update(&m_hrs, sensor_contact_detected);
+    if (show_manuf_data)
+    {
+        if ( print_cnt == 0 )
+        {
+            printf("Roll = %hd Pitch = %hd Yaw = %hd\r\n", euler_angles[0], euler_angles[1], euler_angles[2]);
+        }
+        if (print_cnt++ == 256)
+        {
+            print_cnt = 0;
+        }
+    }
+
+    memset(&advdata, 0, sizeof(advdata));
+    advdata.name_type               = BLE_ADVDATA_FULL_NAME;
+    advdata.include_appearance      = true;
+    advdata.flags                   = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
+    advdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
+    advdata.uuids_complete.p_uuids  = m_adv_uuids;
+
+    memset(&manuf_data, 0, sizeof(manuf_data));
+    manuf_data.company_identifier = 0xFFFF;
+    manuf_data.data.size = sizeof(uint16_t) * 3;
+    manuf_data.data.p_data = (uint8_t*)euler_angles;
+
+    advdata.p_manuf_specific_data = &manuf_data;
+
+    err_code = ble_advertising_advdata_update(
+                    &m_advertising, 
+                    &advdata,
+                    NULL);
+    APP_ERROR_CHECK(err_code);
 }
-
 
 /**@brief Function for starting advertising.
  */
@@ -259,16 +262,6 @@ void ble_svcs_timers_init(void)
                                 APP_TIMER_MODE_REPEATED,
                                 heart_rate_meas_timeout_handler);
     APP_ERROR_CHECK(err_code);
-
-    err_code = app_timer_create(&m_rr_interval_timer_id,
-                                APP_TIMER_MODE_REPEATED,
-                                rr_interval_timeout_handler);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = app_timer_create(&m_sensor_contact_timer_id,
-                                APP_TIMER_MODE_REPEATED,
-                                sensor_contact_detected_timeout_handler);
-    APP_ERROR_CHECK(err_code);
 }
 
 /**@brief Function for starting application timers.
@@ -278,12 +271,6 @@ void ble_svcs_application_timers_start(void)
     ret_code_t err_code;
 
     err_code = app_timer_start(m_heart_rate_timer_id, HEART_RATE_MEAS_INTERVAL, NULL);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = app_timer_start(m_rr_interval_timer_id, RR_INTERVAL_INTERVAL, NULL);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = app_timer_start(m_sensor_contact_timer_id, SENSOR_CONTACT_DETECTED_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -401,11 +388,9 @@ void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                           *((uint8_t *)&p_ble_evt->evt.gap_evt.params.auth_status.kdist_peer));
             break;
 
-        case BLE_GATTS_EVT_HVN_TX_COMPLETE:
-            break;
         default:
             // No implementation needed.
-            NRF_LOG_INFO("%s %d ble_evt_handler default handler for event %d", __FILE__, __LINE__, p_ble_evt->header.evt_id);
+            // NRF_LOG_INFO("%s %d ble_evt_handler default handler for event %d", __FILE__, __LINE__, p_ble_evt->header.evt_id);
             break;
     }
 }
@@ -496,7 +481,7 @@ void services_init(void)
     memset(&hrs_init, 0, sizeof(hrs_init));
 
     hrs_init.evt_handler                 = NULL;
-    hrs_init.is_sensor_contact_supported = true;
+    hrs_init.is_sensor_contact_supported = false;
     hrs_init.p_body_sensor_location      = &body_sensor_location;
 
     // Here the sec level for the Heart Rate Service can be changed/increased.
@@ -516,28 +501,6 @@ void services_init(void)
     err_code = ble_dis_init(&dis_init);
     APP_ERROR_CHECK(err_code);
 }
-
-
-/**@brief Function for initializing the sensor simulators.
- */
-void sensor_simulator_init(void)
-{
-    m_heart_rate_sim_cfg.min          = MIN_HEART_RATE;
-    m_heart_rate_sim_cfg.max          = MAX_HEART_RATE;
-    m_heart_rate_sim_cfg.incr         = HEART_RATE_INCREMENT;
-    m_heart_rate_sim_cfg.start_at_max = false;
-
-    sensorsim_init(&m_heart_rate_sim_state, &m_heart_rate_sim_cfg);
-
-    m_rr_interval_sim_cfg.min          = MIN_RR_INTERVAL;
-    m_rr_interval_sim_cfg.max          = MAX_RR_INTERVAL;
-    m_rr_interval_sim_cfg.incr         = RR_INTERVAL_INCREMENT;
-    m_rr_interval_sim_cfg.start_at_max = false;
-
-    sensorsim_init(&m_rr_interval_sim_state, &m_rr_interval_sim_cfg);
-}
-
-
 
 /**@brief Function for handling the Connection Parameters Module.
  *
@@ -789,7 +752,6 @@ void ble_svcs_init(void)
     gatt_init();
     advertising_init();
     services_init();
-    sensor_simulator_init();
     conn_params_init();
     peer_manager_init();
 }

@@ -21,21 +21,15 @@ extern volatile float twoKp;			// 2 * proportional gain (Kp)
 extern volatile float twoKi;			// 2 * integral gain (Ki)
 extern volatile float q0, q1, q2, q3;	// quaternion of sensor frame relative to auxiliary frame
 extern volatile float q0X, q1X, q2X, q3X;	// quaternion of sensor frame relative to auxiliary frame
-extern float roll, pitch, yaw;
+// extern float roll, pitch, yaw;
 extern float axN, ayN, azN;
 extern float gxN, gyN, gzN;
 extern float mxN, myN, mzN;
 
 //---------------------------------------------------------------------------------------------------
 // Function declarations
-
-extern "C" {
-    extern void MahonyAHRSupdate(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz);
-    extern void MahonyAHRSComputeAngles();
-};
+extern void MahonyAHRSupdate(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz);
+extern void MahonyAHRSComputeAngles(float& roll, float& pitch, float& yaw);
 
 
 #endif
-//=====================================================================================================
-// End of file
-//=====================================================================================================

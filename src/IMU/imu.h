@@ -34,7 +34,8 @@ typedef enum
 
 typedef enum
 {
-    IMU_PRINT_MAGNETOMETER = 0,
+    IMU_NOCMD = 0,
+    IMU_PRINT_MAGNETOMETER,
     IMU_PRINT_GYROSCOPE, 
     IMU_PRINT_ACCELEROMETER,
     IMU_PRINT_AHRS,
@@ -72,6 +73,7 @@ class IMU {
         void init(void);
         void cmd(IMU_CMD_t& cmd);
         void print_data();
+        void get_angles(float& roll, float& pitch, float& yaw);
         TwoWire* dev_i2c;
     private:
         void sensor_init(void);
@@ -91,6 +93,8 @@ class IMU {
         bool show_roll  = true;
         unsigned int ideal_data[3] = { 0, 0, 0 };
         bool zero_data[3] = { false, false, false };
+
+        float roll, pitch, yaw;
 
         int32_t accelerometer_uncal[3];
         int32_t accelerometer_cal[3];
