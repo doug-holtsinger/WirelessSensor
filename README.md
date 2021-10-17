@@ -1,8 +1,13 @@
 # WirelessSensor
-Wireless Sensor Hobbyist Project using a Nordic nRF52840
+Wireless Sensor Hobbyist Project using a Nordic nRF52840 board
+and a Raspberry Pi computer.  The Nordic is attached to an
+accelerometer and gyroscope, which is used for an AHRS (Attitude
+and Heading Reference System).  The output from the AHRS is sent
+over BLE from the Nordic to the Raspberry Pi where the object 
+orientation is visualized using the Raspberry Pi graphics hardware.
 
 TODO:
-1) Refine calibration
+1) Refine AHRS calibration
 - remove fixed constants
 - require less operator intervention to do calibration
 - Angles take a long time to stabilize, accelerometer readings?
@@ -27,3 +32,4 @@ TODO:
 12) Remove requirements for Serial Port and SEGGER Debugger for general use
 13) Calibration Storage, so you don't have to do calibration every time you power on
 components/libraries/fds/fds.h
+
