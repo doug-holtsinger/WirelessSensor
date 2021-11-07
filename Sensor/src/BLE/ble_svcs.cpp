@@ -202,9 +202,9 @@ void ble_svcs_data(float& roll, float& pitch, float& yaw)
     ble_advdata_manuf_data_t manuf_data;
     int16_t euler_angles[3];
 
-    euler_angles[0] = convert_float_to_int16(roll);
-    euler_angles[1] = convert_float_to_int16(pitch);
-    euler_angles[2] = convert_float_to_int16(yaw);
+    euler_angles[0] = (int16_t)roll; 
+    euler_angles[1] = (int16_t)pitch; 
+    euler_angles[2] = (int16_t)yaw; 
 
     if (show_manuf_data)
     {

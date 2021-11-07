@@ -329,6 +329,7 @@ void get_app_cmd(IMU_CMD_t& imu_cmd, BLE_CMD_t& ble_cmd)
             case 'q': imu_cmd = IMU_PRINT_AHRS; break;
             case 'i': imu_cmd = IMU_AHRS_INPUT_TOGGLE; break;
             case 'z': imu_cmd = IMU_SENSOR_DATA_ZERO; break;
+            case 'k': imu_cmd = IMU_SENSOR_DATA_FIXED_TOGGLE; break;
             case 'c': imu_cmd = IMU_SENSOR_CALIBRATE_TOGGLE; break;
             case 'e': imu_cmd = IMU_SENSOR_CALIBRATE_RESET; break;
             case 'y': imu_cmd = IMU_AHRS_YAW_TOGGLE; break;

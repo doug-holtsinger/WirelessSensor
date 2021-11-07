@@ -47,6 +47,7 @@ typedef enum
     IMU_AHRS_ROLL_TOGGLE,
     IMU_SENSOR_DATA_ZERO,
     IMU_SENSOR_DATA_IDEAL,
+    IMU_SENSOR_DATA_FIXED_TOGGLE,
     IMU_AHRS_PROP_GAIN_UP,
     IMU_AHRS_PROP_GAIN_DOWN,
     IMU_AHRS_INTEG_GAIN_UP,
@@ -93,6 +94,7 @@ class IMU {
         bool show_roll  = true;
         unsigned int ideal_data[3] = { 0, 0, 0 };
         bool zero_data[3] = { false, false, false };
+	bool fixed_data = false;
 
         float roll, pitch, yaw;
 

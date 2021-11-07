@@ -209,6 +209,12 @@ void IMU::AHRS()
 	}
         MahonyAHRSupdate(gx, gy, gz, ax, ay, az, mx, my, mz);
         MahonyAHRSComputeAngles(roll, pitch, yaw);
+	if (fixed_data)
+	{
+		roll = 45.0;
+		pitch = 90.0;
+		yaw = 180.0;
+	}
     }
 
 }
@@ -467,6 +473,9 @@ void IMU::cmd(IMU_CMD_t& cmd)
                     printf("Magnetometer Data Real\r\n");
             }
             break;
+        case IMU_SENSOR_DATA_FIXED_TOGGLE:
+	    fixed_data = !fixed_data;
+	    break;
         case IMU_AHRS_PROP_GAIN_UP:
             twoKp += 0.1f;
             printf("twoKp : %lu\r\n", (uint32_t)(twoKp * 1000.0));
