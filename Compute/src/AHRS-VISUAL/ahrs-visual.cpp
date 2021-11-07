@@ -42,9 +42,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "revision.h"
 
-// TODO: use glMultMatrix instead of manually calculating mvp
-// TODO: change size from 4 to 3, and eliminate 4th column below
-#define VERTEX_DATA_ATTRIBUTE_SIZE 4
+// TODO: 
+// 1) Use texturing on surfaces
+// 2) use glMultMatrix instead of manually calculating mvp
+// 3) Determine a good viewport and centering of cube in the viewport
+// 4) Connect in bluetooth application 
+// 5) 3-axis cube rotation and translation
+
+#define VERTEX_DATA_ATTRIBUTE_SIZE 3
 #define VIEWPORT_SIZE_DIVISOR 1
 #define CUBE_NUM_FACES 6
 
@@ -53,6 +58,7 @@ typedef struct
 {
    uint32_t screen_width;
    uint32_t screen_height;
+   uint32_t viewport_dimension;
 // OpenGL|ES objects
    EGLDisplay display;
    EGLSurface surface;
@@ -70,7 +76,7 @@ typedef struct
    GLuint unif_mvp, attr_position, attr_color;
 } CUBE_STATE_T;
 
-static CUBE_STATE_T _state, *state=&_state;
+static CUBE_STATE_T sstate, *state=&sstate;
 
 static GLfloat mvp[4][4] = {
 	{ 1.0, 0.0, 0.0, 0.0 },
@@ -195,6 +201,14 @@ static void init_ogl(CUBE_STATE_T *state)
    state->screen_height /= 2;
 #endif
 
+   if (state->screen_width > state->screen_height)
+   {
+       state->viewport_dimension = state->screen_height;
+   } else
+   {
+       state->viewport_dimension = state->screen_width;
+   }
+
 #if 0
    dst_rect.x = 0;
    dst_rect.y = 0;
@@ -215,7 +229,7 @@ static void init_ogl(CUBE_STATE_T *state)
          
    dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
       0/*layer*/, &dst_rect, 0/*src*/,
-      &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, 0/*transform*/);
+      &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, DISPMANX_NO_ROTATE/*transform*/);
       
    nativewindow.element = dispman_element;
    nativewindow.width = state->screen_width;
@@ -245,73 +259,70 @@ static void init_shaders(CUBE_STATE_T *state)
 
 // CCW -- front facing
 // CW -- rear facing
-// TODO: change size from 4 to 3, and eliminate 4th column below
    static const GLfloat vertex_data[] = {
-        -0.5, -0.5,  0.5, 1.0,    // front side lower left
-         0.5, -0.5,  0.5, 1.0,    // front side lower right
-         0.5,  0.5,  0.5, 1.0,    // front side upper right
-        -0.5,  0.5,  0.5, 1.0,    // front side upper left
+        -0.5, -0.5,  0.5,    // front side lower left
+         0.5, -0.5,  0.5,    // front side lower right
+         0.5,  0.5,  0.5,    // front side upper right
+        -0.5,  0.5,  0.5,    // front side upper left
 
-        -0.5, -0.5, -0.5, 1.0,    // rear side 
-        -0.5,  0.5, -0.5, 1.0,    // rear side 
-         0.5,  0.5, -0.5, 1.0,    // rear side 
-         0.5, -0.5, -0.5, 1.0,    // rear side 
+        -0.5, -0.5, -0.5,    // rear side 
+        -0.5,  0.5, -0.5,    // rear side 
+         0.5,  0.5, -0.5,    // rear side 
+         0.5, -0.5, -0.5,    // rear side 
 
-        -0.5, -0.5,  0.5, 1.0,    // left side 
-        -0.5,  0.5,  0.5, 1.0,    // left side 
-        -0.5,  0.5, -0.5, 1.0,    // left side 
-        -0.5, -0.5, -0.5, 1.0,    // left side 
+        -0.5, -0.5,  0.5,    // left side 
+        -0.5,  0.5,  0.5,    // left side 
+        -0.5,  0.5, -0.5,    // left side 
+        -0.5, -0.5, -0.5,    // left side 
 
-         0.5, -0.5,  0.5, 1.0,    // right side
-         0.5, -0.5, -0.5, 1.0,    // right side
-         0.5,  0.5, -0.5, 1.0,    // right side
-         0.5,  0.5,  0.5, 1.0,    // right side
+         0.5, -0.5,  0.5,    // right side
+         0.5, -0.5, -0.5,    // right side
+         0.5,  0.5, -0.5,    // right side
+         0.5,  0.5,  0.5,    // right side
 
-        -0.5,  0.5,  0.5, 1.0,    // top side
-         0.5,  0.5,  0.5, 1.0,    // top side
-         0.5,  0.5, -0.5, 1.0,    // top side
-        -0.5,  0.5, -0.5, 1.0,    // top side
+        -0.5,  0.5,  0.5,    // top side
+         0.5,  0.5,  0.5,    // top side
+         0.5,  0.5, -0.5,    // top side
+        -0.5,  0.5, -0.5,    // top side
 
-        -0.5, -0.5,  0.5, 1.0,    // bottom side
-        -0.5, -0.5, -0.5, 1.0,    // bottom side
-         0.5, -0.5, -0.5, 1.0,    // bottom side
-         0.5, -0.5,  0.5, 1.0     // bottom side
+        -0.5, -0.5,  0.5,    // bottom side
+        -0.5, -0.5, -0.5,    // bottom side
+         0.5, -0.5, -0.5,    // bottom side
+         0.5, -0.5,  0.5     // bottom side
 
    };
 
-// TODO: change size from 4 to 3, and eliminate 4th column below
    static const GLfloat color_data[] = {
-         0.5,  0.5,  0.1, 1.0,
-         0.5,  0.5,  0.1, 1.0,
-         0.5,  0.5,  0.1, 1.0,
-         0.5,  0.5,  0.1, 1.0,
+         0.5,  0.5,  0.1,
+         0.5,  0.5,  0.1,
+         0.5,  0.5,  0.1,
+         0.5,  0.5,  0.1,
 
-         0.5,  0.1,  0.8, 1.0,
-         0.5,  0.1,  0.8, 1.0,
-         0.5,  0.1,  0.8, 1.0,
-         0.5,  0.1,  0.8, 1.0,
+         0.5,  0.1,  0.8,
+         0.5,  0.1,  0.8,
+         0.5,  0.1,  0.8,
+         0.5,  0.1,  0.8,
 
-         0.1,  0.5,  0.8, 1.0,
-         0.1,  0.5,  0.8, 1.0,
-         0.1,  0.5,  0.8, 1.0,
-         0.1,  0.5,  0.8, 1.0,
+         0.1,  0.5,  0.8,
+         0.1,  0.5,  0.8,
+         0.1,  0.5,  0.8,
+         0.1,  0.5,  0.8,
 
-         0.1,  0.7,  0.8, 1.0,
-         0.1,  0.7,  0.8, 1.0,
-         0.1,  0.7,  0.8, 1.0,
-         0.1,  0.7,  0.8, 1.0,
+         0.1,  0.7,  0.8,
+         0.1,  0.7,  0.8,
+         0.1,  0.7,  0.8,
+         0.1,  0.7,  0.8,
 
-         0.7,  0.1,  0.8, 1.0,
-         0.7,  0.1,  0.8, 1.0,
-         0.7,  0.1,  0.8, 1.0,
-         0.7,  0.1,  0.8, 1.0,
+         0.7,  0.1,  0.8,
+         0.7,  0.1,  0.8,
+         0.7,  0.1,  0.8,
+         0.7,  0.1,  0.8,
 
-         0.5,  0.9,  0.1, 1.0,
-         0.5,  0.9,  0.1, 1.0,
-         0.5,  0.9,  0.1, 1.0,
-         0.5,  0.9,  0.1, 1.0
+         0.5,  0.9,  0.1,
+         0.5,  0.9,  0.1,
+         0.5,  0.9,  0.1,
+         0.5,  0.9,  0.1
    };
-
 
    const GLchar *vshader_source =
               "attribute vec4 a_position;"
@@ -373,13 +384,13 @@ static void init_shaders(CUBE_STATE_T *state)
         glBindFramebuffer(GL_FRAMEBUFFER,0);
         check();
         // Prepare viewport
-        glViewport ( 0, 0, state->screen_width/VIEWPORT_SIZE_DIVISOR, state->screen_height/VIEWPORT_SIZE_DIVISOR );
+	printf("viewport dim %d screen w %d h %d\n", state->viewport_dimension, state->screen_width, state->screen_height);
+        glViewport ( 0, 0, state->viewport_dimension, state->viewport_dimension );
         check();
 
         // Upload vertex data to a buffer
         glBindBuffer(GL_ARRAY_BUFFER, state->buf[0]);
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data), vertex_data, GL_STATIC_DRAW);
-// TODO: change size from 4 to 3, and eliminate 4th column below
         glVertexAttribPointer(state->attr_position, VERTEX_DATA_ATTRIBUTE_SIZE, GL_FLOAT, 0, 0, 0);
         glEnableVertexAttribArray(state->attr_position);
         check();
@@ -387,7 +398,6 @@ static void init_shaders(CUBE_STATE_T *state)
 	// Upoad color data to a buffer
         glBindBuffer(GL_ARRAY_BUFFER, state->buf[1]);
         glBufferData(GL_ARRAY_BUFFER, sizeof(color_data), color_data, GL_STATIC_DRAW);
-// TODO: change size from 4 to 3, and eliminate 4th column below
         glVertexAttribPointer(state->attr_color, VERTEX_DATA_ATTRIBUTE_SIZE, GL_FLOAT, 0, 0, 0);
         glEnableVertexAttribArray(state->attr_color);
         check();
@@ -396,7 +406,7 @@ static void init_shaders(CUBE_STATE_T *state)
 
 
         
-static void draw_cube(CUBE_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat x, GLfloat y)
+static void draw_cube(CUBE_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat x, GLfloat y, GLint rot_x)
 {
         GLuint start_pos = 0;
 	GLfloat theta;
@@ -414,12 +424,15 @@ static void draw_cube(CUBE_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat x, GL
         glBindTexture(GL_TEXTURE_2D,state->tex);
         check();
 
+	// Computer Graphics Principles and Practice, Third Edition
+	// John F. Hughes 2014
+	// Section 11.2.1
 	// rotation about Z axis
 	zrot[0][0] = zrot[1][1] = 1.0f; 
 	zrot[0][1] = zrot[1][0] = 0.0f;
 	// was x/2
         theta = (GLfloat)(( x / cx ) * M_PI );
-	printf("x %f cx %f theta rad %f cosf %f deg %f\n", x/2.0f, cx, theta, cos(theta), (theta / M_2_PI) * 360.0f);
+	// printf("x %f cx %f theta rad %f cosf %f deg %f\n", x/2.0f, cx, theta, cos(theta), (theta / M_2_PI) * 360.0f);
 	zrot[0][0] = zrot[1][1] = (GLfloat)cos(theta);
 	zrot[0][1] = (GLfloat)sin(theta);
 	zrot[1][0] = -zrot[0][1];
@@ -428,7 +441,7 @@ static void draw_cube(CUBE_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat x, GL
 	xrot[1][1] = xrot[2][2] = 1.0f; 
 	xrot[1][2] = xrot[2][1] = 0.0f;
         theta = (GLfloat)(( (cy - y) / cy ) * M_PI );
-	printf("y %f cy %f theta rad %f cosf %f deg %f\n", y/2.0f, cy, theta, cos(theta), (theta / M_2_PI) * 360.0f);
+	// printf("y %f cy %f theta rad %f cosf %f deg %f\n", y/2.0f, cy, theta, cos(theta), (theta / M_2_PI) * 360.0f);
 	xrot[1][1] = xrot[2][2] = (GLfloat)cos(theta);
 	xrot[1][2] = (GLfloat)sin(theta);
 	xrot[2][1] = -xrot[1][2];
@@ -439,13 +452,27 @@ static void draw_cube(CUBE_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat x, GL
 	yrot[0][0] = yrot[2][2] = 1.0f;
 	yrot[2][0] = yrot[0][2] = 0.0f;
         theta = (GLfloat)(( (cy - y) / cy ) * M_PI );
-	printf("x %f cx %f theta rad %f cosf %f deg %f\n", x, cx, theta, cos(theta), (theta / M_2_PI) * 360.0f);
+	// printf("x %f cx %f theta rad %f cosf %f deg %f\n", x, cx, theta, cos(theta), (theta / M_2_PI) * 360.0f);
 	yrot[0][0] = yrot[2][2] = (GLfloat)cos(theta);
 	yrot[2][0] = (GLfloat)sin(theta);
 	yrot[0][2] = -yrot[2][0];
 
 
 	// tmp = zrot * xrot; 
+#if 0
+	for (int r = 0 ; r < 4 ; r++)   // row
+	{
+	    for (int c = 0 ; c < 4 ; c++)   // col
+	    {
+		if (rot_x == 0)
+                   mvp[r][c] = xrot[r][c];
+		else if (rot_x == 1)
+                   mvp[r][c] = yrot[r][c];
+		else
+                   mvp[r][c] = zrot[r][c];
+            }
+	}
+#else
 	for (int i = 0 ; i < 4 ; i++)   // row
 	{
 	    for (int j = 0 ; j < 4 ; j++)   // col
@@ -453,11 +480,18 @@ static void draw_cube(CUBE_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat x, GL
                 mvp[i][j] = 0.0;
 	        for (int k = 0 ; k < 4 ; k++)
 		{
-		    mvp[i][j] += zrot[i][k] * xrot[k][j]; 
-		    // mvp[i][j] += zrot[i][k] * yrot[k][j]; 
+		    if (rot_x)
+		    {
+		        mvp[i][j] += zrot[i][k] * xrot[k][j]; 
+		        // mvp[i][j] += zrot[i][k] * xrot[k][j]; 
+		    } else 
+		    {
+		        mvp[i][j] += zrot[i][k] * yrot[k][j]; 
+		    }
 		}
             }
 	}
+#endif
 
 
         glUniformMatrix4fv(state->unif_mvp, 16, GL_FALSE, &mvp[0][0]); 
@@ -469,7 +503,6 @@ static void draw_cube(CUBE_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat x, GL
 
 	for (unsigned int i = 0 ; i < CUBE_NUM_FACES ; i++)
 	{
-// TODO: change size from 4 to 3, and eliminate 4th column below
             glDrawArrays ( GL_TRIANGLE_FAN, start_pos, 4); 
 	    start_pos += 4;
 	}
@@ -483,42 +516,43 @@ static void draw_cube(CUBE_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat x, GL
         check();
 }
 
-static int get_mouse(CUBE_STATE_T *state, int *outx, int *outy)
+static int get_mouse(CUBE_STATE_T& state, int& outx, int& outy, GLint& rot_x)
 {
     static int fd = -1;
-    const int width=state->screen_width, height=state->screen_height;
+    const int width=state.screen_width, height=state.screen_height;
     static int x=800, y=400;
-    const int XSIGN = 1<<4, YSIGN = 1<<5;
+    int bytes;
+    const int XSIGN = 1<<4, YSIGN = 1<<5, LEFT_MOUSE = 0x1;
     if (fd<0) {
        fd = open("/dev/input/mouse0",O_RDONLY|O_NONBLOCK);
     }
     if (fd>=0) {
         struct {char buttons, dx, dy; } m;
 	memset(&m, 0, sizeof(m));
-        while (1) {
-           int bytes = read(fd, &m, sizeof m);
-	   // printf("bytes %d 0x%hhx 0x%hhx 0x%hhx\n", bytes, m.buttons, m.dx, m.dy);
-           if (bytes < (int)sizeof m) goto _exit;
-           if (m.buttons&8) {
-              break; // This bit should always be set
-           }
-           read(fd, &m, 1); // Try to sync up again
+        bytes = read(fd, &m, sizeof m);
+        if (bytes < (int)sizeof m) {
+            goto _exit;
         }
+        printf("bytes %d 0x%hhx %hhd %hhd\n", bytes, m.buttons, m.dx, m.dy);
         x+=m.dx;
         y+=m.dy;
-        if (m.buttons&XSIGN)
+        if (m.buttons & XSIGN)
            x-=256;
-        if (m.buttons&YSIGN)
+        if (m.buttons & YSIGN)
            y-=256;
+	if (m.buttons & LEFT_MOUSE)
+	{
+            rot_x = (rot_x + 1) % 3 ; 
+	}
         if (x<0) x=0;
         if (y<0) y=0;
         if (x>width) x=width;
         if (y>height) y=height;
+        // printf("  x=%d y=%d\n", x, y);
    }
 _exit:
-   // printf("%d %d\n", x, y);
-   if (outx) *outx = x;
-   if (outy) *outy = y;
+   outx = x;
+   outy = y;
    return 0;
 }       
  
@@ -529,8 +563,9 @@ int main ()
    int terminate = 0;
    GLfloat cx, cy;
    bcm_host_init();
+   GLint rotate_x = 0;
 
-   if (get_processor_id() == PROCESSOR_BCM2838)
+   if (bcm_host_get_processor_id() == PROCESSOR_BCM2838)
    {
       puts("This demo application is not available on the Pi4\n\n");
       exit(0);
@@ -548,9 +583,9 @@ int main ()
    while (!terminate)
    {
       int x, y, b;
-      b = get_mouse(state, &x, &y);
+      b = get_mouse(sstate, x, y, rotate_x);
       if (b) break;
-      draw_cube(state, cx, cy, x, y);
+      draw_cube(state, cx, cy, x, y, rotate_x);
    }
    return 0;
 }
