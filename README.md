@@ -32,4 +32,7 @@ TODO:
 12) Remove requirements for Serial Port and SEGGER Debugger for general use
 13) Calibration Storage, so you don't have to do calibration every time you power on
 components/libraries/fds/fds.h
+14) Add Doyxgen documentation for all code, procedures, and parameters
+15) Add circuit schematic 
+15) Add general documentation on the project, algorithms, calibration
 

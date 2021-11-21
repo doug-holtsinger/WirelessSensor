@@ -89,9 +89,9 @@ class IMU {
 
         IMU_SENSOR_CALIBRATE_t calibrate_enable = IMU_SENSOR_CALIBRATE_DISABLED;
         bool calibrate_reset = false;
-        bool show_pitch = true;
-        bool show_yaw   = true;
-        bool show_roll  = true;
+        bool show_pitch = false;
+        bool show_yaw   = false;
+        bool show_roll  = false;
         unsigned int ideal_data[3] = { 0, 0, 0 };
         bool zero_data[3] = { false, false, false };
 	bool fixed_data = false;

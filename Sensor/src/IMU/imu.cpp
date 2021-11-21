@@ -395,20 +395,11 @@ void IMU::cmd(IMU_CMD_t& cmd)
                         calibrate_enable = IMU_SENSOR_CALIBRATE_DISABLED; break;
             }
             if (calibrate_enable == IMU_SENSOR_CALIBRATE_DISABLED)
-                for (int i=0 ; i < 100 ; i++) 
-                {
-                    printf("Calibrate Disabled\r\n");
-                }
+                printf("Calibrate Disabled\r\n");
             else if (calibrate_enable == IMU_SENSOR_CALIBRATE_ZERO_OFFSET)
-                for (int i=0 ; i < 100 ; i++) 
-                {
-                    printf("Calibrate Zero Offset Enable\r\n");
-                }
+                printf("Calibrate Zero Offset Enable\r\n");
             else if (calibrate_enable == IMU_SENSOR_CALIBRATE_MAGNETOMETER)
-                for (int i=0 ; i < 100 ; i++) 
-                {
-                    printf("Calibrate Magnetometer Enable\r\n");
-                }
+                printf("Calibrate Magnetometer Enable\r\n");
             break;
         case IMU_SENSOR_CALIBRATE_RESET:
             // reset calibration values

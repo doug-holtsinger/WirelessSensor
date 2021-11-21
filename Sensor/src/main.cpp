@@ -79,6 +79,9 @@
 #include "ble_svcs_cmd.h"
 #include "ble_svcs.h"
 
+// Determines whether debug serial port is available
+#define SERIAL_PORT_AVAILABLE
+
 static uint32_t cmd_get_cnt = 0;
 
 /* UART defines */
@@ -241,6 +244,7 @@ static void board_init()
     APP_ERROR_CHECK(err_code);
 
     /* UART initialization */
+#ifdef SERIAL_PORT_AVAILABLE
     const app_uart_comm_params_t comm_params =
       {
           RX_PIN_NUMBER,
@@ -265,6 +269,7 @@ static void board_init()
                          err_code);
 
     APP_ERROR_CHECK(err_code);
+#endif
 
 }
 
@@ -402,8 +407,6 @@ static void timers_init(void)
 int main(void)
 {
     IMU imu;
-    IMU_CMD_t imu_cmd;
-    BLE_CMD_t ble_cmd;
     float roll, pitch, yaw;
 
     // Initialize.
@@ -427,10 +430,13 @@ int main(void)
     ble_svcs_advertising_start();
   
     // Enter main loop.
-    for (;;)
+    for (;; cmd_get_cnt++)
     {
-        if ((cmd_get_cnt++ & 0xFF) == 0)
+#ifdef SERIAL_PORT_AVAILABLE
+        if ((cmd_get_cnt & 0xFF) == 0)
         {
+            IMU_CMD_t imu_cmd;
+            BLE_CMD_t ble_cmd;
             get_app_cmd(imu_cmd, ble_cmd);
             if (imu_cmd != IMU_NOCMD)
             {
@@ -441,6 +447,7 @@ int main(void)
                 ble_svcs_cmd(ble_cmd, 0);
             }
         }
+#endif
         imu.update();
 
         imu.get_angles(roll, pitch, yaw);
