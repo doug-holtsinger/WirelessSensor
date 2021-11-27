@@ -73,7 +73,8 @@ class IMU {
         // FIXME: fold init() into constructor
         void init(void);
         void cmd(IMU_CMD_t& cmd);
-        void print_data();
+        void print_debug_data();
+        void send_debug_data(char*);
         void get_angles(float& roll, float& pitch, float& yaw);
         TwoWire* dev_i2c;
     private:

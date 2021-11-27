@@ -37,15 +37,6 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-/** @example examples/ble_peripheral/ble_app_hrs/main.c
- *
- * @brief Heart Rate Service Sample Application main file.
- *
- * This file contains the source code for a sample application using the Heart Rate service
- * (and also Battery and Device Information services). This application uses the
- * @ref srvlib_conn_params module.
- */
-
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -79,9 +70,9 @@
 #include "ble_svcs_cmd.h"
 #include "ble_svcs.h"
 
-// Determines whether debug serial port is available
-#define SERIAL_PORT_AVAILABLE
+#include "app_config.h"
 
+IMU imu;
 static uint32_t cmd_get_cnt = 0;
 
 /* UART defines */
@@ -244,7 +235,7 @@ static void board_init()
     APP_ERROR_CHECK(err_code);
 
     /* UART initialization */
-#ifdef SERIAL_PORT_AVAILABLE
+#ifdef SERIAL_CONSOLE_AVAILABLE
     const app_uart_comm_params_t comm_params =
       {
           RX_PIN_NUMBER,
@@ -314,78 +305,68 @@ static void idle_state_handle(void)
 }
 #endif
 
-void get_app_cmd(IMU_CMD_t& imu_cmd, BLE_CMD_t& ble_cmd)
+void interpret_app_cmd(const uint8_t cmd, IMU_CMD_t& imu_cmd, BLE_CMD_t& ble_cmd)
 {
-    uint8_t rx_data;
-    char cmd;
-    uint32_t err_code;
-
-    err_code = app_uart_get(&rx_data);
-    imu_cmd = IMU_NOCMD;
-    ble_cmd = BLE_NOCMD;
-    if (err_code == NRF_SUCCESS) {
-        switch (rx_data)
-        {
-            case 'b': ble_cmd = BLE_STOP_ADVERTISING; break;
-            case 'f': ble_cmd = BLE_MANUFACT_DATA_TOGGLE; break;
-            case 'm': imu_cmd = IMU_PRINT_MAGNETOMETER; break;
-            case 'g': imu_cmd = IMU_PRINT_GYROSCOPE; break;
-            case 'a': imu_cmd = IMU_PRINT_ACCELEROMETER; break;
-            case 'q': imu_cmd = IMU_PRINT_AHRS; break;
-            case 'i': imu_cmd = IMU_AHRS_INPUT_TOGGLE; break;
-            case 'z': imu_cmd = IMU_SENSOR_DATA_ZERO; break;
-            case 'k': imu_cmd = IMU_SENSOR_DATA_FIXED_TOGGLE; break;
-            case 'c': imu_cmd = IMU_SENSOR_CALIBRATE_TOGGLE; break;
-            case 'e': imu_cmd = IMU_SENSOR_CALIBRATE_RESET; break;
-            case 'y': imu_cmd = IMU_AHRS_YAW_TOGGLE; break;
-            case 'p': imu_cmd = IMU_AHRS_PITCH_TOGGLE; break;
-            case 'r': imu_cmd = IMU_AHRS_ROLL_TOGGLE; break;
-            case 'd': imu_cmd = IMU_SENSOR_DATA_IDEAL; break;
-            case 'o': printf("Enter proportional gain (u) or down (d)\r\n");
-                      cmd = getchar();
-                      if (cmd == 'u')
-                      {
-                          imu_cmd = IMU_AHRS_PROP_GAIN_UP;
-                      } else if (cmd == 'd')
-                      {
-                          imu_cmd = IMU_AHRS_PROP_GAIN_DOWN;
-                      } 
-                      break;
-            case 'n': printf("Enter integral gain (u) or down (d)\r\n");
-                      cmd = getchar();
-                      if (cmd == 'u')
-                      {
-                          imu_cmd = IMU_AHRS_INTEG_GAIN_UP;
-                      } else if (cmd == 'd')
-                      {
-                          imu_cmd = IMU_AHRS_INTEG_GAIN_DOWN;
-                      } 
-                      break;
-            case 's': printf("Enter sample frequency (u) or down (d)\r\n");
-                      cmd = getchar();
-                      if (cmd == 'u')
-                      {
-                          imu_cmd = IMU_AHRS_SAMPLE_FREQ_UP;
-                      } else if (cmd == 'd')
-                      {
-                          imu_cmd = IMU_AHRS_SAMPLE_FREQ_DOWN;
-                      } 
-                      break;
-            case 't': printf("Enter gyro sensitivity (u) or down (d)\r\n");
-                      cmd = getchar();
-                      if (cmd == 'u')
-                      {
-                          imu_cmd = IMU_GYROSCOPE_SENSITIVITY_UP;
-                      } else if (cmd == 'd')
-                      {
-                          imu_cmd = IMU_GYROSCOPE_SENSITIVITY_DOWN;
-                      } 
-                      break;
-            default: break;
-        }
+    switch (cmd)
+    {
+        case 'b': ble_cmd = BLE_STOP_ADVERTISING; break;
+#ifdef SERIAL_CONSOLE_AVAILABLE
+        case 'f': ble_cmd = BLE_MANUFACT_DATA_TOGGLE; break;
+#endif
+        case 'm': imu_cmd = IMU_PRINT_MAGNETOMETER; break;
+        case 'g': imu_cmd = IMU_PRINT_GYROSCOPE; break;
+        case 'a': imu_cmd = IMU_PRINT_ACCELEROMETER; break;
+        case 'q': imu_cmd = IMU_PRINT_AHRS; break;
+        case 'i': imu_cmd = IMU_AHRS_INPUT_TOGGLE; break;
+        case 'z': imu_cmd = IMU_SENSOR_DATA_ZERO; break;
+        case 'k': imu_cmd = IMU_SENSOR_DATA_FIXED_TOGGLE; break;
+        case 'c': imu_cmd = IMU_SENSOR_CALIBRATE_TOGGLE; break;
+        case 'e': imu_cmd = IMU_SENSOR_CALIBRATE_RESET; break;
+        case 'y': imu_cmd = IMU_AHRS_YAW_TOGGLE; break;
+        case 'p': imu_cmd = IMU_AHRS_PITCH_TOGGLE; break;
+        case 'r': imu_cmd = IMU_AHRS_ROLL_TOGGLE; break;
+        case 'd': imu_cmd = IMU_SENSOR_DATA_IDEAL; break;
+        case 'h': imu_cmd = IMU_AHRS_PROP_GAIN_UP; break;
+        case 'j': imu_cmd = IMU_AHRS_PROP_GAIN_DOWN; break;
+        case 'l': imu_cmd = IMU_AHRS_INTEG_GAIN_UP; break;
+        case 'n': imu_cmd = IMU_AHRS_INTEG_GAIN_DOWN; break;
+        case 's': imu_cmd = IMU_AHRS_SAMPLE_FREQ_UP; break;
+        case 'o': imu_cmd = IMU_AHRS_SAMPLE_FREQ_DOWN; break;
+        case 'u': imu_cmd = IMU_GYROSCOPE_SENSITIVITY_UP; break;
+        case 't': imu_cmd = IMU_GYROSCOPE_SENSITIVITY_DOWN; break;
+        default: break;
     }
 }
 
+
+void exec_app_cmd(const uint8_t cmd)
+{
+    IMU_CMD_t imu_cmd = IMU_NOCMD;
+    BLE_CMD_t ble_cmd = BLE_NOCMD;
+
+    interpret_app_cmd(cmd, imu_cmd, ble_cmd);
+    if (imu_cmd != IMU_NOCMD)
+    {
+        imu.cmd(imu_cmd);
+    }
+    if (ble_cmd != BLE_NOCMD)
+    {
+        ble_svcs_cmd(ble_cmd, 0);
+    }
+}
+
+#ifdef SERIAL_CONSOLE_AVAILABLE
+void check_app_cmd(void)
+{
+    uint8_t cmd;
+    ret_code_t err_code;
+
+    err_code = app_uart_get(&cmd);
+    if (err_code == NRF_SUCCESS) {
+        exec_app_cmd(cmd);
+    }
+}
+#endif
 
 /**@brief Function for the Timer initialization.
  *
@@ -406,7 +387,6 @@ static void timers_init(void)
  */
 int main(void)
 {
-    IMU imu;
     float roll, pitch, yaw;
 
     // Initialize.
@@ -423,7 +403,7 @@ int main(void)
     imu.init();
 
     // Start execution.
-    NRF_LOG_INFO("Heart Rate Sensor example started.");
+    NRF_LOG_INFO("UniFriend example started.");
  
     // Start BLE Advertising
     ble_svcs_application_timers_start();
@@ -432,32 +412,22 @@ int main(void)
     // Enter main loop.
     for (;; cmd_get_cnt++)
     {
-#ifdef SERIAL_PORT_AVAILABLE
+#ifdef SERIAL_CONSOLE_AVAILABLE
         if ((cmd_get_cnt & 0xFF) == 0)
         {
-            IMU_CMD_t imu_cmd;
-            BLE_CMD_t ble_cmd;
-            get_app_cmd(imu_cmd, ble_cmd);
-            if (imu_cmd != IMU_NOCMD)
-            {
-                imu.cmd(imu_cmd);
-            }
-            if (ble_cmd != BLE_NOCMD)
-            {
-                ble_svcs_cmd(ble_cmd, 0);
-            }
+	    check_app_cmd();
         }
 #endif
+
         imu.update();
 
         imu.get_angles(roll, pitch, yaw);
-        ble_svcs_data(roll, pitch, yaw);
+        ble_svcs_send_euler_angles(roll, pitch, yaw);
 
         if ((cmd_get_cnt & 0x0F) == 0)
         {
-            imu.print_data();
+            imu.print_debug_data();
         }
-        // idle_state_handle();
     }
 }
 

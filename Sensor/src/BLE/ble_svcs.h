@@ -11,7 +11,7 @@
     extern void ble_svcs_event_handler(bsp_event_t event);
     extern void ble_svcs_timers_init(void);
     extern void ble_svcs_cmd(BLE_CMD_t ble_cmd, uint16_t data);
-    extern void ble_svcs_data(float& roll, float& pitch, float& yaw);
-
+    extern void ble_svcs_send_euler_angles(float& roll, float& pitch, float& yaw);
+    extern void ble_svcs_send_debug_data(uint8_t *p_data, const size_t len);
 
 #endif

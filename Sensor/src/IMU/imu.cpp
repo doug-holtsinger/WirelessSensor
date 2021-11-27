@@ -1,25 +1,39 @@
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include "bsp.h"
 #include "imu.h"
 #include "MahonyAHRS.h"
+#include "ble_svcs_cmd.h"
+#include "ble_svcs.h"
 
 // Nordic I2C
 #include "nrfx_twi.h"
 
+#include "app_config.h"
+
+#define IMU_PRINT_STR_MAX_LEN (size_t)256
+
 IMU::IMU()
 {
-    // NRF_LOG_INFO("Before TwoWire init.");
-    // dev_i2c = new TwoWire();
-    // NRF_LOG_INFO("After TwoWire init.");
-    // sensor_init();
-    // NRF_LOG_INFO("After sensor_init.");
 }
 
 void IMU::init(void)
 {
     dev_i2c = new TwoWire();
     sensor_init();
+}
+
+void IMU::send_debug_data(char *p)
+{
+#ifdef BLE_CONSOLE_AVAILABLE
+    uint8_t *p_data = (uint8_t *)p;
+    ble_svcs_send_debug_data(p_data, strlen(p));
+#endif
+#ifdef SERIAL_CONSOLE_AVAILABLE
+    puts(p);
+#endif
 }
 
 void IMU::calibrate_magnetometer(void)
@@ -220,46 +234,83 @@ void IMU::AHRS()
 }
 
 
-void IMU::print_data()
+void IMU::print_debug_data()
 {
+    char s[IMU_PRINT_STR_MAX_LEN];
 
     if (sensor_select == IMU_AHRS) 
     {
         if (show_input_ahrs == 1) 
         {
-            if (show_roll)
-                   printf("gyro = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(gx), PRINTF_FLOAT_VALUE(gy), PRINTF_FLOAT_VALUE(gz) );
-            if (show_pitch)
-                  printf("acce = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(ax), PRINTF_FLOAT_VALUE(ay), PRINTF_FLOAT_VALUE(az) );
+            if (show_roll) 
+	    {
+                   snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(gx), PRINTF_FLOAT_VALUE(gy), PRINTF_FLOAT_VALUE(gz) ); 
+	           send_debug_data(s);
+	    }
+            if (show_pitch) 
+	    {
+                  snprintf(s, IMU_PRINT_STR_MAX_LEN, "acce = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(ax), PRINTF_FLOAT_VALUE(ay), PRINTF_FLOAT_VALUE(az) );
+		  send_debug_data(s);
+	    }
             if (show_yaw)
-                   printf("magn = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(mx), PRINTF_FLOAT_VALUE(my), PRINTF_FLOAT_VALUE(mz) );
+	    {
+                   snprintf(s, IMU_PRINT_STR_MAX_LEN, "magn = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(mx), PRINTF_FLOAT_VALUE(my), PRINTF_FLOAT_VALUE(mz) );
+		  send_debug_data(s);
+	    }
 	} else if (show_input_ahrs == 2) 
         {
            if (show_roll)
-               printf("gyro normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(gxN), PRINTF_FLOAT_VALUE(gyN), PRINTF_FLOAT_VALUE(gzN) );
+	   {
+               snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(gxN), PRINTF_FLOAT_VALUE(gyN), PRINTF_FLOAT_VALUE(gzN) );
+               send_debug_data(s);
+	   }
            if (show_pitch)
-                printf("acce normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(axN), PRINTF_FLOAT_VALUE(ayN), PRINTF_FLOAT_VALUE(azN) );
-           if (show_yaw)
-                printf("magn normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(mxN), PRINTF_FLOAT_VALUE(myN), PRINTF_FLOAT_VALUE(mzN) );
+	   {
+                snprintf(s, IMU_PRINT_STR_MAX_LEN, "acce normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(axN), PRINTF_FLOAT_VALUE(ayN), PRINTF_FLOAT_VALUE(azN) );
+               send_debug_data(s);
+	   }
+           if (show_yaw) 
+	   {
+                snprintf(s, IMU_PRINT_STR_MAX_LEN, "magn normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(mxN), PRINTF_FLOAT_VALUE(myN), PRINTF_FLOAT_VALUE(mzN) );
+               send_debug_data(s);
+	   }
 	} else if (show_input_ahrs == 3) 
         {
            if (show_roll)
-               printf("q0X q2X q3X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(q0X), PRINTF_FLOAT_VALUE(q2X), PRINTF_FLOAT_VALUE(q3X) );
+	   {
+               snprintf(s, IMU_PRINT_STR_MAX_LEN, "q0X q2X q3X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(q0X), PRINTF_FLOAT_VALUE(q2X), PRINTF_FLOAT_VALUE(q3X) );
+               send_debug_data(s);
+	   }
            if (show_pitch)
-               printf("q1X  q2X  q3X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(q1X), PRINTF_FLOAT_VALUE(q2X), PRINTF_FLOAT_VALUE(q3X) );
+	   {
+               snprintf(s, IMU_PRINT_STR_MAX_LEN, "q1X  q2X  q3X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(q1X), PRINTF_FLOAT_VALUE(q2X), PRINTF_FLOAT_VALUE(q3X) );
+               send_debug_data(s);
+	   }
            if (show_yaw)
-               printf("q0X  q1X  q2X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(q0X), PRINTF_FLOAT_VALUE(q1X), PRINTF_FLOAT_VALUE(q2X) );
+	   {
+               snprintf(s, IMU_PRINT_STR_MAX_LEN, "q0X  q1X  q2X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(q0X), PRINTF_FLOAT_VALUE(q1X), PRINTF_FLOAT_VALUE(q2X) );
+               send_debug_data(s);
+	   }
         } else {
             if (show_roll)
-                    printf("Roll  = " PRINTF_FLOAT_FORMAT " \r\n", PRINTF_FLOAT_VALUE(roll));
+	    {
+               snprintf(s, IMU_PRINT_STR_MAX_LEN, "Roll  = " PRINTF_FLOAT_FORMAT " \r\n", PRINTF_FLOAT_VALUE(roll));
+               send_debug_data(s);
+	    }
             if (show_pitch)
-                    printf("Pitch = " PRINTF_FLOAT_FORMAT " \r\n", PRINTF_FLOAT_VALUE(pitch));
+	    {
+               snprintf(s, IMU_PRINT_STR_MAX_LEN, "Pitch = " PRINTF_FLOAT_FORMAT " \r\n", PRINTF_FLOAT_VALUE(pitch));
+               send_debug_data(s);
+	    }
             if (show_yaw)
-                    printf("Yaw   = " PRINTF_FLOAT_FORMAT " \r\n", PRINTF_FLOAT_VALUE(yaw));
+	    {
+                snprintf(s, IMU_PRINT_STR_MAX_LEN, "Yaw   = " PRINTF_FLOAT_FORMAT " \r\n", PRINTF_FLOAT_VALUE(yaw));
+               send_debug_data(s);
+	    }
         }
     } else if (sensor_select == IMU_ACCELEROMETER)
     {
-        printf("Accel = = %04d %04d %04d  |  %04d %04d %04d |  %04d %04d %04d\r\n", 
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "Accel = %04d %04d %04d  |  %04d %04d %04d |  %04d %04d %04d\r\n", 
             (int)accelerometer_cal[0],
             (int)accelerometer_cal[1],
             (int)accelerometer_cal[2],
@@ -270,16 +321,18 @@ void IMU::print_data()
             (int)accelerometer_min_threshold[1],
             (int)accelerometer_min_threshold[2]
             );
+        send_debug_data(s);
     } else if (sensor_select == IMU_GYROSCOPE)
     {
-        printf("Gyro calibrated = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n",
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro calibrated = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n",
             PRINTF_FLOAT_VALUE(gyroscope_cal[0]),
             PRINTF_FLOAT_VALUE(gyroscope_cal[1]),
             PRINTF_FLOAT_VALUE(gyroscope_cal[2])
         );
+        send_debug_data(s);
     } else if (sensor_select == IMU_MAGNETOMETER)
     {
-        printf("Mag = %04d %04d %04d  |  %04d %04d %04d  |  %04d %04d %04d\r\n", 
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "Mag = %04d %04d %04d  |  %04d %04d %04d  |  %04d %04d %04d\r\n", 
             (int)magnetometer_cal[0],
             (int)magnetometer_cal[1],
             (int)magnetometer_cal[2],
@@ -290,6 +343,7 @@ void IMU::print_data()
             (int)magnetometer_min_threshold[1],
             (int)magnetometer_min_threshold[2]
             );
+        send_debug_data(s);
     }
 }
 

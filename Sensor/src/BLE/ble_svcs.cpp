@@ -47,13 +47,21 @@
 #include "nrf.h"
 #include "app_error.h"
 
+#include "app_config.h"
+
 #include "ble_hrs.h"
 #include "ble_advertising.h"
 #include "ble_conn_params.h"
+#ifdef DEVICE_INFORMATION_SERVICE_AVAILABLE
 #include "ble_dis.h"
+#endif
 #include "nrf_ble_qwr.h"
 #include "peer_manager.h"
 #include "peer_manager_handler.h"
+
+#ifdef BLE_CONSOLE_AVAILABLE
+#include "ble_nus.h"
+#endif
 
 #include "ble_svcs_cmd.h"
 
@@ -67,6 +75,8 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+extern void exec_app_cmd(const uint8_t cmd);
+
 /* print defines */
 #define PRINTF_FLOAT_FORMAT " %c%ld.%02ld"
 #define PRINTF_FLOAT_VALUE(val) (uint8_t)(((val) < 0 && (val) > -1.0) ? '-' : ' '),   \
@@ -75,7 +85,7 @@
                                                 : (int32_t)(val) - (val))*100)
 
 
-#define DEVICE_NAME                         "Nordic_HRM"                            /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                         "UniFriend"                            /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                    BLE_GAP_ADV_INTERVAL_MIN /**< The advertising interval (in units of 0.625 ms. This value corresponds to 20.0 ms). */
 
@@ -104,6 +114,7 @@
 #define SEC_PARAM_MIN_KEY_SIZE              7                                       /**< Minimum encryption key size. */
 #define SEC_PARAM_MAX_KEY_SIZE              16                                      /**< Maximum encryption key size. */
 
+BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);        /**< BLE NUS service instance. */
 BLE_HRS_DEF(m_hrs);                  /**< Heart rate service instance. */
 NRF_BLE_GATT_DEF(m_gatt);            /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);              /**< Context for the Queued Write module.*/
@@ -113,44 +124,23 @@ APP_TIMER_DEF(m_heart_rate_timer_id);                               /**< Heart r
 
 ble_uuid_t m_adv_uuids[] =                 /**< Universally unique service identifiers. */
 {
-    {BLE_UUID_HEART_RATE_SERVICE,           BLE_UUID_TYPE_BLE},
-    {BLE_UUID_DEVICE_INFORMATION_SERVICE,   BLE_UUID_TYPE_BLE}
+#ifdef DEVICE_INFORMATION_SERVICE_AVAILABLE
+    {BLE_UUID_DEVICE_INFORMATION_SERVICE,   BLE_UUID_TYPE_BLE},
+#endif
+#ifdef BLE_CONSOLE_AVAILABLE
+    // {BLE_UUID_NUS_SERVICE,                  NUS_SERVICE_UUID_TYPE}
+    {BLE_UUID_CYCLING_SPEED_AND_CADENCE,                  BLE_UUID_TYPE_BLE}
+#endif
 };
+
 
 uint16_t m_conn_handle         = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 bool     m_rr_interval_enabled = false;   /**< Flag for enabling and disabling the registration of new RR interval measurements (the purpose of disabling this is just to test sending HRM without RR interval data. */
 
-static uint16_t heart_rate;
+#ifdef SERIAL_CONSOLE_AVAILABLE
 bool show_manuf_data = false; 
 uint16_t print_cnt = 0;
-
-/**@brief Function for handling the Heart rate measurement timer timeout.
- *
- * @details This function will be called each time the heart rate measurement timer expires.
- *          It will exclude RR Interval data from every third measurement.
- *
- * @param[in] p_context  Pointer used for passing some arbitrary information (context) from the
- *                       app_start_timer() call to the timeout handler.
- */
-void heart_rate_meas_timeout_handler(void * p_context)
-{
-    ret_code_t      err_code;
-
-    UNUSED_PARAMETER(p_context);
-
-    err_code = ble_hrs_heart_rate_measurement_send(&m_hrs, heart_rate);
-    if ((err_code != NRF_SUCCESS) &&
-        (err_code != NRF_ERROR_INVALID_STATE) &&
-        (err_code != NRF_ERROR_RESOURCES) &&
-        (err_code != NRF_ERROR_BUSY) &&
-        (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
-       )
-    {
-        APP_ERROR_HANDLER(err_code);
-    }
-
- 
-}
+#endif
 
 /**@brief Function for converting float to int16
  *  Roll -- -180 to +180
@@ -176,16 +166,42 @@ void ble_svcs_cmd(BLE_CMD_t ble_cmd, uint16_t data)
             err_code = sd_ble_gap_adv_stop(m_advertising.adv_handle);
             APP_ERROR_CHECK(err_code);
             break;
+#ifdef SERIAL_CONSOLE_AVAILABLE
         case BLE_MANUFACT_DATA_TOGGLE:
             show_manuf_data = !show_manuf_data;
             break;
+#endif
         default: break;
     }
 }
 
-/**@brief Function for interpreting data
+#ifdef BLE_CONSOLE_AVAILABLE
+/**@brief Function for sending debug data over BLE
  */
-void ble_svcs_data(float& roll, float& pitch, float& yaw)
+void ble_svcs_send_debug_data(uint8_t* p_data, const size_t len)
+{
+    ret_code_t err_code;
+
+    if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
+    {
+        uint16_t length = static_cast<uint16_t>(len);
+        err_code = ble_nus_data_send(&m_nus, p_data, &length, m_conn_handle);
+        if ((err_code != NRF_SUCCESS) &&
+            (err_code != NRF_ERROR_INVALID_STATE) &&
+            (err_code != NRF_ERROR_RESOURCES) &&
+            (err_code != NRF_ERROR_BUSY) &&
+            (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
+           )
+        {
+            APP_ERROR_HANDLER(err_code);
+        }
+    }
+}
+#endif
+
+/**@brief Function for sending Euler Angles over BLE in the Advertising Channel
+ */
+void ble_svcs_send_euler_angles(float& roll, float& pitch, float& yaw)
 {
     ret_code_t err_code;
     ble_advdata_t advdata;
@@ -196,6 +212,7 @@ void ble_svcs_data(float& roll, float& pitch, float& yaw)
     euler_angles[1] = (int16_t)pitch; 
     euler_angles[2] = (int16_t)yaw; 
 
+#ifdef SERIAL_CONSOLE_AVAILABLE
     if (show_manuf_data)
     {
         if ( print_cnt == 0 )
@@ -207,6 +224,7 @@ void ble_svcs_data(float& roll, float& pitch, float& yaw)
             print_cnt = 0;
         }
     }
+#endif
 
     memset(&advdata, 0, sizeof(advdata));
     advdata.name_type               = BLE_ADVDATA_FULL_NAME;
@@ -245,26 +263,13 @@ void ble_svcs_advertising_start(void)
  */
 void ble_svcs_timers_init(void)
 {
-    ret_code_t err_code;
-
-    // Create timers.
-    err_code = app_timer_create(&m_heart_rate_timer_id,
-                                APP_TIMER_MODE_REPEATED,
-                                heart_rate_meas_timeout_handler);
-    APP_ERROR_CHECK(err_code);
 }
 
 /**@brief Function for starting application timers.
  */
 void ble_svcs_application_timers_start(void)
 {
-    ret_code_t err_code;
-
-    err_code = app_timer_start(m_heart_rate_timer_id, HEART_RATE_MEAS_INTERVAL, NULL);
-    APP_ERROR_CHECK(err_code);
 }
-
-
 
 
 /**@brief Function for handling Peer Manager events.
@@ -404,7 +409,7 @@ void gap_params_init(void)
                                           strlen(DEVICE_NAME));
     APP_ERROR_CHECK(err_code);
 
-    err_code = sd_ble_gap_appearance_set(BLE_APPEARANCE_HEART_RATE_SENSOR_HEART_RATE_BELT);
+    err_code = sd_ble_gap_appearance_set(BLE_APPEARANCE_CYCLING_CYCLING_COMPUTER);
     APP_ERROR_CHECK(err_code);
 
     memset(&gap_conn_params, 0, sizeof(gap_conn_params));
@@ -446,6 +451,20 @@ void nrf_qwr_error_handler(uint32_t nrf_error)
     APP_ERROR_HANDLER(nrf_error);
 }
 
+/**@brief Function for handling the data from the Nordic UART Service.
+ *
+ * @details This function will process the data received from the Nordic UART BLE Service and send
+ *          it to the application to process.
+ *
+ * @param[in] p_evt       Nordic UART Service event.
+ */
+static void nus_data_handler(ble_nus_evt_t * p_evt)
+{
+    if (p_evt->type == BLE_NUS_EVT_RX_DATA && p_evt->params.rx_data.length > 0)
+    {
+        exec_app_cmd(p_evt->params.rx_data.p_data[0]);
+    }
+}
 
 /**@brief Function for initializing services that will be used by the application.
  *
@@ -454,10 +473,11 @@ void nrf_qwr_error_handler(uint32_t nrf_error)
 void services_init(void)
 {
     ret_code_t         err_code;
-    ble_hrs_init_t     hrs_init;
+#ifdef DEVICE_INFORMATION_SERVICE_AVAILABLE
     ble_dis_init_t     dis_init;
+#endif
+    ble_nus_init_t     nus_init;
     nrf_ble_qwr_init_t qwr_init = {0};
-    uint8_t            body_sensor_location;
 
     // Initialize Queued Write Module.
     qwr_init.error_handler = nrf_qwr_error_handler;
@@ -465,22 +485,15 @@ void services_init(void)
     err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
     APP_ERROR_CHECK(err_code);
 
-    // Initialize Heart Rate Service.
-    body_sensor_location = BLE_HRS_BODY_SENSOR_LOCATION_FINGER;
+    // Initialize NUS.
+    memset(&nus_init, 0, sizeof(nus_init));
 
-    memset(&hrs_init, 0, sizeof(hrs_init));
+    nus_init.data_handler = nus_data_handler;
 
-    hrs_init.evt_handler                 = NULL;
-    hrs_init.is_sensor_contact_supported = false;
-    hrs_init.p_body_sensor_location      = &body_sensor_location;
-
-    // Here the sec level for the Heart Rate Service can be changed/increased.
-    hrs_init.hrm_cccd_wr_sec = SEC_OPEN;
-    hrs_init.bsl_rd_sec      = SEC_OPEN;
-
-    err_code = ble_hrs_init(&m_hrs, &hrs_init);
+    err_code = ble_nus_init(&m_nus, &nus_init);
     APP_ERROR_CHECK(err_code);
 
+#ifdef DEVICE_INFORMATION_SERVICE_AVAILABLE
     // Initialize Device Information Service.
     memset(&dis_init, 0, sizeof(dis_init));
 
@@ -490,6 +503,8 @@ void services_init(void)
 
     err_code = ble_dis_init(&dis_init);
     APP_ERROR_CHECK(err_code);
+#endif
+
 }
 
 /**@brief Function for handling the Connection Parameters Module.
@@ -740,8 +755,8 @@ void ble_svcs_init(void)
     ble_stack_init();
     gap_params_init();
     gatt_init();
-    advertising_init();
     services_init();
+    advertising_init();
     conn_params_init();
     peer_manager_init();
 }

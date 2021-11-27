@@ -35,4 +35,6 @@ components/libraries/fds/fds.h
 14) Add Doyxgen documentation for all code, procedures, and parameters
 15) Add circuit schematic 
 15) Add general documentation on the project, algorithms, calibration
+16) Scrub Makefile
+17) Turn BLE into C++ class code
 
