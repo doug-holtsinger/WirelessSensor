@@ -424,10 +424,14 @@ int main(void)
         imu.get_angles(roll, pitch, yaw);
         ble_svcs_send_euler_angles(roll, pitch, yaw);
 
+#ifndef BLE_CONSOLE_AVAILABLE
         if ((cmd_get_cnt & 0x0F) == 0)
         {
+#endif
             imu.print_debug_data();
+#ifndef BLE_CONSOLE_AVAILABLE
         }
+#endif
     }
 }
 
