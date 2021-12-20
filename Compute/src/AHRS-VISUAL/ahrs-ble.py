@@ -21,9 +21,9 @@ class ScanDelegate(DefaultDelegate):
             sys.exit(1) 
         if manufacturer_data is not None and len(manufacturer_data) == 16 and manufacturer_data[0:4] == 'ffff': 
             # print("dev.addr %s data %s len %d" % ( dev.addr , manufacturer_data[0:4] , len(manufacturer_data)))
-            roll = manufacturer_data[0:4]
-            pitch = manufacturer_data[4:8]
-            yaw   = manufacturer_data[8:12]
+            roll = manufacturer_data[4:8]
+            pitch = manufacturer_data[8:12]
+            yaw   = manufacturer_data[12:16]
             print roll + ' ' + pitch + ' ' + yaw + ' ' + str(self.pkt_num)
             # print dev.rawData
             sys.stdout.flush()
