@@ -85,7 +85,7 @@ extern void exec_app_cmd(const uint8_t cmd);
                                                 : (int32_t)(val) - (val))*100)
 
 
-#define DEVICE_NAME                         "UniFriend"                            /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                         "AHRS"                            /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                    BLE_GAP_ADV_INTERVAL_MIN /**< The advertising interval (in units of 0.625 ms. This value corresponds to 20.0 ms). */
 
@@ -460,10 +460,25 @@ void nrf_qwr_error_handler(uint32_t nrf_error)
  */
 static void nus_data_handler(ble_nus_evt_t * p_evt)
 {
+    if (p_evt->type != BLE_NUS_EVT_TX_RDY)
+    {
+        NRF_LOG_INFO("nus_data_handler received event %d len %d", p_evt->type, p_evt->params.rx_data.length);
+    }
+
     if (p_evt->type == BLE_NUS_EVT_RX_DATA && p_evt->params.rx_data.length > 0)
     {
+        NRF_LOG_INFO("nus_data_handler exec_app_cmd %d data = 0x%hhx", p_evt->type, p_evt->params.rx_data.p_data[0]);
         exec_app_cmd(p_evt->params.rx_data.p_data[0]);
     }
+    if (p_evt->type == BLE_NUS_EVT_COMM_STARTED)
+    {
+	    /* Notification enabled */
+    }
+    if (p_evt->type == BLE_NUS_EVT_COMM_STOPPED)
+    {
+	    /* Notification disabled */
+    }
+
 }
 
 /**@brief Function for initializing services that will be used by the application.

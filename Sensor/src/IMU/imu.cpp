@@ -28,11 +28,17 @@ void IMU::init(void)
 void IMU::send_debug_data(char *p)
 {
 #ifdef BLE_CONSOLE_AVAILABLE
-    uint8_t *p_data = (uint8_t *)p;
-    ble_svcs_send_debug_data(p_data, strlen(p));
+    {
+        uint8_t *p_data = (uint8_t *)p;
+        ble_svcs_send_debug_data(p_data, strlen(p));
+    }
 #endif
 #ifdef SERIAL_CONSOLE_AVAILABLE
-    puts(p);
+    {
+        char s[IMU_PRINT_STR_MAX_LEN];
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "%s\r\n", p);
+        puts(s);
+    }
 #endif
 }
 
@@ -244,79 +250,85 @@ void IMU::print_debug_data()
         {
             if (show_roll) 
 	    {
-                   snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(gx), PRINTF_FLOAT_VALUE(gy), PRINTF_FLOAT_VALUE(gz) ); 
+                   snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(gx), PRINTF_FLOAT_VALUE(gy), PRINTF_FLOAT_VALUE(gz) ); 
 	           send_debug_data(s);
 	    }
             if (show_pitch) 
 	    {
-                  snprintf(s, IMU_PRINT_STR_MAX_LEN, "acce = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(ax), PRINTF_FLOAT_VALUE(ay), PRINTF_FLOAT_VALUE(az) );
+                  snprintf(s, IMU_PRINT_STR_MAX_LEN, "acce = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(ax), PRINTF_FLOAT_VALUE(ay), PRINTF_FLOAT_VALUE(az) );
 		  send_debug_data(s);
 	    }
             if (show_yaw)
 	    {
-                   snprintf(s, IMU_PRINT_STR_MAX_LEN, "magn = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(mx), PRINTF_FLOAT_VALUE(my), PRINTF_FLOAT_VALUE(mz) );
+                   snprintf(s, IMU_PRINT_STR_MAX_LEN, "magn = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(mx), PRINTF_FLOAT_VALUE(my), PRINTF_FLOAT_VALUE(mz) );
 		  send_debug_data(s);
 	    }
 	} else if (show_input_ahrs == 2) 
         {
            if (show_roll)
 	   {
-               snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(gxN), PRINTF_FLOAT_VALUE(gyN), PRINTF_FLOAT_VALUE(gzN) );
+               snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(gxN), PRINTF_FLOAT_VALUE(gyN), PRINTF_FLOAT_VALUE(gzN) );
                send_debug_data(s);
 	   }
            if (show_pitch)
 	   {
-                snprintf(s, IMU_PRINT_STR_MAX_LEN, "acce normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(axN), PRINTF_FLOAT_VALUE(ayN), PRINTF_FLOAT_VALUE(azN) );
+                snprintf(s, IMU_PRINT_STR_MAX_LEN, "acce normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(axN), PRINTF_FLOAT_VALUE(ayN), PRINTF_FLOAT_VALUE(azN) );
                send_debug_data(s);
 	   }
            if (show_yaw) 
 	   {
-                snprintf(s, IMU_PRINT_STR_MAX_LEN, "magn normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(mxN), PRINTF_FLOAT_VALUE(myN), PRINTF_FLOAT_VALUE(mzN) );
+                snprintf(s, IMU_PRINT_STR_MAX_LEN, "magn normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(mxN), PRINTF_FLOAT_VALUE(myN), PRINTF_FLOAT_VALUE(mzN) );
                send_debug_data(s);
 	   }
 	} else if (show_input_ahrs == 3) 
         {
            if (show_roll)
 	   {
-               snprintf(s, IMU_PRINT_STR_MAX_LEN, "q0X q2X q3X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(q0X), PRINTF_FLOAT_VALUE(q2X), PRINTF_FLOAT_VALUE(q3X) );
+               snprintf(s, IMU_PRINT_STR_MAX_LEN, "q0X q2X q3X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(q0X), PRINTF_FLOAT_VALUE(q2X), PRINTF_FLOAT_VALUE(q3X) );
                send_debug_data(s);
 	   }
            if (show_pitch)
 	   {
-               snprintf(s, IMU_PRINT_STR_MAX_LEN, "q1X  q2X  q3X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(q1X), PRINTF_FLOAT_VALUE(q2X), PRINTF_FLOAT_VALUE(q3X) );
+               snprintf(s, IMU_PRINT_STR_MAX_LEN, "q1X  q2X  q3X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(q1X), PRINTF_FLOAT_VALUE(q2X), PRINTF_FLOAT_VALUE(q3X) );
                send_debug_data(s);
 	   }
            if (show_yaw)
 	   {
-               snprintf(s, IMU_PRINT_STR_MAX_LEN, "q0X  q1X  q2X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n", PRINTF_FLOAT_VALUE(q0X), PRINTF_FLOAT_VALUE(q1X), PRINTF_FLOAT_VALUE(q2X) );
+               snprintf(s, IMU_PRINT_STR_MAX_LEN, "q0X  q1X  q2X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(q0X), PRINTF_FLOAT_VALUE(q1X), PRINTF_FLOAT_VALUE(q2X) );
                send_debug_data(s);
 	   }
         } else {
             if (show_roll)
 	    {
-               snprintf(s, IMU_PRINT_STR_MAX_LEN, "Roll  = " PRINTF_FLOAT_FORMAT " \r\n", PRINTF_FLOAT_VALUE(roll));
+               snprintf(s, IMU_PRINT_STR_MAX_LEN, "Roll  " PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(roll));
                send_debug_data(s);
 	    }
             if (show_pitch)
 	    {
-               snprintf(s, IMU_PRINT_STR_MAX_LEN, "Pitch = " PRINTF_FLOAT_FORMAT " \r\n", PRINTF_FLOAT_VALUE(pitch));
+               snprintf(s, IMU_PRINT_STR_MAX_LEN, "Pitch " PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(pitch));
                send_debug_data(s);
 	    }
             if (show_yaw)
 	    {
-                snprintf(s, IMU_PRINT_STR_MAX_LEN, "Yaw   = " PRINTF_FLOAT_FORMAT " \r\n", PRINTF_FLOAT_VALUE(yaw));
+                snprintf(s, IMU_PRINT_STR_MAX_LEN, "Yaw " PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(yaw));
                send_debug_data(s);
 	    }
         }
     } else if (sensor_select == IMU_ACCELEROMETER)
     {
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "Accel = %04d %04d %04d  |  %04d %04d %04d |  %04d %04d %04d\r\n", 
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "AccC %04d %04d %04d", 
             (int)accelerometer_cal[0],
             (int)accelerometer_cal[1],
-            (int)accelerometer_cal[2],
+            (int)accelerometer_cal[2]
+            );
+        send_debug_data(s);
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "AccU %04d %04d %04d", 
             (int)accelerometer_uncal[0],
             (int)accelerometer_uncal[1],
-            (int)accelerometer_uncal[2],
+            (int)accelerometer_uncal[2]
+            );
+        send_debug_data(s);
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "AccT %04d %04d %04d", 
             (int)accelerometer_min_threshold[0],
             (int)accelerometer_min_threshold[1],
             (int)accelerometer_min_threshold[2]
@@ -324,21 +336,40 @@ void IMU::print_debug_data()
         send_debug_data(s);
     } else if (sensor_select == IMU_GYROSCOPE)
     {
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro calibrated = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT "\r\n",
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "GyC " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT ,
             PRINTF_FLOAT_VALUE(gyroscope_cal[0]),
             PRINTF_FLOAT_VALUE(gyroscope_cal[1]),
             PRINTF_FLOAT_VALUE(gyroscope_cal[2])
         );
         send_debug_data(s);
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "GyU %04d %04d %04d", 
+            (int)gyroscope_uncal[0],
+            (int)gyroscope_uncal[1],
+            (int)gyroscope_uncal[2]
+            );
+        send_debug_data(s);
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "GyT " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT ,
+            PRINTF_FLOAT_VALUE(gyroscope_min_threshold[0]),
+            PRINTF_FLOAT_VALUE(gyroscope_min_threshold[1]),
+            PRINTF_FLOAT_VALUE(gyroscope_min_threshold[2])
+        );
+        send_debug_data(s);
     } else if (sensor_select == IMU_MAGNETOMETER)
     {
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "Mag = %04d %04d %04d  |  %04d %04d %04d  |  %04d %04d %04d\r\n", 
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "MagC %04d %04d %04d", 
             (int)magnetometer_cal[0],
             (int)magnetometer_cal[1],
-            (int)magnetometer_cal[2],
+            (int)magnetometer_cal[2]
+            );
+        send_debug_data(s);
+
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "MagU %04d %04d %04d", 
             (int)magnetometer_uncal[0],
             (int)magnetometer_uncal[1],
-            (int)magnetometer_uncal[2],
+            (int)magnetometer_uncal[2]
+            );
+        send_debug_data(s);
+        snprintf(s, IMU_PRINT_STR_MAX_LEN, "MagT %04d %04d %04d", 
             (int)magnetometer_min_threshold[0],
             (int)magnetometer_min_threshold[1],
             (int)magnetometer_min_threshold[2]
@@ -417,6 +448,7 @@ void IMU::sensor_init(void)
 
 void IMU::cmd(IMU_CMD_t& cmd)
 {
+    char s[IMU_PRINT_STR_MAX_LEN];
     switch (cmd)
     {
         case IMU_PRINT_MAGNETOMETER:
@@ -449,17 +481,25 @@ void IMU::cmd(IMU_CMD_t& cmd)
                         calibrate_enable = IMU_SENSOR_CALIBRATE_DISABLED; break;
             }
             if (calibrate_enable == IMU_SENSOR_CALIBRATE_DISABLED)
-                printf("Calibrate Disabled\r\n");
-            else if (calibrate_enable == IMU_SENSOR_CALIBRATE_ZERO_OFFSET)
-                printf("Calibrate Zero Offset Enable\r\n");
-            else if (calibrate_enable == IMU_SENSOR_CALIBRATE_MAGNETOMETER)
-                printf("Calibrate Magnetometer Enable\r\n");
+	    {
+                snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Disabled");
+		send_debug_data(s);
+	    } else if (calibrate_enable == IMU_SENSOR_CALIBRATE_ZERO_OFFSET)
+	    {
+                snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Zero Offset Enable");
+		send_debug_data(s);
+	    } else if (calibrate_enable == IMU_SENSOR_CALIBRATE_MAGNETOMETER)
+	    {
+                snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Magnetometer Enable");
+		send_debug_data(s);
+	    }
             break;
         case IMU_SENSOR_CALIBRATE_RESET:
             // reset calibration values
             calibrate_reset = true;
             calibrate_enable = IMU_SENSOR_CALIBRATE_DISABLED;
-            printf("Calibrate Reset/Disabled\r\n");
+            snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Reset/Disabled");
+            send_debug_data(s);
             break;
         case IMU_AHRS_YAW_TOGGLE:
             show_yaw = !show_yaw;
@@ -472,50 +512,80 @@ void IMU::cmd(IMU_CMD_t& cmd)
             break;
         case IMU_SENSOR_DATA_ZERO:
             if (sensor_select == IMU_GYROSCOPE) 
-            {
+	    {
                 zero_data[1] = !zero_data[1];
-            if (zero_data[1]) 
-                printf("Gyroscope Data Disabled\r\n");
-            else
-                printf("Gyroscope Data Enabled\r\n");
+                if (zero_data[1]) 
+	        {
+                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro Data Disabled");
+                    send_debug_data(s);
+	        } else
+		{
+                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro Data Enabled");
+                    send_debug_data(s);
+	        }
             } else if (sensor_select == IMU_ACCELEROMETER) 
             {
                 zero_data[0] = !zero_data[0];
                 if (zero_data[0]) 
-                    printf("Accelerometer Data Disabled\r\n");
-                else
-                    printf("Accelerometer Data Enabled\r\n");
+		{
+                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Acc Data Disabled");
+                    send_debug_data(s);
+		} else
+		{
+                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Acc Data Enabled");
+                    send_debug_data(s);
+		}
             } else if (sensor_select == IMU_MAGNETOMETER) 
             {
                 zero_data[2] = !zero_data[2];
                 if (zero_data[2]) 
-                    printf("Magnetometer Data Disabled\r\n");
-                else
-                    printf("Magnetometer Data Enabled\r\n");
+		{
+                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Mag Data Disabled");
+                    send_debug_data(s);
+		} else
+		{
+                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Mag Data Enabled");
+                    send_debug_data(s);
+		}
             }
             break;
         case IMU_SENSOR_DATA_IDEAL:
             if (sensor_select == IMU_GYROSCOPE) 
             {
                 ideal_data[1] = ideal_data[1] ? 0 : 1;
-            if (ideal_data[1]) 
-                printf("Gyroscope Data Ideal\r\n");
-            else
-                printf("Gyroscope Data Real\r\n");
+                if (ideal_data[1]) 
+	        {
+                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro Data Ideal");
+                    send_debug_data(s);
+	        } else 
+	        {
+                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro Data Real");
+                    send_debug_data(s);
+		}
             } else if (sensor_select == IMU_ACCELEROMETER) 
             {
                 ideal_data[0] = ideal_data[0] ? 0 : 1;
                 if (ideal_data[0]) 
-                    printf("Accelerometer Data Ideal\r\n");
-                else
-                    printf("Accelerometer Data Real\r\n");
+		{
+                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Acc Data Ideal");
+                    send_debug_data(s);
+		} else
+		{
+                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Acc Data Real");
+                    send_debug_data(s);
+		}
             } else if (sensor_select == IMU_MAGNETOMETER) 
             {
                 ideal_data[2] = ideal_data[2] ? 0 : 1;
                 if (ideal_data[2]) 
-                    printf("Magnetometer Data Ideal\r\n");
-                else
-                    printf("Magnetometer Data Real\r\n");
+		{
+                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Mag Data Ideal");
+                    send_debug_data(s);
+		} else
+		{
+                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Mag Data Real");
+                    send_debug_data(s);
+		}
             }
             break;
         case IMU_SENSOR_DATA_FIXED_TOGGLE:
@@ -523,35 +593,43 @@ void IMU::cmd(IMU_CMD_t& cmd)
 	    break;
         case IMU_AHRS_PROP_GAIN_UP:
             twoKp += 0.1f;
-            printf("twoKp : %lu\r\n", (uint32_t)(twoKp * 1000.0));
+            snprintf(s, IMU_PRINT_STR_MAX_LEN, "twoKp %lu", (uint32_t)(twoKp * 1000.0));
+            send_debug_data(s);
             break;
         case IMU_AHRS_PROP_GAIN_DOWN:
             twoKp -= 0.1f;
-            printf("twoKp : %lu\r\n", (uint32_t)(twoKp * 1000.0));
+            snprintf(s, IMU_PRINT_STR_MAX_LEN, "twoKp %lu", (uint32_t)(twoKp * 1000.0));
+            send_debug_data(s);
             break;
         case IMU_AHRS_INTEG_GAIN_UP:
             twoKi += 0.1f;
-            printf("twoKi : %lu\r\n", (uint32_t)(twoKi * 1000.0));
+            snprintf(s, IMU_PRINT_STR_MAX_LEN, "twoKi %lu", (uint32_t)(twoKi * 1000.0));
+            send_debug_data(s);
             break;
         case IMU_AHRS_INTEG_GAIN_DOWN:
             twoKi -= 0.1f;
-            printf("twoKi : %lu\r\n", (uint32_t)(twoKi * 1000.0));
+            snprintf(s, IMU_PRINT_STR_MAX_LEN, "twoKi %lu", (uint32_t)(twoKi * 1000.0));
+            send_debug_data(s);
             break;
         case IMU_AHRS_SAMPLE_FREQ_UP:
             sampleFreq += 32.0f;
-            printf("sampleFreq : %lu\r\n", (uint32_t)(sampleFreq));
+            snprintf(s, IMU_PRINT_STR_MAX_LEN, "sampleFreq %lu", (uint32_t)(sampleFreq));
+            send_debug_data(s);
             break;
         case IMU_AHRS_SAMPLE_FREQ_DOWN:
             sampleFreq -= 32.0f;
-            printf("sampleFreq : %lu\r\n", (uint32_t)(sampleFreq));
+            snprintf(s, IMU_PRINT_STR_MAX_LEN, "sampleFreq %lu", (uint32_t)(sampleFreq));
+            send_debug_data(s);
             break;
         case IMU_GYROSCOPE_SENSITIVITY_UP:
             gyroscope_sensitivity++; 
-            printf("gyroscope_sensitivity : %ld\r\n", gyroscope_sensitivity);
+            snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro sens: %ld", gyroscope_sensitivity);
+            send_debug_data(s);
             break;
         case IMU_GYROSCOPE_SENSITIVITY_DOWN:
             gyroscope_sensitivity--; 
-            printf("gyroscope_sensitivity : %ld\r\n", gyroscope_sensitivity);
+            snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro sense: %ld", gyroscope_sensitivity);
+            send_debug_data(s);
             break;
         default: break;
     }

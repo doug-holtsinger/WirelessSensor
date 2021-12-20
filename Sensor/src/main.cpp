@@ -242,7 +242,7 @@ static void board_init()
           TX_PIN_NUMBER,
           RTS_PIN_NUMBER,
           CTS_PIN_NUMBER,
-          APP_UART_FLOW_CONTROL_DISABLED,
+          APP_UART_FLOW_CONTROL_ENABLED,
           false,
 #if defined (UART_PRESENT)
           NRF_UART_BAUDRATE_115200
@@ -403,7 +403,7 @@ int main(void)
     imu.init();
 
     // Start execution.
-    NRF_LOG_INFO("UniFriend example started.");
+    NRF_LOG_INFO("AHRS example started.");
  
     // Start BLE Advertising
     ble_svcs_application_timers_start();
@@ -424,12 +424,13 @@ int main(void)
         imu.get_angles(roll, pitch, yaw);
         ble_svcs_send_euler_angles(roll, pitch, yaw);
 
-#ifndef BLE_CONSOLE_AVAILABLE
+#ifdef SERIAL_CONSOLE_AVAILABLE
         if ((cmd_get_cnt & 0x0F) == 0)
         {
+
 #endif
             imu.print_debug_data();
-#ifndef BLE_CONSOLE_AVAILABLE
+#ifdef SERIAL_CONSOLE_AVAILABLE
         }
 #endif
     }
