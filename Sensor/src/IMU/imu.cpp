@@ -239,8 +239,129 @@ void IMU::AHRS()
 
 }
 
-
 void IMU::print_debug_data()
+{
+    char s[IMU_PRINT_STR_MAX_LEN];
+
+#if defined(BLE_CONSOLE_AVAILABLE) && !defined(SERIAL_CONSOLE_AVAILABLE)
+    // Check if BLE connected, otherwise return.
+    if ( !ble_svcs_connected() ) {
+	    return;
+    }
+#endif
+
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , ROLL, PRINTF_FLOAT_VALUE(roll));
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , PITCH, PRINTF_FLOAT_VALUE(pitch));
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , YAW, PRINTF_FLOAT_VALUE(yaw));
+    send_debug_data(s);
+
+    // Accelerometer
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , ACCELEROMETER_NORMAL, PRINTF_FLOAT_VALUE(axN), PRINTF_FLOAT_VALUE(ayN), PRINTF_FLOAT_VALUE(azN) );
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
+             ACCELEROMETER_CAL,
+            (int)accelerometer_cal[0],
+            (int)accelerometer_cal[1],
+            (int)accelerometer_cal[2]
+            );
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d", 
+             ACCELEROMETER_UNCAL,
+            (int)accelerometer_uncal[0],
+            (int)accelerometer_uncal[1],
+            (int)accelerometer_uncal[2]
+            );
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d", 
+             ACCELEROMETER_MIN_THRESHOLD,
+            (int)accelerometer_min_threshold[0],
+            (int)accelerometer_min_threshold[1],
+            (int)accelerometer_min_threshold[2]
+            );
+    send_debug_data(s);
+
+    // Gyroscope
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , GYROSCOPE_NORMAL, PRINTF_FLOAT_VALUE(gxN), PRINTF_FLOAT_VALUE(gyN), PRINTF_FLOAT_VALUE(gzN) );
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT ,
+            GYROSCOPE_CAL,
+            PRINTF_FLOAT_VALUE(gyroscope_cal[0]),
+            PRINTF_FLOAT_VALUE(gyroscope_cal[1]),
+            PRINTF_FLOAT_VALUE(gyroscope_cal[2])
+        );
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d", 
+            GYROSCOPE_UNCAL,
+            (int)gyroscope_uncal[0],
+            (int)gyroscope_uncal[1],
+            (int)gyroscope_uncal[2]
+            );
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT ,
+            GYROSCOPE_MIN_THRESHOLD,
+            PRINTF_FLOAT_VALUE(gyroscope_min_threshold[0]),
+            PRINTF_FLOAT_VALUE(gyroscope_min_threshold[1]),
+            PRINTF_FLOAT_VALUE(gyroscope_min_threshold[2])
+        );
+    send_debug_data(s);
+
+    // Magnetometer
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , MAGNETOMETER_NORMAL, PRINTF_FLOAT_VALUE(mxN), PRINTF_FLOAT_VALUE(myN), PRINTF_FLOAT_VALUE(mzN) );
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d", 
+            MAGNETOMETER_CAL,
+            (int)magnetometer_cal[0],
+            (int)magnetometer_cal[1],
+            (int)magnetometer_cal[2]
+            );
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d", 
+            MAGNETOMETER_UNCAL,
+            (int)magnetometer_uncal[0],
+            (int)magnetometer_uncal[1],
+            (int)magnetometer_uncal[2]
+            );
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
+            MAGNETOMETER_MIN_THRESHOLD,
+            (int)magnetometer_min_threshold[0],
+            (int)magnetometer_min_threshold[1],
+            (int)magnetometer_min_threshold[2]
+            );
+    send_debug_data(s);
+
+    // Quaternion
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , QUATERNION_Q0, PRINTF_FLOAT_VALUE(q0X) );
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , QUATERNION_Q1, PRINTF_FLOAT_VALUE(q1X) );
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , QUATERNION_Q2, PRINTF_FLOAT_VALUE(q2X) );
+    send_debug_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , QUATERNION_Q3, PRINTF_FLOAT_VALUE(q3X) );
+    send_debug_data(s);
+
+}
+
+
+#if 0
+void IMU::print_debug_data_OLD()
 {
     char s[IMU_PRINT_STR_MAX_LEN];
 
@@ -377,6 +498,7 @@ void IMU::print_debug_data()
         send_debug_data(s);
     }
 }
+#endif
 
 void IMU::update()
 {

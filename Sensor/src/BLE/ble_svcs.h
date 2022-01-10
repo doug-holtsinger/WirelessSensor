@@ -13,5 +13,6 @@
     extern void ble_svcs_cmd(BLE_CMD_t ble_cmd, uint16_t data);
     extern void ble_svcs_send_euler_angles(float& roll, float& pitch, float& yaw);
     extern void ble_svcs_send_debug_data(uint8_t *p_data, const size_t len);
+    extern bool ble_svcs_connected();
 
 #endif

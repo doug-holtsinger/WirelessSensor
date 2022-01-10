@@ -228,15 +228,12 @@ void MahonyAHRSupdate(float gx, float gy, float gz, float ax, float ay, float az
             integralFBz = 0.0f;
         }
 
-    q0X = gz;
-    q1X = halfez;
 
         // Apply proportional feedback
         gx += twoKp * halfex;
         gy += twoKp * halfey;
         gz += twoKp * halfez;
 
-    q2X = gz;
 
     }
    
@@ -247,7 +244,6 @@ void MahonyAHRSupdate(float gx, float gy, float gz, float ax, float ay, float az
     gy *= (0.5f * (1.0f / sampleFreq));
     gz *= (0.5f * (1.0f / sampleFreq));
 
-    q3X = gz;
 
     qa = q0;
     qb = q1;
@@ -267,7 +263,10 @@ void MahonyAHRSupdate(float gx, float gy, float gz, float ax, float ay, float az
     q2 *= recipNorm;
     q3 *= recipNorm;
 
-    // yaw lag in q0 q3
+    q0X = q0;
+    q1X = q1;
+    q2X = q2;
+    q3X = q3;
 }
 
 void MahonyAHRSComputeAngles(float& roll, float& pitch, float& yaw) 

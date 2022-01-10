@@ -37,4 +37,6 @@ components/libraries/fds/fds.h
 15) Add general documentation on the project, algorithms, calibration
 16) Scrub Makefile
 17) Turn BLE into C++ class code
+18) Develop Mechanical Test fixture to hold board and measure actual orientation
+to compare against calculated orientation.
 

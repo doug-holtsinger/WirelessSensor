@@ -197,6 +197,13 @@ void ble_svcs_send_debug_data(uint8_t* p_data, const size_t len)
         }
     }
 }
+
+/**@brief Function for checking if connected
+ */
+bool ble_svcs_connected()
+{
+    return m_conn_handle != BLE_CONN_HANDLE_INVALID;
+}
 #endif
 
 /**@brief Function for sending Euler Angles over BLE in the Advertising Channel
