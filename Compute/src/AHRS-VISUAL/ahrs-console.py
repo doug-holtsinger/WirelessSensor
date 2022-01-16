@@ -9,6 +9,10 @@ from bluepy.btle import Scanner, DefaultDelegate, Peripheral, BTLEException
 
 import tkinter as tk
 import threading
+import matplotlib as mpl 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import numpy as np
 
 class GUIApplication(tk.Frame):
     def __init__(self, master=None):
@@ -23,6 +27,8 @@ class GUIApplication(tk.Frame):
         self.calibrate_prev = 0
         self.twoKp = tk.DoubleVar()
         self.twoKp.set(1.0)
+        self.twoKpSave = 1.0
+
         self.twoKi = tk.DoubleVar()
         self.twoKi.set(0.0)
         self.sampleFreq = tk.DoubleVar()
@@ -60,6 +66,7 @@ class GUIApplication(tk.Frame):
 
         lf = tk.LabelFrame(self, text="Calibration")
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
+        first_ctrl_row_num = row_num
 
         self.cb = []
         self.cb.append(tk.Radiobutton(lf, text="Normalized", command=self.calibrateButton, variable=self.calibrate, value=0))
@@ -87,20 +94,19 @@ class GUIApplication(tk.Frame):
         row_num = row_num + 1
 
         tk.Label(self, text="Proportional Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(self, text="Spinbox", from_=0.0 , to_=5.0, increment=0.05, format="%1.2f", textvariable=self.twoKp).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self, text="Spinbox", command=self.proportionalGain, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         row_num = row_num + 1
         tk.Label(self, text="Integral Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(self, text="Spinbox", from_=0.0, to_=5.0, increment=0.05, format="%1.2f", textvariable=self.twoKi).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self, text="Spinbox", from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         row_num = row_num + 1
         tk.Label(self, text="Sample Frequency").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(self, text="Spinbox", from_=0.0, to_=1600.0, increment=5.0, format="%4.1f", textvariable=self.sampleFreq).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self, text="Spinbox", from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         row_num = row_num + 1
         tk.Label(self, text="Gyroscope Sensitivity").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
         tk.Spinbox(self, text="Spinbox", from_=1, to_=24, increment=1, textvariable=self.gyroscope_sensitivity).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
-
 
         # Accelerometer Data
         row_num = row_num + 1
@@ -147,6 +153,7 @@ class GUIApplication(tk.Frame):
 
         # Quaternion Data
         col_num = col_num + 1
+        last_ctrl_row_num = row_num
         lf6 = tk.LabelFrame(self, text="Quaternion")
         lf6.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
 
@@ -159,6 +166,44 @@ class GUIApplication(tk.Frame):
         tk.Label(lf6, text="Q3").grid(column=0, row=3, padx=paddingx, pady=paddingy)
         tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[18]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
 
+        # Canvas
+        row_num = 1
+        col_num = col_num + 1
+        mpl.use("TkAgg")
+        #cnv = tk.Canvas(self, height=400, width=700, relief=tk.SUNKEN, borderwidth=5)
+        #cnv.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=last_ctrl_row_num - first_ctrl_row_num + 1)
+
+        np.random.seed(19680801)  # seed the random number generator.
+        data = {'a': np.arange(50),
+                'c': np.random.randint(0, 50, 50),
+                'd': np.random.randn(50)}
+        data['b'] = data['a'] + 10 * np.random.randn(50)
+        data['d'] = np.abs(data['d']) * 100
+        # plt.ion()
+        # fig, ax = plt.subplots(figsize=(5, 2.7), layout='constrained')
+        fig, ax = plt.subplots(figsize=(5, 2.7), constrained_layout=True)
+        ax.scatter('a', 'b', c='c', s='d', data=data)
+        ax.set_xlabel('entry a')
+        ax.set_ylabel('entry b');
+
+        cnv = FigureCanvasTkAgg(fig, master=self)
+        # cnv.draw()
+        cnv.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=last_ctrl_row_num - first_ctrl_row_num + 1)
+
+
+    def proportionalGain(self):
+        print("Proportional Gain %f" % ( self.twoKp.get()) )
+        if self.twoKpSave < self.twoKp.get():
+            # Send up
+            print("Prop Gain Up from %f" % ( self.twoKpSave) )
+            self.writeCmd(b"\x68")
+            self.twoKpSave = self.twoKpSave + 0.1
+        else:
+            # Send down
+            print("Prop Gain Down from %f" % ( self.twoKpSave) )
+            self.writeCmd(b"\x6a")
+            self.twoKpSave = self.twoKpSave - 0.1
+        print("twoKp = %f" % ( self.twoKpSave ))
 
     def calibrateResetButton(self):
         print("Calibrate Reset")
@@ -235,6 +280,7 @@ class GUIApplication(tk.Frame):
         if self.connected.get():
             self.connect_button.invoke()
         if self.peripheral is None:
+            self.quit()
             sys.exit(0)
 
 class NotifyDelegate(DefaultDelegate):
@@ -242,12 +288,20 @@ class NotifyDelegate(DefaultDelegate):
         DefaultDelegate.__init__(self)
     def handleNotification(self, cHandle, data):
         str_data = str(data, encoding='utf-8').split()
-        print("Notification:", str_data )
-        if str_data[0] != 'Calibrate':
+        try:
             idx = int(str_data[0])
             app.setAHRSData( idx, str_data[1:] )
+            #if idx == 11:
+            #    print("Mag Normal:", str_data )
+            #if idx == 12:
+            #    print("Mag Cal   :", str_data )
+            #if idx == 13:
+            #    print("Mag Uncal :", str_data )
+        except:
+            print("Notification:", str_data )
 
 app = GUIApplication()
 app.master.title('AHRS Command')
 app.mainloop()
+
 
