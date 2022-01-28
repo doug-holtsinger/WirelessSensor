@@ -18,36 +18,103 @@ class GUIApplication(tk.Frame):
     def __init__(self, master=None):
         tk.Frame.__init__(self, master)
         self.grid()
+
         self.connected = tk.BooleanVar()
         self.connected.set(False)
         self.connect_thread = None
         self.connect_button = None
+
         self.calibrate = tk.IntVar()
         self.calibrate.set(0)
         self.calibrate_prev = 0
-        self.twoKp = tk.DoubleVar()
-        self.twoKp.set(1.0)
-        self.twoKpSave = 1.0
 
+        self.twoKp = tk.DoubleVar()
         self.twoKi = tk.DoubleVar()
-        self.twoKi.set(0.0)
         self.sampleFreq = tk.DoubleVar()
-        self.sampleFreq.set(416.0)
-        self.gyroscope_sensitivity = tk.IntVar()
-        self.gyroscope_sensitivity.set(16)
+        self.gyroSens = tk.IntVar()
+
+        self.resetCalibration()
+
         self.ahrs_data = []
         for i in range(19):
             self.ahrs_data.append(tk.StringVar())
         for i in range(19):
             self.ahrs_data[i].set(0)
 
+        self.dataplot = np.zeros(50)
+        self.dataplotidx = 0
+        self.dataplot_cnv = None
+        self.line = None
+
         self.createWidgets()
         self.peripheral = None
 
+    def resetCalibration(self):
+        self.twoKp.set(1.0)
+        self.twoKpSave = 1.0
+        self.twoKi.set(0.0)
+        self.twoKiSave = 0.0
+        self.sampleFreq.set(416.0)
+        self.sampleFreqSave = 416.0
+        self.gyroSens.set(16)
+        self.gyroSensSave = 16
+
+    def scalePlot(self):
+        #print("ybound %s" % ( str(self.ax.get_ybound()) ) )
+        self.ax.relim()
+        self.ax.autoscale_view(tight=False, scaley=True, scalex=False)
+        #print("ybound %s" % ( str(self.ax.get_ybound()) ) )
+
     def setAHRSData(self, idx, data):
         if idx >= 0 and idx <= 18:
-            # print("Set AHRS Data %d = %s" % ( idx, data ))
+            # print("Data idx %d %s" % ( idx , data ))
             self.ahrs_data[idx].set(data)
+        if idx == 1 and self.dataplot_cnv is not None:
+            xval = float(data[0])
+            #yval = float(data[1])
+            #zval = float(data[2])
+            #print("xval = %f yval = %f zval = %f" % ( xval , yval, zval ))
+            #print("idx = %d" % ( self.dataplotidx ))
+            # print("autoscale = %d" % ( self.ax.get_autoscale_on() ) )
+
+            self.dataplot[self.dataplotidx] = xval
+            # try to set just one number?  Can't?  self.line.set_data( self.dataplotidx, xval)
+            # self.line.set_data( self.dataplotidx , xval )
+            self.line.set_data(np.arange(50), self.dataplot)
+            if self.dataplotidx == 0:
+                self.scalePlot()
+            self.dataplotidx = ( self.dataplotidx + 1 ) % 50
+            self.dataplot_cnv.draw_idle()
+
+
+    def createWidgetPlot(self, row_num, col_num, row_span):
+        # Canvas
+        mpl.use("TkAgg")
+
+        paddingx = 5
+        paddingy = 5
+        self.fig, self.ax = plt.subplots(figsize=(5, 2.7), constrained_layout=True)
+        self.line, = self.ax.plot(np.arange(50), self.dataplot)
+        self.ax.set_xlabel('Time')
+        self.ax.set_ylabel('Value');
+
+        #self.ax.set_ylim(bottom=-90.0, top=90.0)
+        self.ax.relim()
+        self.ax.autoscale_view(tight=False, scaley=True, scalex=False)
+
+        #self.ax.autoscale(enable=True, axis='both')
+        # self.ax.set_autoscaley_on(True)
+        # self.ax.set_autoscaley_on(True)
+        # self.ax.autoscale(enable=True, axis='both')
+        # self.ax.set_ylim(auto=True)
+
+        # print( self.ax.format_ydata(0.1) )
+        # print( self.ax.get_children() )
+
+        self.dataplot_cnv = FigureCanvasTkAgg(self.fig, master=self)
+        self.dataplot_cnv.draw()
+        # cnv.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=last_ctrl_row_num - first_ctrl_row_num + 1)
+        self.dataplot_cnv.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span)
 
     def createWidgets(self):
         row_num = 0
@@ -62,6 +129,7 @@ class GUIApplication(tk.Frame):
         tk.Button(self, text="Quit", command=self.appExit).grid(column=col_num, row=row_num)
 
         row_num = row_num + 1
+        data_row_num = row_num
         col_num = 0
 
         lf = tk.LabelFrame(self, text="Calibration")
@@ -98,15 +166,15 @@ class GUIApplication(tk.Frame):
 
         row_num = row_num + 1
         tk.Label(self, text="Integral Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(self, text="Spinbox", from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self, text="Spinbox", command=self.integralGain, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         row_num = row_num + 1
         tk.Label(self, text="Sample Frequency").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(self, text="Spinbox", from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self, text="Spinbox", command=self.sampleFrequency, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         row_num = row_num + 1
         tk.Label(self, text="Gyroscope Sensitivity").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(self, text="Spinbox", from_=1, to_=24, increment=1, textvariable=self.gyroscope_sensitivity).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self, text="Spinbox", command=self.gyroSensitivity, from_=1, to_=24, increment=1, textvariable=self.gyroSens).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         # Accelerometer Data
         row_num = row_num + 1
@@ -166,53 +234,76 @@ class GUIApplication(tk.Frame):
         tk.Label(lf6, text="Q3").grid(column=0, row=3, padx=paddingx, pady=paddingy)
         tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[18]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
 
-        # Canvas
-        row_num = 1
         col_num = col_num + 1
-        mpl.use("TkAgg")
-        #cnv = tk.Canvas(self, height=400, width=700, relief=tk.SUNKEN, borderwidth=5)
-        #cnv.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=last_ctrl_row_num - first_ctrl_row_num + 1)
-
-        np.random.seed(19680801)  # seed the random number generator.
-        data = {'a': np.arange(50),
-                'c': np.random.randint(0, 50, 50),
-                'd': np.random.randn(50)}
-        data['b'] = data['a'] + 10 * np.random.randn(50)
-        data['d'] = np.abs(data['d']) * 100
-        # plt.ion()
-        # fig, ax = plt.subplots(figsize=(5, 2.7), layout='constrained')
-        fig, ax = plt.subplots(figsize=(5, 2.7), constrained_layout=True)
-        ax.scatter('a', 'b', c='c', s='d', data=data)
-        ax.set_xlabel('entry a')
-        ax.set_ylabel('entry b');
-
-        cnv = FigureCanvasTkAgg(fig, master=self)
-        # cnv.draw()
-        cnv.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=last_ctrl_row_num - first_ctrl_row_num + 1)
-
+        row_span=last_ctrl_row_num - first_ctrl_row_num + 1
+        self.createWidgetPlot(data_row_num, col_num, row_span)
 
     def proportionalGain(self):
         print("Proportional Gain %f" % ( self.twoKp.get()) )
         if self.twoKpSave < self.twoKp.get():
             # Send up
             print("Prop Gain Up from %f" % ( self.twoKpSave) )
-            self.writeCmd(b"\x68")
+            self.writeCmd(b"h")
             self.twoKpSave = self.twoKpSave + 0.1
         else:
             # Send down
             print("Prop Gain Down from %f" % ( self.twoKpSave) )
-            self.writeCmd(b"\x6a")
+            self.writeCmd(b"j")
             self.twoKpSave = self.twoKpSave - 0.1
         print("twoKp = %f" % ( self.twoKpSave ))
 
+    def integralGain(self):
+        print("Integral Gain %f" % ( self.twoKi.get()) )
+        if self.twoKiSave < self.twoKi.get():
+            # Send up
+            print("Integral Gain Up from %f" % ( self.twoKiSave) )
+            self.writeCmd(b"l")
+            self.twoKiSave = self.twoKiSave + 0.1
+        else:
+            # Send down
+            print("Integral Gain Down from %f" % ( self.twoKiSave) )
+            self.writeCmd(b"n")
+            self.twoKiSave = self.twoKiSave - 0.1
+        print("twoKi = %f" % ( self.twoKiSave ))
+
+    def sampleFrequency(self):
+        print("Sample Frequency %f" % ( self.sampleFreq.get()) )
+        if self.sampleFreqSave < self.sampleFreq.get():
+            # Send up
+            print("Sample Frequency Up from %f" % ( self.sampleFreqSave ) )
+            self.writeCmd(b"s")
+            self.sampleFreqSave = self.sampleFreqSave + 32.0
+        else:
+            # Send down
+            print("Sample Frequency Down from %f" % ( self.sampleFreqSave) )
+            self.writeCmd(b"o")
+            self.sampleFreqSave = self.sampleFreqSave - 32.0
+        print("sampleFreq = %f" % ( self.sampleFreqSave ))
+
+    def gyroSensitivity(self):
+        print("Gyroscope Sensitivity %d" % ( self.gyroSens.get()) )
+        if self.gyroSensSave < self.gyroSens.get():
+            # Send up
+            print("Gyroscope Sensitivity Up from %f" % ( self.gyroSensSave ) )
+            self.writeCmd(b"u")
+            self.gyroSensSave = self.gyroSensSave + 1
+        else:
+            # Send down
+            print("Gyroscope Sensitivity Down from %f" % ( self.gyroSensSave ) )
+            self.writeCmd(b"t")
+            self.gyroSensSave = self.gyroSensSave - 1
+        print("gyroSens = %d" % ( self.gyroSensSave ))
+
     def calibrateResetButton(self):
         print("Calibrate Reset")
+        self.writeCmd(b"e")
+        self.resetCalibration()
 
     def calibrateButton(self):
         if self.connected.get():
             print("Calibrate Button %d" % ( self.calibrate.get() ))
             while self.calibrate_prev != self.calibrate.get():
-                self.writeCmd(b"\x63")
+                self.writeCmd(b"c")
                 self.calibrate_prev = ( self.calibrate_prev + 1 ) % 3
         else:
             self.calibrate.set(self.calibrate_prev)
@@ -226,6 +317,7 @@ class GUIApplication(tk.Frame):
 
     def connectPeripheral(self):
         print("Connect...")
+        # FIXME
         # battery-powered device.
         dev_addr = 'F1:68:47:7C:AD:E3'
         # USB-powered device.
@@ -249,10 +341,6 @@ class GUIApplication(tk.Frame):
                 d.write(b"\x01\x00",withResponse=True)
                 val = d.read()
                 print("    Value:  ", binascii.b2a_hex(val).decode('utf-8'))
-        # 'a'
-        #self.writeCmd(b"\x61")
-        #self.writeCmd(b"\x67")
-        #self.writeCmd(b"\x6D")
         print("Wait for notifications")
         while self.connected.get():
             try:
@@ -288,17 +376,14 @@ class NotifyDelegate(DefaultDelegate):
         DefaultDelegate.__init__(self)
     def handleNotification(self, cHandle, data):
         str_data = str(data, encoding='utf-8').split()
+        #print("Notif: %s" % ( str_data ))
         try:
             idx = int(str_data[0])
             app.setAHRSData( idx, str_data[1:] )
-            #if idx == 11:
-            #    print("Mag Normal:", str_data )
-            #if idx == 12:
-            #    print("Mag Cal   :", str_data )
-            #if idx == 13:
-            #    print("Mag Uncal :", str_data )
         except:
-            print("Notification:", str_data )
+            #raise
+            print("Notif: %s" % ( str_data ))
+           
 
 app = GUIApplication()
 app.master.title('AHRS Command')
