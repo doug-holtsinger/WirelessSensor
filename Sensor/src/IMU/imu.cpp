@@ -251,6 +251,7 @@ void IMU::print_debug_data()
 #endif
 
 
+#if 0
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , ROLL, PRINTF_FLOAT_VALUE(roll));
     send_debug_data(s);
 
@@ -259,6 +260,10 @@ void IMU::print_debug_data()
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , YAW, PRINTF_FLOAT_VALUE(yaw));
     send_debug_data(s);
+#else
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , EULER_ANGLES, PRINTF_FLOAT_VALUE(roll), PRINTF_FLOAT_VALUE(pitch), PRINTF_FLOAT_VALUE(yaw));
+    send_debug_data(s);
+#endif
 
     // Accelerometer
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , ACCELEROMETER_NORMAL, PRINTF_FLOAT_VALUE(axN), PRINTF_FLOAT_VALUE(ayN), PRINTF_FLOAT_VALUE(azN) );

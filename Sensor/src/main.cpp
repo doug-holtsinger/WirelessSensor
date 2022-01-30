@@ -79,14 +79,6 @@ static uint32_t cmd_get_cnt = 0;
 #define UART_TX_BUF_SIZE 256                         /**< UART TX buffer size. */
 #define UART_RX_BUF_SIZE 256                         /**< UART RX buffer size. */
 
-/* print defines */
-#define PRINTF_FLOAT_FORMAT " %c%ld.%02ld"
-#define PRINTF_FLOAT_VALUE(val) (uint8_t)(((val) < 0 && (val) > -1.0) ? '-' : ' '),   \
-                           (int32_t)(val),                                       \
-                           (int32_t)((((val) > 0) ? (val) - (int32_t)(val)       \
-                                                : (int32_t)(val) - (val))*100)
-
-
 #define DEAD_BEEF                           0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
 

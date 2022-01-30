@@ -18,11 +18,11 @@
 #define NOISE_THRESHOLD_MULTIPLIER 2
 
 /* print defines */
-#define PRINTF_FLOAT_FORMAT " %c%ld.%02ld"
+#define PRINTF_FLOAT_FORMAT " %c%ld.%01ld"
 #define PRINTF_FLOAT_VALUE(val) (uint8_t)(((val) < 0 && (val) > -1.0) ? '-' : ' '),   \
                            (int32_t)(val),                                       \
                            (int32_t)((((val) > 0) ? (val) - (int32_t)(val)       \
-                                                : (int32_t)(val) - (val))*100)
+                                                : (int32_t)(val) - (val))*10)
 
 typedef enum
 {
@@ -68,9 +68,13 @@ typedef enum {
 
 typedef enum
 {
-    ROLL,
+#if 0
+    ROLL = 0,
     PITCH,
     YAW,
+#else
+    EULER_ANGLES = 0,
+#endif
 
     ACCELEROMETER_NORMAL,
     ACCELEROMETER_CAL,

@@ -77,14 +77,6 @@
 
 extern void exec_app_cmd(const uint8_t cmd);
 
-/* print defines */
-#define PRINTF_FLOAT_FORMAT " %c%ld.%02ld"
-#define PRINTF_FLOAT_VALUE(val) (uint8_t)(((val) < 0 && (val) > -1.0) ? '-' : ' '),   \
-                           (int32_t)(val),                                       \
-                           (int32_t)((((val) > 0) ? (val) - (int32_t)(val)       \
-                                                : (int32_t)(val) - (val))*100)
-
-
 #define DEVICE_NAME                         "AHRS"                            /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                    BLE_GAP_ADV_INTERVAL_MIN /**< The advertising interval (in units of 0.625 ms. This value corresponds to 20.0 ms). */
@@ -96,8 +88,12 @@ extern void exec_app_cmd(const uint8_t cmd);
 
 #define HEART_RATE_MEAS_INTERVAL            APP_TIMER_TICKS(1000)                   /**< Heart rate measurement interval (ticks). */
 
-#define MIN_CONN_INTERVAL                   MSEC_TO_UNITS(400, UNIT_1_25_MS)        /**< Minimum acceptable connection interval (0.4 seconds). */
-#define MAX_CONN_INTERVAL                   MSEC_TO_UNITS(650, UNIT_1_25_MS)        /**< Maximum acceptable connection interval (0.65 second). */
+//DSH4
+// #define MIN_CONN_INTERVAL                   MSEC_TO_UNITS(400, UNIT_1_25_MS)        /**< Minimum acceptable connection interval (0.4 seconds). */
+// #define MAX_CONN_INTERVAL                   MSEC_TO_UNITS(650, UNIT_1_25_MS)        /**< Maximum acceptable connection interval (0.65 second). */
+// DSH4
+#define MIN_CONN_INTERVAL                   MSEC_TO_UNITS(8, UNIT_1_25_MS)        /**< Minimum acceptable connection interval  */
+#define MAX_CONN_INTERVAL                   MSEC_TO_UNITS(650, UNIT_1_25_MS)        /**< Maximum acceptable connection interval  */
 #define SLAVE_LATENCY                       0                                       /**< Slave latency. */
 #define CONN_SUP_TIMEOUT                    MSEC_TO_UNITS(4000, UNIT_10_MS)         /**< Connection supervisory timeout (4 seconds). */
 
@@ -186,6 +182,13 @@ void ble_svcs_send_debug_data(uint8_t* p_data, const size_t len)
     {
         uint16_t length = static_cast<uint16_t>(len);
         err_code = ble_nus_data_send(&m_nus, p_data, &length, m_conn_handle);
+#if 0
+	if (err_code != NRF_SUCCESS)
+	{
+		//DSH4
+            NRF_LOG_INFO("data_send %d", err_code);
+	}
+#endif
         if ((err_code != NRF_SUCCESS) &&
             (err_code != NRF_ERROR_INVALID_STATE) &&
             (err_code != NRF_ERROR_RESOURCES) &&

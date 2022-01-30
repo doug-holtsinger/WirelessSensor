@@ -26,7 +26,11 @@ TODO:
 - Fix raspberry pi connection MTU issue
 - cleanup BLE code to remove junk
 - Remove / replace HRS and other remnants
+- Improve performance, being aware of battery life
+- Improve response time when using Connect mode, decrease Notification
+buffer size?
 9) BLE application
+Change debug code to allow debug data to be selectively passed over BLE using a bit mask.
 10) Battery Power
 11) Prototype Board 
 12) Remove requirements for Serial Port and SEGGER Debugger for general use
