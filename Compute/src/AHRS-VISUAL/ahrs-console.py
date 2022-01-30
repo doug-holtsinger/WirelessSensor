@@ -9,7 +9,7 @@ from bluepy.btle import Scanner, DefaultDelegate, Peripheral, BTLEException
 
 import tkinter as tk
 import threading
-import matplotlib as mpl 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
@@ -36,15 +36,22 @@ class GUIApplication(tk.Frame):
         self.resetCalibration()
 
         self.ahrs_data = []
-        for i in range(19):
+        for i in range(17):
             self.ahrs_data.append(tk.StringVar())
-        for i in range(19):
+        for i in range(17):
             self.ahrs_data[i].set(0)
 
-        self.dataplot = np.zeros(50)
-        self.dataplotidx = 0
         self.dataplot_cnv = None
-        self.line = None
+        self.line = []
+        self.euler_angles = []
+        self.dataplot = []
+        self.dataplotidx = 0
+        for i in range(3):
+            self.line.append(None)
+            self.euler_angles.append(tk.StringVar())
+            self.dataplot.append(np.zeros(50))
+        for i in range(3):
+            self.euler_angles[i].set(0)
 
         self.createWidgets()
         self.peripheral = None
@@ -66,26 +73,19 @@ class GUIApplication(tk.Frame):
         #print("ybound %s" % ( str(self.ax.get_ybound()) ) )
 
     def setAHRSData(self, idx, data):
-        if idx >= 0 and idx <= 18:
+        if idx >= 0 and idx <= 16:
             # print("Data idx %d %s" % ( idx , data ))
             self.ahrs_data[idx].set(data)
-        if idx == 1 and self.dataplot_cnv is not None:
-            xval = float(data[0])
-            #yval = float(data[1])
-            #zval = float(data[2])
-            #print("xval = %f yval = %f zval = %f" % ( xval , yval, zval ))
-            #print("idx = %d" % ( self.dataplotidx ))
-            # print("autoscale = %d" % ( self.ax.get_autoscale_on() ) )
-
-            self.dataplot[self.dataplotidx] = xval
-            # try to set just one number?  Can't?  self.line.set_data( self.dataplotidx, xval)
-            # self.line.set_data( self.dataplotidx , xval )
-            self.line.set_data(np.arange(50), self.dataplot)
+        if idx == 0 and self.dataplot_cnv is not None:
+            print("Data idx %d %s" % ( idx , data ))
+            for i in range(3):
+                self.euler_angles[i].set(data[i])
+                self.dataplot[i][self.dataplotidx] = float(data[i])
+                self.line[i].set_data(np.arange(50), self.dataplot[i])
             if self.dataplotidx == 0:
                 self.scalePlot()
             self.dataplotidx = ( self.dataplotidx + 1 ) % 50
             self.dataplot_cnv.draw_idle()
-
 
     def createWidgetPlot(self, row_num, col_num, row_span):
         # Canvas
@@ -94,7 +94,8 @@ class GUIApplication(tk.Frame):
         paddingx = 5
         paddingy = 5
         self.fig, self.ax = plt.subplots(figsize=(5, 2.7), constrained_layout=True)
-        self.line, = self.ax.plot(np.arange(50), self.dataplot)
+        for i in range(3):
+            self.line[i], = self.ax.plot(np.arange(50), self.dataplot[i])
         self.ax.set_xlabel('Time')
         self.ax.set_ylabel('Value');
 
@@ -151,12 +152,11 @@ class GUIApplication(tk.Frame):
         lf2.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
 
         tk.Label(lf2, text="Roll", justify=tk.LEFT, padx=20).grid(column=0, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf2, relief=tk.SUNKEN, textvariable=self.ahrs_data[0]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
+        tk.Label(lf2, relief=tk.SUNKEN, textvariable=self.euler_angles[0]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
         tk.Label(lf2, text="Pitch", justify=tk.LEFT, padx=20).grid(column=0, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf2, relief=tk.SUNKEN, textvariable=self.ahrs_data[1]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
+        tk.Label(lf2, relief=tk.SUNKEN, textvariable=self.euler_angles[1]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
         tk.Label(lf2, text="Yaw", justify=tk.LEFT, padx=20).grid(column=0, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf2, relief=tk.SUNKEN, textvariable=self.ahrs_data[2]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
-
+        tk.Label(lf2, relief=tk.SUNKEN, textvariable=self.euler_angles[2]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
 
         col_num = 0
         row_num = row_num + 1
@@ -182,13 +182,13 @@ class GUIApplication(tk.Frame):
         lf3.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
 
         tk.Label(lf3, text="Normalized").grid(column=0, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf3, relief=tk.SUNKEN, textvariable=self.ahrs_data[3]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
+        tk.Label(lf3, relief=tk.SUNKEN, textvariable=self.ahrs_data[1]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
         tk.Label(lf3, text="Calibrated").grid(column=0, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf3, relief=tk.SUNKEN, textvariable=self.ahrs_data[4]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
+        tk.Label(lf3, relief=tk.SUNKEN, textvariable=self.ahrs_data[2]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
         tk.Label(lf3, text="Uncalibrated").grid(column=0, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf3, relief=tk.SUNKEN, textvariable=self.ahrs_data[5]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
+        tk.Label(lf3, relief=tk.SUNKEN, textvariable=self.ahrs_data[3]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
         tk.Label(lf3, text="Min Threshold").grid(column=0, row=3, padx=paddingx, pady=paddingy)
-        tk.Label(lf3, relief=tk.SUNKEN, textvariable=self.ahrs_data[6]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
+        tk.Label(lf3, relief=tk.SUNKEN, textvariable=self.ahrs_data[4]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
 
         # Gyroscope Data
         col_num = col_num + 1
@@ -196,13 +196,13 @@ class GUIApplication(tk.Frame):
         lf4.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
 
         tk.Label(lf4, text="Normalized").grid(column=0, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf4, relief=tk.SUNKEN, textvariable=self.ahrs_data[7]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
+        tk.Label(lf4, relief=tk.SUNKEN, textvariable=self.ahrs_data[5]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
         tk.Label(lf4, text="Calibrated").grid(column=0, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf4, relief=tk.SUNKEN, textvariable=self.ahrs_data[8]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
+        tk.Label(lf4, relief=tk.SUNKEN, textvariable=self.ahrs_data[6]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
         tk.Label(lf4, text="Uncalibrated").grid(column=0, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf4, relief=tk.SUNKEN, textvariable=self.ahrs_data[9]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
+        tk.Label(lf4, relief=tk.SUNKEN, textvariable=self.ahrs_data[7]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
         tk.Label(lf4, text="Min Threshold").grid(column=0, row=3, padx=paddingx, pady=paddingy)
-        tk.Label(lf4, relief=tk.SUNKEN, textvariable=self.ahrs_data[10]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
+        tk.Label(lf4, relief=tk.SUNKEN, textvariable=self.ahrs_data[8]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
 
         # Magnetometer Data
         row_num = row_num + 1
@@ -211,13 +211,13 @@ class GUIApplication(tk.Frame):
         lf5.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
 
         tk.Label(lf5, text="Normalized").grid(column=0, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf5, relief=tk.SUNKEN, textvariable=self.ahrs_data[11]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
+        tk.Label(lf5, relief=tk.SUNKEN, textvariable=self.ahrs_data[9]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
         tk.Label(lf5, text="Calibrated").grid(column=0, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf5, relief=tk.SUNKEN, textvariable=self.ahrs_data[12]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
+        tk.Label(lf5, relief=tk.SUNKEN, textvariable=self.ahrs_data[10]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
         tk.Label(lf5, text="Uncalibrated").grid(column=0, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf5, relief=tk.SUNKEN, textvariable=self.ahrs_data[13]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
+        tk.Label(lf5, relief=tk.SUNKEN, textvariable=self.ahrs_data[11]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
         tk.Label(lf5, text="Min Threshold").grid(column=0, row=3, padx=paddingx, pady=paddingy)
-        tk.Label(lf5, relief=tk.SUNKEN, textvariable=self.ahrs_data[14]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
+        tk.Label(lf5, relief=tk.SUNKEN, textvariable=self.ahrs_data[12]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
 
         # Quaternion Data
         col_num = col_num + 1
@@ -226,13 +226,13 @@ class GUIApplication(tk.Frame):
         lf6.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
 
         tk.Label(lf6, text="Q0").grid(column=0, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[15]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
+        tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[13]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
         tk.Label(lf6, text="Q1").grid(column=0, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[16]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
+        tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[14]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
         tk.Label(lf6, text="Q2").grid(column=0, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[17]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
+        tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[15]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
         tk.Label(lf6, text="Q3").grid(column=0, row=3, padx=paddingx, pady=paddingy)
-        tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[18]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
+        tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[16]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
 
         col_num = col_num + 1
         row_span=last_ctrl_row_num - first_ctrl_row_num + 1
@@ -315,6 +315,18 @@ class GUIApplication(tk.Frame):
         else:
             self.disconnect()
 
+    def getBLEState(self):
+        if self.peripheral:
+            try:
+                ble_state = self.peripheral.getState()
+                print("Current State %s" % ( ble_state ))
+            except BTLEException as e:
+                self.connected.set(False)
+                print(e)
+                return
+            return ble_state
+        return
+
     def connectPeripheral(self):
         print("Connect...")
         # FIXME
@@ -326,7 +338,7 @@ class GUIApplication(tk.Frame):
 
         try:
             self.peripheral = Peripheral(deviceAddr = dev_addr, addrType = 'random').withDelegate(NotifyDelegate())
-        except BTLEException as e: 
+        except BTLEException as e:
             self.connected.set(False)
             print(e)
             return
@@ -347,6 +359,7 @@ class GUIApplication(tk.Frame):
                 self.peripheral.waitForNotifications(0.1)
             except:
                 pass
+            print("NO NOTIFICATIONS")
         self.peripheral.disconnect()
         self.peripheral = None
         print("Disconnected")
@@ -376,14 +389,14 @@ class NotifyDelegate(DefaultDelegate):
         DefaultDelegate.__init__(self)
     def handleNotification(self, cHandle, data):
         str_data = str(data, encoding='utf-8').split()
-        #print("Notif: %s" % ( str_data ))
+        print("Notif: %s" % ( str_data ))
         try:
             idx = int(str_data[0])
             app.setAHRSData( idx, str_data[1:] )
         except:
-            #raise
+            # raise
             print("Notif: %s" % ( str_data ))
-           
+
 
 app = GUIApplication()
 app.master.title('AHRS Command')
