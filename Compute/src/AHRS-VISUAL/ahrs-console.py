@@ -359,7 +359,6 @@ class GUIApplication(tk.Frame):
                 self.peripheral.waitForNotifications(0.1)
             except:
                 pass
-            print("NO NOTIFICATIONS")
         self.peripheral.disconnect()
         self.peripheral = None
         print("Disconnected")
@@ -375,6 +374,8 @@ class GUIApplication(tk.Frame):
 
     def disconnect(self):
         print("Disconnect...")
+        # disable delegate from flooding app with notifications
+        self.peripheral.setDelegate(None)
         self.connected.set(False)
 
     def appExit(self):
