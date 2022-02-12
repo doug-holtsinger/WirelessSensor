@@ -133,6 +133,7 @@ void IMU::calibrate_zero_offset(void)
 
 void IMU::reset_calibration(void)
 {
+	// FIXME -- reset AHRS settings, like gyro sensitivity, as well
     for (int i = 0 ; i < 3 ; i++) 
     {
         magnetometer_min[i] = magnetometer_max[i] = magnetometer_min_threshold[i] = 0;
@@ -251,22 +252,12 @@ void IMU::print_debug_data()
 #endif
 
 
-#if 0
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , ROLL, PRINTF_FLOAT_VALUE(roll));
-    send_debug_data(s);
-
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , PITCH, PRINTF_FLOAT_VALUE(pitch));
-    send_debug_data(s);
-
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , YAW, PRINTF_FLOAT_VALUE(yaw));
-    send_debug_data(s);
-#else
+    // Euler Angles
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , EULER_ANGLES, PRINTF_FLOAT_VALUE(roll), PRINTF_FLOAT_VALUE(pitch), PRINTF_FLOAT_VALUE(yaw));
     send_debug_data(s);
-#endif
 
     // Accelerometer
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , ACCELEROMETER_NORMAL, PRINTF_FLOAT_VALUE(axN), PRINTF_FLOAT_VALUE(ayN), PRINTF_FLOAT_VALUE(azN) );
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 , ACCELEROMETER_NORMAL, PRINTF_FLOAT_VALUE2(axN), PRINTF_FLOAT_VALUE2(ayN), PRINTF_FLOAT_VALUE2(azN) );
     send_debug_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
@@ -294,14 +285,14 @@ void IMU::print_debug_data()
     send_debug_data(s);
 
     // Gyroscope
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , GYROSCOPE_NORMAL, PRINTF_FLOAT_VALUE(gxN), PRINTF_FLOAT_VALUE(gyN), PRINTF_FLOAT_VALUE(gzN) );
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 , GYROSCOPE_NORMAL, PRINTF_FLOAT_VALUE2(gxN), PRINTF_FLOAT_VALUE2(gyN), PRINTF_FLOAT_VALUE2(gzN) );
     send_debug_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT ,
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 ,
             GYROSCOPE_CAL,
-            PRINTF_FLOAT_VALUE(gyroscope_cal[0]),
-            PRINTF_FLOAT_VALUE(gyroscope_cal[1]),
-            PRINTF_FLOAT_VALUE(gyroscope_cal[2])
+            PRINTF_FLOAT_VALUE2(gyroscope_cal[0]),
+            PRINTF_FLOAT_VALUE2(gyroscope_cal[1]),
+            PRINTF_FLOAT_VALUE2(gyroscope_cal[2])
         );
     send_debug_data(s);
 
@@ -322,7 +313,7 @@ void IMU::print_debug_data()
     send_debug_data(s);
 
     // Magnetometer
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , MAGNETOMETER_NORMAL, PRINTF_FLOAT_VALUE(mxN), PRINTF_FLOAT_VALUE(myN), PRINTF_FLOAT_VALUE(mzN) );
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 , MAGNETOMETER_NORMAL, PRINTF_FLOAT_VALUE2(mxN), PRINTF_FLOAT_VALUE2(myN), PRINTF_FLOAT_VALUE2(mzN) );
     send_debug_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d", 
@@ -350,16 +341,16 @@ void IMU::print_debug_data()
     send_debug_data(s);
 
     // Quaternion
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , QUATERNION_Q0, PRINTF_FLOAT_VALUE(q0X) );
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , QUATERNION_Q0, PRINTF_FLOAT_VALUE2(q0X) );
     send_debug_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , QUATERNION_Q1, PRINTF_FLOAT_VALUE(q1X) );
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , QUATERNION_Q1, PRINTF_FLOAT_VALUE2(q1X) );
     send_debug_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , QUATERNION_Q2, PRINTF_FLOAT_VALUE(q2X) );
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , QUATERNION_Q2, PRINTF_FLOAT_VALUE2(q2X) );
     send_debug_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT , QUATERNION_Q3, PRINTF_FLOAT_VALUE(q3X) );
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , QUATERNION_Q3, PRINTF_FLOAT_VALUE2(q3X) );
     send_debug_data(s);
 
 }

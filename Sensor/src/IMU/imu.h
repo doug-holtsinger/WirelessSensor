@@ -24,6 +24,13 @@
                            (int32_t)((((val) > 0) ? (val) - (int32_t)(val)       \
                                                 : (int32_t)(val) - (val))*10)
 
+#define PRINTF_FLOAT_FORMAT2 " %c%ld.%02ld"
+#define PRINTF_FLOAT_VALUE2(val) (uint8_t)(((val) < 0 && (val) > -1.0) ? '-' : ' '),   \
+                           (int32_t)(val),                                       \
+                           (int32_t)((((val) > 0) ? (val) - (int32_t)(val)       \
+                                                : (int32_t)(val) - (val))*100)
+
+
 typedef enum
 {
     IMU_AHRS = 0,

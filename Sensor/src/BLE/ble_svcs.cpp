@@ -181,11 +181,16 @@ void ble_svcs_send_debug_data(uint8_t* p_data, const size_t len)
     if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
     {
         uint16_t length = static_cast<uint16_t>(len);
+#if 1
         err_code = ble_nus_data_send(&m_nus, p_data, &length, m_conn_handle);
+#else
+        do {
+            err_code = ble_nus_data_send(&m_nus, p_data, &length, m_conn_handle);
+	} while (err_code == NRF_ERROR_RESOURCES);
+#endif
 #if 0
 	if (err_code != NRF_SUCCESS)
 	{
-		//DSH4
             NRF_LOG_INFO("data_send %d", err_code);
 	}
 #endif
