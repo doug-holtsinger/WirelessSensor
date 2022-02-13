@@ -34,6 +34,7 @@ class GUIApplication(tk.Frame):
         self.gyroSens = tk.IntVar()
 
         self.resetCalibration()
+        self.xpoints = 1500
 
         self.ahrs_data = []
         for i in range(17):
@@ -49,7 +50,7 @@ class GUIApplication(tk.Frame):
         for i in range(3):
             self.line.append(None)
             self.euler_angles.append(tk.StringVar())
-            self.dataplot.append(np.zeros(50))
+            self.dataplot.append(np.zeros(self.xpoints))
         for i in range(3):
             self.euler_angles[i].set(0)
 
@@ -67,25 +68,30 @@ class GUIApplication(tk.Frame):
         self.gyroSensSave = 16
 
     def scalePlot(self):
-        #print("ybound %s" % ( str(self.ax.get_ybound()) ) )
         self.ax.relim()
         self.ax.autoscale_view(tight=False, scaley=True, scalex=False)
-        #print("ybound %s" % ( str(self.ax.get_ybound()) ) )
+        self.dataplot_cnv.draw_idle()
 
     def setAHRSData(self, idx, data):
+        #if (self.num_notifications & 0xF) == 0:
+        #    print("num notif %d" % ( self.num_notifications ))
+        #if idx >= 0 and idx <= 2:
+        #    print("Data idx %d %s" % ( idx , data ))
         if idx >= 0 and idx <= 16:
-            # print("Data idx %d %s" % ( idx , data ))
             self.ahrs_data[idx].set(data)
         if idx == 0 and self.dataplot_cnv is not None:
-            print("Data idx %d %s" % ( idx , data ))
+            # print("Data idx %d %s" % ( idx , data ))
             for i in range(3):
                 self.euler_angles[i].set(data[i])
                 self.dataplot[i][self.dataplotidx] = float(data[i])
-                self.line[i].set_data(np.arange(50), self.dataplot[i])
+                self.line[i].set_data(np.arange(self.xpoints), self.dataplot[i])
             if self.dataplotidx == 0:
                 self.scalePlot()
-            self.dataplotidx = ( self.dataplotidx + 1 ) % 50
-            self.dataplot_cnv.draw_idle()
+            self.dataplotidx = ( self.dataplotidx + 1 ) % self.xpoints
+            self.num_notifications = self.num_notifications + 1
+            if self.num_notifications & 0x1f == 0:
+                # draw_idle is very slow.
+                self.dataplot_cnv.draw_idle()
 
     def createWidgetPlot(self, row_num, col_num, row_span):
         # Canvas
@@ -93,11 +99,18 @@ class GUIApplication(tk.Frame):
 
         paddingx = 5
         paddingy = 5
-        self.fig, self.ax = plt.subplots(figsize=(5, 2.7), constrained_layout=True)
+        self.fig, self.ax = plt.subplots(figsize=(10, 5.0), constrained_layout=True)
         for i in range(3):
-            self.line[i], = self.ax.plot(np.arange(50), self.dataplot[i])
+            if i == 0:
+                l = 'Roll'
+            if i == 1:
+                l = 'Pitch'
+            if i == 2:
+                l = 'Yaw'
+            self.line[i], = self.ax.plot(np.arange(self.xpoints), self.dataplot[i], label=l)
         self.ax.set_xlabel('Time')
         self.ax.set_ylabel('Value');
+        self.ax.legend()
 
         #self.ax.set_ylim(bottom=-90.0, top=90.0)
         self.ax.relim()
@@ -128,6 +141,8 @@ class GUIApplication(tk.Frame):
         self.connect_button.grid(column=col_num, row=row_num)
         col_num = col_num + 1
         tk.Button(self, text="Quit", command=self.appExit).grid(column=col_num, row=row_num)
+        col_num = col_num + 1
+        tk.Button(self, text="Scale", command=self.scalePlot).grid(column=col_num, row=row_num)
 
         row_num = row_num + 1
         data_row_num = row_num
@@ -330,11 +345,12 @@ class GUIApplication(tk.Frame):
     def connectPeripheral(self):
         print("Connect...")
         # FIXME
-        # battery-powered device.
-        dev_addr = 'F1:68:47:7C:AD:E3'
         # USB-powered device.
         dev_addr = 'CC:43:80:8D:F8:46'
+        # battery-powered device.
+        # dev_addr = 'F1:68:47:7C:AD:E3'
         self.peripheral = None
+        self.num_notifications = 0
 
         try:
             self.peripheral = Peripheral(deviceAddr = dev_addr, addrType = 'random').withDelegate(NotifyDelegate())
@@ -376,6 +392,7 @@ class GUIApplication(tk.Frame):
         print("Disconnect...")
         # disable delegate from flooding app with notifications
         self.peripheral.setDelegate(None)
+        # if already connected, set connect button variable
         self.connected.set(False)
 
     def appExit(self):
@@ -390,7 +407,7 @@ class NotifyDelegate(DefaultDelegate):
         DefaultDelegate.__init__(self)
     def handleNotification(self, cHandle, data):
         str_data = str(data, encoding='utf-8').split()
-        print("Notif: %s" % ( str_data ))
+        #print("Notif: %s" % ( str_data ))
         try:
             idx = int(str_data[0])
             app.setAHRSData( idx, str_data[1:] )
@@ -400,7 +417,7 @@ class NotifyDelegate(DefaultDelegate):
 
 
 app = GUIApplication()
-app.master.title('AHRS Command')
+app.master.title('AHRS Console')
 app.mainloop()
 
 
