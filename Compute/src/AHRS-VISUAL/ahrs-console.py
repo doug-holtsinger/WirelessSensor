@@ -14,7 +14,64 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
 
-class GUIApplication(tk.Frame):
+
+class AHRSDataFrame():
+    def __init__(self, master, data_group_name, data_names, data_label_width, row, column):
+        paddingx = 5
+        paddingy = 5
+        lf = tk.LabelFrame(master, text=data_group_name)
+        lf.grid(column=column, row=row, padx=paddingx, pady=paddingy)
+        self.dataItems = []
+        for data_name in data_names:
+            row = row + 1
+            self.dataItems.append(AHRSDataItem(lf, data_name, data_label_width, row, column))
+
+    def setData(self, data, idx):
+        pass
+
+        # data for plotting:
+        #   Yaw -- text data name, constant
+        #   euler_angles[2] -- created data value(s), tkStringVar object
+        #     internal create label object
+        #   grid row, column passed in.
+        #
+        #     label object => label number in labelHandler
+        #        looks up data value from label object? -> dictionary
+        #
+        #   AHRS data index maps to -> data object, call data set method
+        #
+        #   data object has reference to plot object, which it calls when it wants to update plot data.
+        #
+        # dataItem = AHRSDataItem(lf2, "Yaw", 2, 0)
+
+
+class AHRSDataItem():
+    def __init__(self, master, data_name, data_label_width, row, column):
+        self.data_name = data_name
+        self.data = tk.StringVar()
+        self.data.set(0)
+        paddingx = 5
+        paddingy = 5
+        self.plot_ref = None
+        tk.Label(master, text=data_name, justify=tk.LEFT, padx=20).grid(column=column, row=row, padx=paddingx, pady=paddingy)
+        self.data_label = tk.Label(master, relief=tk.SUNKEN, textvariable=self.data, width=data_label_width)
+        self.data_label.grid(column=column+1, row=row, padx=paddingx, pady=paddingy)
+        def handler(event, self=self):
+            return self._labelHandler(event)
+        self.data_label.bind('<Button-1>', handler)
+        self.data_label.bind('<Button-3>', handler)
+    def _labelHandler(self, event):
+        print("Label button ", self.data_name)
+        print(event.type)
+        print("event num %d" % ( event.num) )
+    def setData(self, data):
+        self.data = data
+    def get_data(self):
+        return self.data
+    def set_plot_ref(self, plot_ref):
+        self.plot_ref = plot_ref
+
+class AHRSConsole(tk.Frame):
     def __init__(self, master=None):
         tk.Frame.__init__(self, master)
         self.grid()
@@ -35,6 +92,8 @@ class GUIApplication(tk.Frame):
 
         self.resetCalibration()
         self.xpoints = 1500
+
+        self.data_group = []
 
         self.ahrs_data = []
         for i in range(17):
@@ -136,7 +195,10 @@ class GUIApplication(tk.Frame):
 
         paddingx = 5
         paddingy = 5
+        data_label_width = 17
 
+        # 0,0
+        # Menu
         self.connect_button = tk.Checkbutton(self, text="Connect", command=self.connectButton, variable=self.connected, onvalue=True, offvalue=False)
         self.connect_button.grid(column=col_num, row=row_num)
         col_num = col_num + 1
@@ -144,9 +206,11 @@ class GUIApplication(tk.Frame):
         col_num = col_num + 1
         tk.Button(self, text="Scale", command=self.scalePlot).grid(column=col_num, row=row_num)
 
+        # 1,0
+        # Calibration
+        col_num = 0
         row_num = row_num + 1
         data_row_num = row_num
-        col_num = 0
 
         lf = tk.LabelFrame(self, text="Calibration")
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
@@ -161,21 +225,16 @@ class GUIApplication(tk.Frame):
 
         tk.Button(lf, text="Reset", command=self.calibrateResetButton).pack(anchor="w")
 
+        # 1,1
         # Euler Angles
         col_num = col_num + 1
-        lf2 = tk.LabelFrame(self, text="Euler Angles")
-        lf2.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
-
-        tk.Label(lf2, text="Roll", justify=tk.LEFT, padx=20).grid(column=0, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf2, relief=tk.SUNKEN, textvariable=self.euler_angles[0]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf2, text="Pitch", justify=tk.LEFT, padx=20).grid(column=0, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf2, relief=tk.SUNKEN, textvariable=self.euler_angles[1]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf2, text="Yaw", justify=tk.LEFT, padx=20).grid(column=0, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf2, relief=tk.SUNKEN, textvariable=self.euler_angles[2]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
+        self.data_group.append(AHRSDataFrame(self, "Euler Angles", ["Roll", "Pitch", "Yaw"], data_label_width, row_num, col_num))
 
         col_num = 0
         row_num = row_num + 1
 
+        # 2,0
+        # Controls
         tk.Label(self, text="Proportional Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
         tk.Spinbox(self, text="Spinbox", command=self.proportionalGain, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
@@ -191,64 +250,31 @@ class GUIApplication(tk.Frame):
         tk.Label(self, text="Gyroscope Sensitivity").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
         tk.Spinbox(self, text="Spinbox", command=self.gyroSensitivity, from_=1, to_=24, increment=1, textvariable=self.gyroSens).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
+        # 3,0
         # Accelerometer Data
         row_num = row_num + 1
-        lf3 = tk.LabelFrame(self, text="Accelerometer")
-        lf3.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
 
-        tk.Label(lf3, text="Normalized").grid(column=0, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf3, relief=tk.SUNKEN, textvariable=self.ahrs_data[1]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf3, text="Calibrated").grid(column=0, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf3, relief=tk.SUNKEN, textvariable=self.ahrs_data[2]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf3, text="Uncalibrated").grid(column=0, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf3, relief=tk.SUNKEN, textvariable=self.ahrs_data[3]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf3, text="Min Threshold").grid(column=0, row=3, padx=paddingx, pady=paddingy)
-        tk.Label(lf3, relief=tk.SUNKEN, textvariable=self.ahrs_data[4]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
+        self.data_group.append(AHRSDataFrame(self, "Accelerometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, row_num, col_num))
 
+        # 3,1
         # Gyroscope Data
         col_num = col_num + 1
-        lf4 = tk.LabelFrame(self, text="Gyroscope")
-        lf4.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
+        self.data_group.append(AHRSDataFrame(self, "Gyroscope", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, row_num, col_num))
 
-        tk.Label(lf4, text="Normalized").grid(column=0, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf4, relief=tk.SUNKEN, textvariable=self.ahrs_data[5]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf4, text="Calibrated").grid(column=0, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf4, relief=tk.SUNKEN, textvariable=self.ahrs_data[6]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf4, text="Uncalibrated").grid(column=0, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf4, relief=tk.SUNKEN, textvariable=self.ahrs_data[7]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf4, text="Min Threshold").grid(column=0, row=3, padx=paddingx, pady=paddingy)
-        tk.Label(lf4, relief=tk.SUNKEN, textvariable=self.ahrs_data[8]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
-
+        # 4,0
         # Magnetometer Data
         row_num = row_num + 1
-        col_num = col_num - 1
-        lf5 = tk.LabelFrame(self, text="Magnetometer")
-        lf5.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
+        col_num = 0
+        self.data_group.append(AHRSDataFrame(self, "Magnetometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, row_num, col_num))
 
-        tk.Label(lf5, text="Normalized").grid(column=0, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf5, relief=tk.SUNKEN, textvariable=self.ahrs_data[9]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf5, text="Calibrated").grid(column=0, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf5, relief=tk.SUNKEN, textvariable=self.ahrs_data[10]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf5, text="Uncalibrated").grid(column=0, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf5, relief=tk.SUNKEN, textvariable=self.ahrs_data[11]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf5, text="Min Threshold").grid(column=0, row=3, padx=paddingx, pady=paddingy)
-        tk.Label(lf5, relief=tk.SUNKEN, textvariable=self.ahrs_data[12]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
-
+        # 4,1
         # Quaternion Data
         col_num = col_num + 1
+        self.data_group.append(AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, row_num, col_num))
+
         last_ctrl_row_num = row_num
-        lf6 = tk.LabelFrame(self, text="Quaternion")
-        lf6.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
 
-        tk.Label(lf6, text="Q0").grid(column=0, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[13]).grid(column=1, row=0, padx=paddingx, pady=paddingy)
-        tk.Label(lf6, text="Q1").grid(column=0, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[14]).grid(column=1, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(lf6, text="Q2").grid(column=0, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[15]).grid(column=1, row=2, padx=paddingx, pady=paddingy)
-        tk.Label(lf6, text="Q3").grid(column=0, row=3, padx=paddingx, pady=paddingy)
-        tk.Label(lf6, relief=tk.SUNKEN, textvariable=self.ahrs_data[16]).grid(column=1, row=3, padx=paddingx, pady=paddingy)
-
+        # 1,2  row_span=4-1 = 3
         col_num = col_num + 1
         row_span=last_ctrl_row_num - first_ctrl_row_num + 1
         self.createWidgetPlot(data_row_num, col_num, row_span)
@@ -416,8 +442,8 @@ class NotifyDelegate(DefaultDelegate):
             print("Notif: %s" % ( str_data ))
 
 
-app = GUIApplication()
-app.master.title('AHRS Console')
-app.mainloop()
+console = AHRSConsole()
+console.master.title('AHRS Console')
+console.mainloop()
 
 
