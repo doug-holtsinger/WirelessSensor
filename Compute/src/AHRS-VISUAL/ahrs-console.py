@@ -22,28 +22,19 @@ class AHRSDataFrame():
         lf = tk.LabelFrame(master, text=data_group_name)
         lf.grid(column=column, row=row, padx=paddingx, pady=paddingy)
         self.dataItems = []
+        self.data_group_name = data_group_name
         for data_name in data_names:
             row = row + 1
             self.dataItems.append(AHRSDataItem(lf, data_name, data_label_width, row, column))
 
-    def setData(self, data, idx):
-        pass
+    def setData(self, idx, data):
+        #print("DataFrame setData %s %d data = %s" % ( self.data_group_name, idx, data ))
+        self.dataItems[idx].setData(data)
 
-        # data for plotting:
-        #   Yaw -- text data name, constant
-        #   euler_angles[2] -- created data value(s), tkStringVar object
-        #     internal create label object
-        #   grid row, column passed in.
-        #
-        #     label object => label number in labelHandler
-        #        looks up data value from label object? -> dictionary
-        #
-        #   AHRS data index maps to -> data object, call data set method
-        #
-        #   data object has reference to plot object, which it calls when it wants to update plot data.
-        #
-        # dataItem = AHRSDataItem(lf2, "Yaw", 2, 0)
-
+    def setupPlot(self, ax):
+        # setup data plot
+        for dItem in self.dataItems:
+            dItem.setupPlot(ax)
 
 class AHRSDataItem():
     def __init__(self, master, data_name, data_label_width, row, column):
@@ -52,7 +43,7 @@ class AHRSDataItem():
         self.data.set(0)
         paddingx = 5
         paddingy = 5
-        self.plot_ref = None
+        self.xpoints = 1500
         tk.Label(master, text=data_name, justify=tk.LEFT, padx=20).grid(column=column, row=row, padx=paddingx, pady=paddingy)
         self.data_label = tk.Label(master, relief=tk.SUNKEN, textvariable=self.data, width=data_label_width)
         self.data_label.grid(column=column+1, row=row, padx=paddingx, pady=paddingy)
@@ -60,16 +51,30 @@ class AHRSDataItem():
             return self._labelHandler(event)
         self.data_label.bind('<Button-1>', handler)
         self.data_label.bind('<Button-3>', handler)
+        self.dataplot = np.zeros(self.xpoints)
+        self.dataplotidx = 0
+        self.line = None
+
     def _labelHandler(self, event):
         print("Label button ", self.data_name)
         print(event.type)
         print("event num %d" % ( event.num) )
+
     def setData(self, data):
-        self.data = data
-    def get_data(self):
+        self.data.set(data)
+        #print("DataItem %s data = %s" % ( self.data_name, self.data.get() ))
+        if self.line: 
+            if isinstance(data, (list)):
+                self.dataplot[self.dataplotidx] = float(data[0])
+                self.line.set_data(np.arange(self.xpoints), self.dataplot)
+            else:
+                self.dataplot[self.dataplotidx] = float(data)
+                self.line.set_data(np.arange(self.xpoints), self.dataplot)
+            self.dataplotidx = ( self.dataplotidx + 1 ) % self.xpoints
+    def getData(self):
         return self.data
-    def set_plot_ref(self, plot_ref):
-        self.plot_ref = plot_ref
+    def setupPlot(self, ax):
+        self.line, = ax.plot(np.arange(self.xpoints), self.dataplot, label=self.data_name)
 
 class AHRSConsole(tk.Frame):
     def __init__(self, master=None):
@@ -94,24 +99,15 @@ class AHRSConsole(tk.Frame):
         self.xpoints = 1500
 
         self.data_group = []
-
-        self.ahrs_data = []
-        for i in range(17):
-            self.ahrs_data.append(tk.StringVar())
-        for i in range(17):
-            self.ahrs_data[i].set(0)
+        self.dataplotcnt = 0
 
         self.dataplot_cnv = None
         self.line = []
-        self.euler_angles = []
         self.dataplot = []
         self.dataplotidx = 0
         for i in range(3):
             self.line.append(None)
-            self.euler_angles.append(tk.StringVar())
             self.dataplot.append(np.zeros(self.xpoints))
-        for i in range(3):
-            self.euler_angles[i].set(0)
 
         self.createWidgets()
         self.peripheral = None
@@ -132,25 +128,21 @@ class AHRSConsole(tk.Frame):
         self.dataplot_cnv.draw_idle()
 
     def setAHRSData(self, idx, data):
-        #if (self.num_notifications & 0xF) == 0:
-        #    print("num notif %d" % ( self.num_notifications ))
-        #if idx >= 0 and idx <= 2:
-        #    print("Data idx %d %s" % ( idx , data ))
-        if idx >= 0 and idx <= 16:
-            self.ahrs_data[idx].set(data)
-        if idx == 0 and self.dataplot_cnv is not None:
-            # print("Data idx %d %s" % ( idx , data ))
-            for i in range(3):
-                self.euler_angles[i].set(data[i])
-                self.dataplot[i][self.dataplotidx] = float(data[i])
-                self.line[i].set_data(np.arange(self.xpoints), self.dataplot[i])
-            if self.dataplotidx == 0:
-                self.scalePlot()
-            self.dataplotidx = ( self.dataplotidx + 1 ) % self.xpoints
-            self.num_notifications = self.num_notifications + 1
-            if self.num_notifications & 0x1f == 0:
-                # draw_idle is very slow.
-                self.dataplot_cnv.draw_idle()
+        if idx == 0:
+            gidx = 0
+            for gi in range(3):
+                self.data_group[gidx].setData(gi, data[gi])
+        else:
+            gidx = int((idx + 3) / 4)
+            gi = (idx + 3) & 0x3
+            self.data_group[gidx].setData(gi, data)
+        if self.dataplotcnt & 0xff == 0:
+            # draw_idle is very slow, so don't call it too often.
+            # It can cause a large backlog of notifications, causing the display to be unresponsive
+            # to the current value in the most recent notification.
+            self.scalePlot()
+            self.dataplot_cnv.draw_idle()
+        self.dataplotcnt = self.dataplotcnt + 1
 
     def createWidgetPlot(self, row_num, col_num, row_span):
         # Canvas
@@ -159,35 +151,22 @@ class AHRSConsole(tk.Frame):
         paddingx = 5
         paddingy = 5
         self.fig, self.ax = plt.subplots(figsize=(10, 5.0), constrained_layout=True)
-        for i in range(3):
-            if i == 0:
-                l = 'Roll'
-            if i == 1:
-                l = 'Pitch'
-            if i == 2:
-                l = 'Yaw'
-            self.line[i], = self.ax.plot(np.arange(self.xpoints), self.dataplot[i], label=l)
+
+        # setup initial data plot
+        self.data_group[0].setupPlot(self.ax)
+
         self.ax.set_xlabel('Time')
         self.ax.set_ylabel('Value');
         self.ax.legend()
 
-        #self.ax.set_ylim(bottom=-90.0, top=90.0)
         self.ax.relim()
         self.ax.autoscale_view(tight=False, scaley=True, scalex=False)
 
-        #self.ax.autoscale(enable=True, axis='both')
-        # self.ax.set_autoscaley_on(True)
-        # self.ax.set_autoscaley_on(True)
-        # self.ax.autoscale(enable=True, axis='both')
-        # self.ax.set_ylim(auto=True)
-
-        # print( self.ax.format_ydata(0.1) )
-        # print( self.ax.get_children() )
-
         self.dataplot_cnv = FigureCanvasTkAgg(self.fig, master=self)
         self.dataplot_cnv.draw()
-        # cnv.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=last_ctrl_row_num - first_ctrl_row_num + 1)
         self.dataplot_cnv.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span)
+
+
 
     def createWidgets(self):
         row_num = 0
@@ -376,7 +355,6 @@ class AHRSConsole(tk.Frame):
         # battery-powered device.
         # dev_addr = 'F1:68:47:7C:AD:E3'
         self.peripheral = None
-        self.num_notifications = 0
 
         try:
             self.peripheral = Peripheral(deviceAddr = dev_addr, addrType = 'random').withDelegate(NotifyDelegate())
@@ -436,10 +414,10 @@ class NotifyDelegate(DefaultDelegate):
         #print("Notif: %s" % ( str_data ))
         try:
             idx = int(str_data[0])
-            app.setAHRSData( idx, str_data[1:] )
+            console.setAHRSData( idx, str_data[1:] )
         except:
-            # raise
-            print("Notif: %s" % ( str_data ))
+            raise
+            # print("Notif: %s" % ( str_data ))
 
 
 console = AHRSConsole()
