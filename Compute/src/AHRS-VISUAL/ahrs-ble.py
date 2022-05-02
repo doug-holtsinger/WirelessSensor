@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """ Print the manufacturing data for our Wireless Sensor device 
     to standard out.  It assumes a manufacturer ID of 0xffff and 
@@ -24,7 +24,7 @@ class ScanDelegate(DefaultDelegate):
             roll = manufacturer_data[4:8]
             pitch = manufacturer_data[8:12]
             yaw   = manufacturer_data[12:16]
-            print roll + ' ' + pitch + ' ' + yaw + ' ' + str(self.pkt_num)
+            print(roll + ' ' + pitch + ' ' + yaw + ' ' + str(self.pkt_num))
             # print dev.rawData
             sys.stdout.flush()
             self.pkt_num = self.pkt_num + 1

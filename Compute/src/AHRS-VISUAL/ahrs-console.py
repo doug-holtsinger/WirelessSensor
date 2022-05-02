@@ -154,6 +154,7 @@ class AHRSConsole(tk.Frame):
 
         # setup initial data plot
         self.data_group[0].setupPlot(self.ax)
+        # self.data_group[1].setupPlot(self.ax)
 
         self.ax.set_xlabel('Time')
         self.ax.set_ylabel('Value');
@@ -165,7 +166,6 @@ class AHRSConsole(tk.Frame):
         self.dataplot_cnv = FigureCanvasTkAgg(self.fig, master=self)
         self.dataplot_cnv.draw()
         self.dataplot_cnv.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span)
-
 
 
     def createWidgets(self):
