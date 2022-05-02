@@ -1,4 +1,27 @@
 
+// Define if BLE console is wanted
 #define BLE_CONSOLE_AVAILABLE 
+
+// Define if serial port is wanted on nRF52 board
 // #define SERIAL_CONSOLE_AVAILABLE
+
+// Define if BLE DIS is wanted
 #define DEVICE_INFORMATION_SERVICE_AVAILABLE
+
+// serial port pin connections on nRF52 board
+#ifdef SERIAL_CONSOLE_AVAILABLE
+#define RX_PIN_NUMBER  NRF_GPIO_PIN_MAP(0,20)
+#define TX_PIN_NUMBER  NRF_GPIO_PIN_MAP(0,17)
+// If flow control enabled, pin connections for CTS/RTS
+#define CTS_PIN_NUMBER UART_PIN_DISCONNECTED
+#define RTS_PIN_NUMBER UART_PIN_DISCONNECTED
+#endif
+
+// Optional LED indicators for BLE states
+#define BSP_LED_INDICATE_CONNECTED             BSP_BOARD_LED_2
+#define BSP_LED_INDICATE_BONDING               BSP_BOARD_LED_2
+#define BSP_LED_INDICATE_ADVERTISING_DIRECTED  BSP_BOARD_LED_2
+#define BSP_LED_INDICATE_ADVERTISING_SLOW      BSP_BOARD_LED_2
+#define BSP_LED_INDICATE_ADVERTISING_WHITELIST BSP_BOARD_LED_2
+#define BSP_LED_INDICATE_INDICATE_ADVERTISING  BSP_BOARD_LED_2
+

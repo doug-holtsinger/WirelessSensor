@@ -234,8 +234,8 @@ static void board_init()
           TX_PIN_NUMBER,
           RTS_PIN_NUMBER,
           CTS_PIN_NUMBER,
-          APP_UART_FLOW_CONTROL_ENABLED,
-          false,
+          APP_UART_FLOW_CONTROL_DISABLED,
+          false,			/* use_parity value */
 #if defined (UART_PRESENT)
           NRF_UART_BAUDRATE_115200
 #else

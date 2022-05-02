@@ -2,7 +2,8 @@ PROJECT_NAME     := WirelessSensor
 TARGETS          := nrf52840_xxaa
 OUTPUT_DIRECTORY := ../_build
 
-SDK_ROOT := C:/NordicSDK/nRF5_SDK_16.0.0
+SDK_ROOT := C:/NordicSDK/nRF5SDK160098a08e2
+
 PROJ_DIR := ./
 PROJ_INC_DIR := .
 IMU_SRC_DIR := ./IMU
@@ -392,9 +393,28 @@ TEMPLATE_PATH := $(SDK_ROOT)/components/toolchain/gcc
 
 include $(TEMPLATE_PATH)/Makefile.common
 
+# $1 target name
+define define_listing
+$(eval OUTPUT_FILE := $(OUTPUT_DIRECTORY)/$(strip $(1))) \
+$(eval $(1): $(OUTPUT_FILE).lst)
+
+endef
+
+# Use the c++ linker instead of the C linker
+%.out:
+	$(info $(call PROGRESS,Linking target: $@))
+	$(NO_ECHO)$(GENERATE_LD_INPUT_FILE)
+	$(NO_ECHO)$(CXX) $(LDFLAGS) $(LD_INPUT) -Wl,-Map=$(@:.out=.map) -o $@
+	$(NO_ECHO)$(SIZE) $@
+
+# Create listing .lst file from the .out file
+#%.lst: %.out
+#	$(info Preparing: $@)
+#	$(NO_ECHO)$(OBJDUMP) -D -S $< >& $@
+
 $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
-listing: nrf52840_xxaa.lst
+#listing: nrf52840_xxaa.lst
 
 .PHONY: flash flash_softdevice erase
 
@@ -413,6 +433,7 @@ flash_softdevice:
 erase:
 	nrfjprog -f nrf52 --eraseall
 
+# Dump out the hex value of the SEGGER_RTT block to use with the Segger debugger
 segger_cb:
 	nm $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out | grep _SEGGER_RTT
 

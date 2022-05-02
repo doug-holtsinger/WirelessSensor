@@ -49,11 +49,15 @@
 #include "nrf_sdh_soc.h"
 #include "app_timer.h"
 #include "fds.h"
+#include "nrf_gpio.h"
+
+/* Pin numbers on nRF52 board where TwoWire device connects */
+#define TWI0_SCL_PIN    NRF_GPIO_PIN_MAP(0,13)
+#define TWI0_SDA_PIN    NRF_GPIO_PIN_MAP(0,15)
 
 #include "boards.h"
 
 #include "TwoWire.h"
-
 
 /**
  * @brief TWI initialization.
