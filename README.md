@@ -41,6 +41,7 @@ and change the following Makefile variables to point to your installation
 and version of the ARM gcc compiler (Windows example shown).
 
 GNU_INSTALL_ROOT := C:/Program Files (x86)/GNU Tools ARM Embedded/9 2019-q4-major/bin/
+
 GNU_VERSION := 9.2.1
 
 ## Nordic Software Compilation and Download
