@@ -7,7 +7,7 @@ The project is under active development.  The AHRS calibration routines are stil
 
 The Raspberry Pi3B is able to receive the Euler angles from the Nordic chip over Bluetooth LE, and to visualize the orientation using the Pi graphics by displaying a primitive 3D cube.  The response time is very good.  The calibration and control panel GUI on the Raspberry Pi operates correctly but still needs a lot of improvement.
 
-The IMU is no longer available from Adafruit, however I am looking into a replacement IMU with an I2C interface that would have the same or better performance and functionality.
+The IMU is not currently available from Adafruit, however I am looking into adding support for a more readily available IMU with an I2C interface that would have the same or better performance and functionality.
 
 # Hardware Requirements
 
