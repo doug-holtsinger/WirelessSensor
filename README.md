@@ -1,13 +1,13 @@
 # WirelessSensor
-Wireless Sensor Hobbyist Project using a Nordic nRF52840 Dongle
-and a Raspberry Pi computer.  The Nordic chip is attached to an
-accelerometer, magnetometer and gyroscope, which is used for an 
-AHRS (Attitude and Heading Reference System).  The output from 
-the AHRS is sent over Bluetooth Low Energy (BLE) from the Nordic 
-to the Raspberry Pi where the object orientation is visualized 
-using the Raspberry Pi graphics hardware, and control of the 
-AHRS parameter settings can be interactively changed using a 
-Python-based GUI.
+Wireless Sensor Hobbyist Project using a Nordic nRF52840 Dongle and a Raspberry Pi computer.  The Nordic chip is attached to an accelerometer, magnetometer and gyroscope, which is used for an AHRS (Attitude and Heading Reference System).  The output from the AHRS is sent over Bluetooth Low Energy (BLE) from the Nordic to the Raspberry Pi where the object orientation is visualized using the Raspberry Pi graphics hardware, and control of the AHRS parameter settings can be interactively changed using a Python-based GUI.
+
+# Current State of the Project
+
+The project is under active development.  The AHRS calibration routines are still very primitive and so the calculated Euler angles are not terribly accurate at this time.  With improvements to the calibration routines I expect much better accuracy.  
+
+The Raspberry Pi3B is able to receive the Euler angles from the Nordic chip over Bluetooth LE, and to visualize the orientation using the Pi graphics by displaying a primitive 3D cube.  The response time is very good.  The calibration and control panel GUI on the Raspberry Pi operates correctly but still needs a lot of improvement.
+
+The IMU is not currently available from Adafruit, however I am looking into adding support for a more readily available IMU with an I2C interface that would have the same or better performance and functionality.
 
 # Hardware Requirements
 
@@ -16,16 +16,19 @@ Python-based GUI.
 3. Raspberry Pi3B (may work with other Pis)
 4. Personal computer, Windows or Mac, with USB-A Connector
 5. Optional: [Adafruit #3309 - CP2104 Friend](https://www.adafruit.com/product/3309) - USB to Serial Converter or equivalent, for Serial Console to Nordic chip.
+6. Optional: liPo Battery for Nordic chip
+
+## Hardware Circuit Diagram
 
 # Software Requirements
 
 1. [Nordic Semiconductor nRF52 SDK v16.0.0 or later](https://www.nordicsemi.com/Products/Development-software/nrf5-sdk/download)
 2. [Nordic recommended Development IDE](https://infocenter.nordicsemi.com/index.jsp?topic=%2Fug_nrf52840_dk%2FUG%2Fcommon%2Fnordic_tools.html).  One of the following:
-   - [GNU/GCC](https://gcc.gnu.org/) (Recommended for this project, version 9.2 or later).
+   - [ARM GNU/GCC](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) (Recommended for this project, version 9.2 or later).
    - [SEGGER Embedded Studio (SES)](https://www.segger.com/products/development-tools/embedded-studio/)
    - [MDK-ARM Keil µVision](https://www2.keil.com/mdk5/uvision/)
    - [IAR](https://www.iar.com/iar-embedded-workbench/#!?architecture=ARM)
-3. Python3 for Raspberry Pi 
+3. Python3 for Raspberry Pi
 4. [BlueZ](http://www.bluez.org/) v5.47 or later for Raspberry Pi
 5. [Bluepy](https://github.com/IanHarvey/bluepy/tree/v/1.3.0) v1.3 or later, for Raspberry Pi
 
@@ -50,6 +53,16 @@ GNU_VERSION := 9.2.1
 2. Type 'make'
 3. Install Nordic firmware onto board using nRF Connect for Desktop via USB or SEGGER debugger
 
+# Operation of the AHRS Device
+
+## Calibration and Control GUI on the Raspberry Pi
+
+## Optional Serial Console
+
+## Calibration Procedure
+
+## 3D Orientation Visualization on the Raspberry Pi
+
 # Remaining Improvements:
 1. Refine AHRS calibration
    - Improve calibration algorithm for accelerometer
@@ -72,8 +85,9 @@ GNU_VERSION := 9.2.1
 10. Calibration Storage, so you don't have to do calibration every time you power on
 components/libraries/fds/fds.h
 11. Add Doyxgen documentation for all code, procedures, and parameters
-12. Add circuit schematic 
+12. Add circuit schematic
 13. Add general documentation on the project, algorithms, calibration
 14. Develop Mechanical Test fixture to hold board and measure actual orientation to compare against calculated orientation.
 15. Improve Calibration and Control GUI
+16. Look at adding support for Visual Studio Code
 
