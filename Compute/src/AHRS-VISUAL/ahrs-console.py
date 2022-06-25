@@ -222,6 +222,7 @@ class AHRSConsole(tk.Frame):
             cb.pack(anchor="w")
 
         tk.Button(lf, text="Reset", command=self.calibrateResetButton).pack(anchor="w")
+        tk.Button(lf, text="Save", command=self.calibrateSaveButton).pack(anchor="w")
 
         # 1,1
         # Euler Angles
@@ -337,6 +338,10 @@ class AHRSConsole(tk.Frame):
         print("Calibrate Reset")
         self.writeCmd(b"e")
         self.resetCalibration()
+
+    def calibrateSaveButton(self):
+        print("Calibrate Save")
+        self.writeCmd(b"w")
 
     def calibrateButton(self):
         if self.connected.get():
