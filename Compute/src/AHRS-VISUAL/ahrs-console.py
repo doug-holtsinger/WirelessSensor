@@ -14,6 +14,24 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
 
+class ScanDelegate(DefaultDelegate):
+    def __init__(self):
+        DefaultDelegate.__init__(self)
+        self.dev_addr = None
+
+    def handleDiscovery(self, dev, isNewDev, isNewData):
+        try:
+            local_name = dev.getValueText(0x09)
+            manufacturer_data = dev.getValueText(0xFF)
+        except BTLEException as e:
+            print(e)
+            sys.exit(1)
+        if local_name == 'AHRS' and manufacturer_data is not None and len(manufacturer_data) == 16 and manufacturer_data[0:4] == 'ffff':
+            self.dev_addr = dev.addr
+            print("Found AHRS at addr %s" % ( self.dev_addr ))
+
+    def getAHRSAddr(self):
+        return self.dev_addr
 
 class AHRSDataFrame():
     def __init__(self, master, data_group_name, data_names, data_label_width, row, column):
@@ -63,7 +81,7 @@ class AHRSDataItem():
     def setData(self, data):
         self.data.set(data)
         #print("DataItem %s data = %s" % ( self.data_name, self.data.get() ))
-        if self.line: 
+        if self.line:
             if isinstance(data, (list)):
                 self.dataplot[self.dataplotidx] = float(data[0])
                 self.line.set_data(np.arange(self.xpoints), self.dataplot)
@@ -111,6 +129,7 @@ class AHRSConsole(tk.Frame):
 
         self.createWidgets()
         self.peripheral = None
+        self.dev_addr = None
 
     def resetCalibration(self):
         self.twoKp.set(1.0)
@@ -347,14 +366,30 @@ class AHRSConsole(tk.Frame):
             return ble_state
         return
 
+    def scanForAHRS(self):
+        scan_delegate = ScanDelegate()
+        scanner = Scanner().withDelegate(scan_delegate)
+        scanner.clear()
+        scanner.start(passive=False)
+        timeout_counter = 24
+        while self.dev_addr is None and timeout_counter > 0:
+            scanner.process(5)
+            self.dev_addr = scan_delegate.getAHRSAddr()
+            timeout_counter = timeout_counter - 1
+        scanner.stop()
+        return self.dev_addr
+
     def connectPeripheral(self):
         print("Connect...")
-        # FIXME
+        self.peripheral = None
         # USB-powered device.
-        dev_addr = 'CC:43:80:8D:F8:46'
+        # dev_addr = 'CC:43:80:8D:F8:46'
         # battery-powered device.
         # dev_addr = 'F1:68:47:7C:AD:E3'
-        self.peripheral = None
+        dev_addr = self.scanForAHRS()
+        if dev_addr == None:
+            print("Could not find AHRS")
+            return
 
         try:
             self.peripheral = Peripheral(deviceAddr = dev_addr, addrType = 'random').withDelegate(NotifyDelegate())
@@ -363,16 +398,16 @@ class AHRSConsole(tk.Frame):
             print(e)
             return
 
-        print("Connected")
+        print("Connected to %s" % ( dev_addr ))
         srv = self.peripheral.getServiceByUUID('6e400001-b5a3-f393-e0a9-e50e24dcca9e')
         ch = srv.getCharacteristics()
         for c in ch:
             for d in c.getDescriptors():
                 val = d.read()
-                print("    Value:  ", binascii.b2a_hex(val).decode('utf-8'))
+                #print("    Value:  ", binascii.b2a_hex(val).decode('utf-8'))
                 d.write(b"\x01\x00",withResponse=True)
                 val = d.read()
-                print("    Value:  ", binascii.b2a_hex(val).decode('utf-8'))
+                #print("    Value:  ", binascii.b2a_hex(val).decode('utf-8'))
         print("Wait for notifications")
         while self.connected.get():
             try:
@@ -381,7 +416,7 @@ class AHRSConsole(tk.Frame):
                 pass
         self.peripheral.disconnect()
         self.peripheral = None
-        print("Disconnected")
+        print("Disconnected from %s" % ( dev_addr) )
 
     def writeCmd(self,cmd):
         try:
