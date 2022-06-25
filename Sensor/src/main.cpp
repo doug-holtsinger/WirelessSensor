@@ -278,26 +278,7 @@ static void power_management_init(void)
 }
 
 
-/**@brief Function for handling the idle state (main loop).
- *
- * @details If there is no pending log operation, then sleep until next the next event occurs.
- */
-#if 0
-static void idle_state_handle(void)
-{
-    ret_code_t err_code;
-
-    err_code = nrf_ble_lesc_request_handler();
-    APP_ERROR_CHECK(err_code);
-
-    if (NRF_LOG_PROCESS() == false)
-    {
-        nrf_pwr_mgmt_run();
-    }
-}
-#endif
-
-void interpret_app_cmd(const uint8_t cmd, IMU_CMD_t& imu_cmd, BLE_CMD_t& ble_cmd)
+static void interpret_app_cmd(const uint8_t cmd, IMU_CMD_t& imu_cmd, BLE_CMD_t& ble_cmd)
 {
     switch (cmd)
     {
@@ -314,6 +295,7 @@ void interpret_app_cmd(const uint8_t cmd, IMU_CMD_t& imu_cmd, BLE_CMD_t& ble_cmd
         case 'k': imu_cmd = IMU_SENSOR_DATA_FIXED_TOGGLE; break;
         case 'c': imu_cmd = IMU_SENSOR_CALIBRATE_TOGGLE; break;
         case 'e': imu_cmd = IMU_SENSOR_CALIBRATE_RESET; break;
+        case 'w': imu_cmd = IMU_SENSOR_CALIBRATE_SAVE; break;
         case 'y': imu_cmd = IMU_AHRS_YAW_TOGGLE; break;
         case 'p': imu_cmd = IMU_AHRS_PITCH_TOGGLE; break;
         case 'r': imu_cmd = IMU_AHRS_ROLL_TOGGLE; break;
@@ -329,7 +311,6 @@ void interpret_app_cmd(const uint8_t cmd, IMU_CMD_t& imu_cmd, BLE_CMD_t& ble_cmd
         default: break;
     }
 }
-
 
 void exec_app_cmd(const uint8_t cmd)
 {
@@ -348,7 +329,7 @@ void exec_app_cmd(const uint8_t cmd)
 }
 
 #ifdef SERIAL_CONSOLE_AVAILABLE
-void check_app_cmd(void)
+static void check_app_cmd(void)
 {
     uint8_t cmd;
     ret_code_t err_code;
@@ -359,6 +340,7 @@ void check_app_cmd(void)
     }
 }
 #endif
+
 
 /**@brief Function for the Timer initialization.
  *
@@ -387,6 +369,9 @@ int main(void)
     board_init();
     power_management_init();
 
+    // Start execution.
+    NRF_LOG_INFO("AHRS example started.");
+
     // Initialize BLE 
     ble_svcs_init();
  
@@ -394,9 +379,6 @@ int main(void)
     imu = IMU();
     imu.init();
 
-    // Start execution.
-    NRF_LOG_INFO("AHRS example started.");
- 
     // Start BLE Advertising
     ble_svcs_application_timers_start();
     ble_svcs_advertising_start();

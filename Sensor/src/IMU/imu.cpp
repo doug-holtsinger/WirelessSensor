@@ -8,21 +8,129 @@
 #include "ble_svcs_cmd.h"
 #include "ble_svcs.h"
 
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
+
 // Nordic I2C
 #include "nrfx_twi.h"
 
 #include "app_config.h"
+#include "param_store.h"
+#include "imu_cal.h"
 
 #define IMU_PRINT_STR_MAX_LEN (size_t)256
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void fds_evt_handler_C(fds_evt_t const * p_evt);
+#ifdef __cplusplus
+}
+#endif
+
 
 IMU::IMU()
 {
 }
 
+IMU::~IMU()
+{
+}
+
 void IMU::init(void)
 {
+    imu_calibration_params_t imu_cal_params;
     dev_i2c = new TwoWire();
     sensor_init();
+    reset_calibration();
+    // Initialize param storage device
+    param_store.init(&cp);
+    // Read parameters from storage and initialize local copy
+    imu_cal_params = param_store.get();
+    params_print(imu_cal_params);
+    init_params(imu_cal_params);
+}
+
+void IMU::params_save()
+{
+    params_print(cp);
+    param_store.set(&cp);
+}
+
+void IMU::params_print(imu_calibration_params_t& params)
+{
+    NRF_LOG_INFO("IMU Parameters");
+    for (int i = 0 ; i < 3 ; i++)
+    {
+        //NRF_LOG_INFO("  Mag min %d 0x%04x", i, params.magnetometer_min[i]);
+        //NRF_LOG_INFO("  Mag max %d 0x%04x", i, params.magnetometer_max[i]);
+        NRF_LOG_INFO("  Mag min %d thresh 0x%04x", i, params.magnetometer_min_threshold[i]);
+    }
+    for (int i = 0 ; i < 3 ; i++)
+    {
+        //NRF_LOG_INFO("  Gyr min %d 0x%04x", i, params.gyroscope_min[i]);
+        NRF_LOG_INFO("  Gyr max %d 0x%04x", i, params.gyroscope_max[i]);
+        // NRF_LOG_INFO("  Gyr min thresh %d %s" PRINTF_FLOAT_FORMAT PRINTF_FLOAT_VALUE(cp.gyroscope_min_threshold[i]) );
+    }
+    for (int i = 0 ; i < 3 ; i++)
+    {
+        //NRF_LOG_INFO("  Acc min %d 0x%04x", i, params.accelerometer_min[i]);
+        //NRF_LOG_INFO("  Acc max %d 0x%04x", i, params.accelerometer_max[i]);
+        NRF_LOG_INFO("  Acc min thresh %d 0x%04x", i, params.accelerometer_min_threshold[i]);
+    }
+}
+
+void IMU::init_params(imu_calibration_params_t params)
+{
+    // FIXME -- reset AHRS settings, like gyro sensitivity, as well
+    for (int i = 0 ; i < 3 ; i++)
+    {
+        cp.magnetometer_min[i] = params.magnetometer_min[i];
+	cp.magnetometer_max[i] = params.magnetometer_max[i];
+        cp.magnetometer_min_threshold[i] = params.magnetometer_min_threshold[i];
+        cp.magnetometer_uncal_last[i] = params.magnetometer_uncal_last[i];
+    }
+
+    for (int i = 0 ; i < 3 ; i++)
+    {
+        cp.gyroscope_min[i] = params.gyroscope_min[i];
+        cp.gyroscope_max[i] = params.gyroscope_max[i];
+        cp.gyroscope_min_threshold[i] = params.gyroscope_min_threshold[i];
+    }
+
+    for (int i = 0 ; i < 3 ; i++)
+    {
+        cp.accelerometer_min[i] = params.accelerometer_min[i];
+        cp.accelerometer_max[i] = params.accelerometer_max[i];
+        cp.accelerometer_min_threshold[i] = params.accelerometer_min_threshold[i];
+    }
+}
+
+void IMU::get_params(imu_calibration_params_t& params)
+{
+
+    for (int i = 0 ; i < 3 ; i++)
+    {
+        params.magnetometer_min[i] = cp.magnetometer_min[i];
+	params.magnetometer_max[i] = cp.magnetometer_max[i];
+        params.magnetometer_min_threshold[i] = cp.magnetometer_min_threshold[i];
+        params.magnetometer_uncal_last[i] = cp.magnetometer_uncal_last[i];
+    }
+
+    for (int i = 0 ; i < 3 ; i++)
+    {
+        params.gyroscope_min[i] = cp.gyroscope_min[i];
+        params.gyroscope_max[i] = cp.gyroscope_max[i];
+        params.gyroscope_min_threshold[i] = cp.gyroscope_min_threshold[i];
+    }
+
+    for (int i = 0 ; i < 3 ; i++)
+    {
+        params.accelerometer_min[i] = cp.accelerometer_min[i];
+        params.accelerometer_max[i] = cp.accelerometer_max[i];
+        params.accelerometer_min_threshold[i] = cp.accelerometer_min_threshold[i];
+    }
 }
 
 void IMU::send_debug_data(char *p)
@@ -48,15 +156,15 @@ void IMU::calibrate_magnetometer(void)
     //  magnetometer calibration -- done while moving
     //
     for (int i = 0 ; i < 3 ; i++) {
-        if (magnetometer_min[i] == 0 && magnetometer_max[i] == 0) 
+        if (cp.magnetometer_min[i] == 0 && cp.magnetometer_max[i] == 0)
         {
-            magnetometer_min[i] = magnetometer_max[i] = magnetometer_uncal_last[i] = magnetometer_uncal[i];
-        } else if (magnetometer_uncal[i] < magnetometer_min[i]) 
+            cp.magnetometer_min[i] = cp.magnetometer_max[i] = cp.magnetometer_uncal_last[i] = magnetometer_uncal[i];
+        } else if (magnetometer_uncal[i] < cp.magnetometer_min[i])
         {
-            magnetometer_min[i] = magnetometer_uncal_last[i] = magnetometer_uncal[i];
-        } else if (magnetometer_uncal[i] > magnetometer_max[i]) 
+            cp.magnetometer_min[i] = cp.magnetometer_uncal_last[i] = magnetometer_uncal[i];
+        } else if (magnetometer_uncal[i] > cp.magnetometer_max[i])
         {
-            magnetometer_max[i] = magnetometer_uncal_last[i] = magnetometer_uncal[i];
+            cp.magnetometer_max[i] = cp.magnetometer_uncal_last[i] = magnetometer_uncal[i];
         }
     }
 }
@@ -66,38 +174,39 @@ void IMU::calibrate_zero_offset(void)
     uint32_t noise_threshold;
     int32_t noise_threshold_i;
     float noise_threshold_f;
+    int32_t accelerometer_bias;
 
     //
     // magnetometer calibration -- done while motionless
     //
     for (int i = 0 ; i < 3 ; i++)
     {
-        noise_threshold_i = NOISE_THRESHOLD_MULTIPLIER * abs( magnetometer_uncal[i] - magnetometer_uncal_last[i]); 
-        if (noise_threshold_i > magnetometer_min_threshold[i])
+        noise_threshold_i = NOISE_THRESHOLD_MULTIPLIER * abs( magnetometer_uncal[i] - cp.magnetometer_uncal_last[i]);
+        if (noise_threshold_i > cp.magnetometer_min_threshold[i])
         {
-            magnetometer_min_threshold[i] = noise_threshold_i;
+            cp.magnetometer_min_threshold[i] = noise_threshold_i;
         }
     }
 
     //
     // gyroscope calibration -- done while motionless
     //
-    for (int i = 0 ; i < 3 ; i++) 
+    for (int i = 0 ; i < 3 ; i++)
     {
-        if (gyroscope_min[i] == 0 && gyroscope_max[i] == 0) 
+        if (cp.gyroscope_min[i] == 0 && cp.gyroscope_max[i] == 0)
         {
-            gyroscope_min[i] = gyroscope_max[i] = gyroscope_uncal[i];
-        } else if (gyroscope_uncal[i] < gyroscope_min[i]) 
+            cp.gyroscope_min[i] = cp.gyroscope_max[i] = gyroscope_uncal[i];
+        } else if (gyroscope_uncal[i] < cp.gyroscope_min[i])
         {
-            gyroscope_min[i] = gyroscope_uncal[i];
-        } else if (gyroscope_uncal[i] > gyroscope_max[i]) 
+            cp.gyroscope_min[i] = gyroscope_uncal[i];
+        } else if (gyroscope_uncal[i] > cp.gyroscope_max[i])
         {
-            gyroscope_max[i] = gyroscope_uncal[i];
+            cp.gyroscope_max[i] = gyroscope_uncal[i];
         }
-        noise_threshold_f = NOISE_THRESHOLD_MULTIPLIER * abs ( gyroscope_uncal[i] - ((gyroscope_max[i] + gyroscope_min[i]) / 2) ) / (float)(1ULL << gyroscope_sensitivity) ;
-        if (noise_threshold_f > gyroscope_min_threshold[i])
+        noise_threshold_f = NOISE_THRESHOLD_MULTIPLIER * abs ( gyroscope_uncal[i] - ((cp.gyroscope_max[i] + cp.gyroscope_min[i]) / 2) ) / (float)(1ULL << gyroscope_sensitivity) ;
+        if (noise_threshold_f > cp.gyroscope_min_threshold[i])
         {
-            gyroscope_min_threshold[i] = noise_threshold_f;
+            cp.gyroscope_min_threshold[i] = noise_threshold_f;
         }
     }
 
@@ -106,48 +215,48 @@ void IMU::calibrate_zero_offset(void)
     // IMU Z axis pointing up.
     //
     for (int i = 0 ; i < 3 ; i++) {
-        if (i == 2) 
+        if (i == 2)
         {
             accelerometer_bias = 1000;    // 1G bias in Z direction
         } else
         {
             accelerometer_bias = 0;
         }
-        if (accelerometer_min[i] == 0 && accelerometer_max[i] == 0) 
+        if (cp.accelerometer_min[i] == 0 && cp.accelerometer_max[i] == 0)
         {
-            accelerometer_min[i] = accelerometer_max[i] = (accelerometer_uncal[i] - accelerometer_bias);
-        } else if ((accelerometer_uncal[i] - accelerometer_bias) < accelerometer_min[i]) 
+            cp.accelerometer_min[i] = cp.accelerometer_max[i] = (accelerometer_uncal[i] - accelerometer_bias);
+        } else if ((accelerometer_uncal[i] - accelerometer_bias) < cp.accelerometer_min[i])
         {
-            accelerometer_min[i] = accelerometer_uncal[i] - accelerometer_bias;
-        } else if ((accelerometer_uncal[i] - accelerometer_bias) > accelerometer_max[i]) 
+            cp.accelerometer_min[i] = accelerometer_uncal[i] - accelerometer_bias;
+        } else if ((accelerometer_uncal[i] - accelerometer_bias) > cp.accelerometer_max[i])
         {
-            accelerometer_max[i] = accelerometer_uncal[i] - accelerometer_bias;
+            cp.accelerometer_max[i] = accelerometer_uncal[i] - accelerometer_bias;
         }
-        noise_threshold = NOISE_THRESHOLD_MULTIPLIER * abs( accelerometer_uncal[i] - ((accelerometer_max[i] + accelerometer_min[i]) / 2) - accelerometer_bias);
-        if (noise_threshold > accelerometer_min_threshold[i])
+        noise_threshold = NOISE_THRESHOLD_MULTIPLIER * abs( accelerometer_uncal[i] - ((cp.accelerometer_max[i] + cp.accelerometer_min[i]) / 2) - accelerometer_bias);
+        if (noise_threshold > cp.accelerometer_min_threshold[i])
         {
-            accelerometer_min_threshold[i] = noise_threshold;
+            cp.accelerometer_min_threshold[i] = noise_threshold;
         }
     }
 }
 
 void IMU::reset_calibration(void)
 {
-	// FIXME -- reset AHRS settings, like gyro sensitivity, as well
-    for (int i = 0 ; i < 3 ; i++) 
+    // FIXME -- reset AHRS settings, like gyro sensitivity, as well
+    for (int i = 0 ; i < 3 ; i++)
     {
-        magnetometer_min[i] = magnetometer_max[i] = magnetometer_min_threshold[i] = 0;
-        magnetometer_uncal_last[i] = 0;
+        cp.magnetometer_min[i] = cp.magnetometer_max[i] = cp.magnetometer_min_threshold[i] = 0;
+        cp.magnetometer_uncal_last[i] = 0;
     }
 
-    for (int i = 0 ; i < 3 ; i++) 
+    for (int i = 0 ; i < 3 ; i++)
     {
-        gyroscope_min[i] = gyroscope_max[i] = gyroscope_min_threshold[i] = 0; 
+        cp.gyroscope_min[i] = cp.gyroscope_max[i] = cp.gyroscope_min_threshold[i] = 0;
     }
 
-    for (int i = 0 ; i < 3 ; i++) 
+    for (int i = 0 ; i < 3 ; i++)
     {
-        accelerometer_min[i] = accelerometer_max[i] = accelerometer_min_threshold[i] = 0;
+        cp.accelerometer_min[i] = cp.accelerometer_max[i] = cp.accelerometer_min_threshold[i] = 0;
     }
     calibrate_reset = false;
 }
@@ -158,27 +267,27 @@ void IMU::calibrate_data(void)
 
     // calibrate raw data values using zero offset and Min thresholds.
     for (int i = 0 ; i < 3 ; i++) {
-        accelerometer_cal[i] = accelerometer_uncal[i] - ((accelerometer_max[i] + accelerometer_min[i]) / 2);
-        if ((uint32_t)abs(accelerometer_cal[i]) < accelerometer_min_threshold[i])
+        accelerometer_cal[i] = accelerometer_uncal[i] - ((cp.accelerometer_max[i] + cp.accelerometer_min[i]) / 2);
+        if ((uint32_t)abs(accelerometer_cal[i]) < cp.accelerometer_min_threshold[i])
         {
             accelerometer_cal[i] = 0;
         }
-        gyroscope_cal[i] = ( gyroscope_uncal[i] - ((gyroscope_max[i] + gyroscope_min[i]) / 2) ) / (float)(1ULL << gyroscope_sensitivity) ;
-        if (gyroscope_cal[i] > -gyroscope_min_threshold[i] &&
-            gyroscope_cal[i] < gyroscope_min_threshold[i] )
+        gyroscope_cal[i] = ( gyroscope_uncal[i] - ((cp.gyroscope_max[i] + cp.gyroscope_min[i]) / 2) ) / (float)(1ULL << gyroscope_sensitivity) ;
+        if (gyroscope_cal[i] > -cp.gyroscope_min_threshold[i] &&
+            gyroscope_cal[i] < cp.gyroscope_min_threshold[i] )
         {
             gyroscope_cal[i] = 0;
         }
 
-        magnetometer_diff = abs(magnetometer_uncal[i] - magnetometer_uncal_last[i]);
-        if (magnetometer_diff < magnetometer_min_threshold[i]) 
+        magnetometer_diff = abs(magnetometer_uncal[i] - cp.magnetometer_uncal_last[i]);
+        if (magnetometer_diff < cp.magnetometer_min_threshold[i])
         {
-            magnetometer_cal[i] = magnetometer_uncal_last[i] - ((magnetometer_max[i] + magnetometer_min[i]) / 2);
-        } else 
+            magnetometer_cal[i] = cp.magnetometer_uncal_last[i] - ((cp.magnetometer_max[i] + cp.magnetometer_min[i]) / 2);
+        } else
         {
-            magnetometer_cal[i] = magnetometer_uncal[i] - ((magnetometer_max[i] + magnetometer_min[i]) / 2);
+            magnetometer_cal[i] = magnetometer_uncal[i] - ((cp.magnetometer_max[i] + cp.magnetometer_min[i]) / 2);
         }
-        magnetometer_uncal_last[i] = magnetometer_uncal[i];
+        cp.magnetometer_uncal_last[i] = magnetometer_uncal[i];
 
     }
 
@@ -191,7 +300,7 @@ void IMU::get_angles(float& o_roll, float& o_pitch, float& o_yaw)
     o_yaw = yaw;
 }
 
-void IMU::AHRS() 
+void IMU::AHRS()
 {
     if (sensor_select == IMU_AHRS)
     {
@@ -268,7 +377,7 @@ void IMU::print_debug_data()
             );
     send_debug_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d", 
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
              ACCELEROMETER_UNCAL,
             (int)accelerometer_uncal[0],
             (int)accelerometer_uncal[1],
@@ -276,11 +385,11 @@ void IMU::print_debug_data()
             );
     send_debug_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d", 
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
              ACCELEROMETER_MIN_THRESHOLD,
-            (int)accelerometer_min_threshold[0],
-            (int)accelerometer_min_threshold[1],
-            (int)accelerometer_min_threshold[2]
+            (int)cp.accelerometer_min_threshold[0],
+            (int)cp.accelerometer_min_threshold[1],
+            (int)cp.accelerometer_min_threshold[2]
             );
     send_debug_data(s);
 
@@ -296,7 +405,7 @@ void IMU::print_debug_data()
         );
     send_debug_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d", 
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
             GYROSCOPE_UNCAL,
             (int)gyroscope_uncal[0],
             (int)gyroscope_uncal[1],
@@ -306,9 +415,9 @@ void IMU::print_debug_data()
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT ,
             GYROSCOPE_MIN_THRESHOLD,
-            PRINTF_FLOAT_VALUE(gyroscope_min_threshold[0]),
-            PRINTF_FLOAT_VALUE(gyroscope_min_threshold[1]),
-            PRINTF_FLOAT_VALUE(gyroscope_min_threshold[2])
+            PRINTF_FLOAT_VALUE(cp.gyroscope_min_threshold[0]),
+            PRINTF_FLOAT_VALUE(cp.gyroscope_min_threshold[1]),
+            PRINTF_FLOAT_VALUE(cp.gyroscope_min_threshold[2])
         );
     send_debug_data(s);
 
@@ -316,7 +425,7 @@ void IMU::print_debug_data()
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 , MAGNETOMETER_NORMAL, PRINTF_FLOAT_VALUE2(mxN), PRINTF_FLOAT_VALUE2(myN), PRINTF_FLOAT_VALUE2(mzN) );
     send_debug_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d", 
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
             MAGNETOMETER_CAL,
             (int)magnetometer_cal[0],
             (int)magnetometer_cal[1],
@@ -324,7 +433,7 @@ void IMU::print_debug_data()
             );
     send_debug_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d", 
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
             MAGNETOMETER_UNCAL,
             (int)magnetometer_uncal[0],
             (int)magnetometer_uncal[1],
@@ -334,9 +443,9 @@ void IMU::print_debug_data()
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
             MAGNETOMETER_MIN_THRESHOLD,
-            (int)magnetometer_min_threshold[0],
-            (int)magnetometer_min_threshold[1],
-            (int)magnetometer_min_threshold[2]
+            (int)cp.magnetometer_min_threshold[0],
+            (int)cp.magnetometer_min_threshold[1],
+            (int)cp.magnetometer_min_threshold[2]
             );
     send_debug_data(s);
 
@@ -355,147 +464,6 @@ void IMU::print_debug_data()
 
 }
 
-
-#if 0
-void IMU::print_debug_data_OLD()
-{
-    char s[IMU_PRINT_STR_MAX_LEN];
-
-    if (sensor_select == IMU_AHRS) 
-    {
-        if (show_input_ahrs == 1) 
-        {
-            if (show_roll) 
-	    {
-                   snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(gx), PRINTF_FLOAT_VALUE(gy), PRINTF_FLOAT_VALUE(gz) ); 
-	           send_debug_data(s);
-	    }
-            if (show_pitch) 
-	    {
-                  snprintf(s, IMU_PRINT_STR_MAX_LEN, "acce = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(ax), PRINTF_FLOAT_VALUE(ay), PRINTF_FLOAT_VALUE(az) );
-		  send_debug_data(s);
-	    }
-            if (show_yaw)
-	    {
-                   snprintf(s, IMU_PRINT_STR_MAX_LEN, "magn = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(mx), PRINTF_FLOAT_VALUE(my), PRINTF_FLOAT_VALUE(mz) );
-		  send_debug_data(s);
-	    }
-	} else if (show_input_ahrs == 2) 
-        {
-           if (show_roll)
-	   {
-               snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(gxN), PRINTF_FLOAT_VALUE(gyN), PRINTF_FLOAT_VALUE(gzN) );
-               send_debug_data(s);
-	   }
-           if (show_pitch)
-	   {
-                snprintf(s, IMU_PRINT_STR_MAX_LEN, "acce normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(axN), PRINTF_FLOAT_VALUE(ayN), PRINTF_FLOAT_VALUE(azN) );
-               send_debug_data(s);
-	   }
-           if (show_yaw) 
-	   {
-                snprintf(s, IMU_PRINT_STR_MAX_LEN, "magn normal = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(mxN), PRINTF_FLOAT_VALUE(myN), PRINTF_FLOAT_VALUE(mzN) );
-               send_debug_data(s);
-	   }
-	} else if (show_input_ahrs == 3) 
-        {
-           if (show_roll)
-	   {
-               snprintf(s, IMU_PRINT_STR_MAX_LEN, "q0X q2X q3X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(q0X), PRINTF_FLOAT_VALUE(q2X), PRINTF_FLOAT_VALUE(q3X) );
-               send_debug_data(s);
-	   }
-           if (show_pitch)
-	   {
-               snprintf(s, IMU_PRINT_STR_MAX_LEN, "q1X  q2X  q3X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(q1X), PRINTF_FLOAT_VALUE(q2X), PRINTF_FLOAT_VALUE(q3X) );
-               send_debug_data(s);
-	   }
-           if (show_yaw)
-	   {
-               snprintf(s, IMU_PRINT_STR_MAX_LEN, "q0X  q1X  q2X = " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(q0X), PRINTF_FLOAT_VALUE(q1X), PRINTF_FLOAT_VALUE(q2X) );
-               send_debug_data(s);
-	   }
-        } else {
-            if (show_roll)
-	    {
-               snprintf(s, IMU_PRINT_STR_MAX_LEN, "Roll  " PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(roll));
-               send_debug_data(s);
-	    }
-            if (show_pitch)
-	    {
-               snprintf(s, IMU_PRINT_STR_MAX_LEN, "Pitch " PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(pitch));
-               send_debug_data(s);
-	    }
-            if (show_yaw)
-	    {
-                snprintf(s, IMU_PRINT_STR_MAX_LEN, "Yaw " PRINTF_FLOAT_FORMAT , PRINTF_FLOAT_VALUE(yaw));
-               send_debug_data(s);
-	    }
-        }
-    } else if (sensor_select == IMU_ACCELEROMETER)
-    {
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "AccC %04d %04d %04d", 
-            (int)accelerometer_cal[0],
-            (int)accelerometer_cal[1],
-            (int)accelerometer_cal[2]
-            );
-        send_debug_data(s);
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "AccU %04d %04d %04d", 
-            (int)accelerometer_uncal[0],
-            (int)accelerometer_uncal[1],
-            (int)accelerometer_uncal[2]
-            );
-        send_debug_data(s);
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "AccT %04d %04d %04d", 
-            (int)accelerometer_min_threshold[0],
-            (int)accelerometer_min_threshold[1],
-            (int)accelerometer_min_threshold[2]
-            );
-        send_debug_data(s);
-    } else if (sensor_select == IMU_GYROSCOPE)
-    {
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "GyC " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT ,
-            PRINTF_FLOAT_VALUE(gyroscope_cal[0]),
-            PRINTF_FLOAT_VALUE(gyroscope_cal[1]),
-            PRINTF_FLOAT_VALUE(gyroscope_cal[2])
-        );
-        send_debug_data(s);
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "GyU %04d %04d %04d", 
-            (int)gyroscope_uncal[0],
-            (int)gyroscope_uncal[1],
-            (int)gyroscope_uncal[2]
-            );
-        send_debug_data(s);
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "GyT " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT ,
-            PRINTF_FLOAT_VALUE(gyroscope_min_threshold[0]),
-            PRINTF_FLOAT_VALUE(gyroscope_min_threshold[1]),
-            PRINTF_FLOAT_VALUE(gyroscope_min_threshold[2])
-        );
-        send_debug_data(s);
-    } else if (sensor_select == IMU_MAGNETOMETER)
-    {
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "MagC %04d %04d %04d", 
-            (int)magnetometer_cal[0],
-            (int)magnetometer_cal[1],
-            (int)magnetometer_cal[2]
-            );
-        send_debug_data(s);
-
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "MagU %04d %04d %04d", 
-            (int)magnetometer_uncal[0],
-            (int)magnetometer_uncal[1],
-            (int)magnetometer_uncal[2]
-            );
-        send_debug_data(s);
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "MagT %04d %04d %04d", 
-            (int)magnetometer_min_threshold[0],
-            (int)magnetometer_min_threshold[1],
-            (int)magnetometer_min_threshold[2]
-            );
-        send_debug_data(s);
-    }
-}
-#endif
-
 void IMU::update()
 {
     LSM6DS3StatusTypeDef lsm_err_code = LSM6DS3_STATUS_OK;
@@ -509,15 +477,15 @@ void IMU::update()
     lsm_err_code = AccGyr->ReadReg(LSM6DS3_ACC_GYRO_STATUS_REG, &reg_data);
     APP_ERROR_CHECK(lsm_err_code);
 
-    // TBD -- can combine status of Accel and Gyro according to app note
+    // FIXME -- can combine status of Accel and Gyro according to app note
     // Gyro status lags Accel status.
-    if ((reg_data & LSM6DS3_ACC_GYRO_XLDA_MASK) == LSM6DS3_ACC_GYRO_XLDA_DATA_AVAIL) 
+    if ((reg_data & LSM6DS3_ACC_GYRO_XLDA_MASK) == LSM6DS3_ACC_GYRO_XLDA_DATA_AVAIL)
     {
         new_data_avail = true;
         lsm_err_code = AccGyr->Get_X_Axes(accelerometer_uncal);
         APP_ERROR_CHECK(lsm_err_code);
     }
-    if ((reg_data & LSM6DS3_ACC_GYRO_GDA_MASK) == LSM6DS3_ACC_GYRO_GDA_DATA_AVAIL) 
+    if ((reg_data & LSM6DS3_ACC_GYRO_GDA_MASK) == LSM6DS3_ACC_GYRO_GDA_DATA_AVAIL)
     {
         new_data_avail = true;
         lsm_err_code = AccGyr->Get_G_Axes(gyroscope_uncal);
@@ -525,7 +493,7 @@ void IMU::update()
     }
 
     //
-    // Read LIS3MDL 
+    // Read LIS3MDL
     //
 
     lis_err_code = Magneto->GetAxes(magnetometer_uncal);
@@ -591,11 +559,11 @@ void IMU::cmd(IMU_CMD_t& cmd)
             // calibrate command
             switch (calibrate_enable)
             {
-                case IMU_SENSOR_CALIBRATE_DISABLED: 
+                case IMU_SENSOR_CALIBRATE_DISABLED:
                         calibrate_enable = IMU_SENSOR_CALIBRATE_ZERO_OFFSET; break;
                 case IMU_SENSOR_CALIBRATE_ZERO_OFFSET:
                         calibrate_enable = IMU_SENSOR_CALIBRATE_MAGNETOMETER; break;
-                case IMU_SENSOR_CALIBRATE_MAGNETOMETER: 
+                case IMU_SENSOR_CALIBRATE_MAGNETOMETER:
                         calibrate_enable = IMU_SENSOR_CALIBRATE_DISABLED; break;
             }
             if (calibrate_enable == IMU_SENSOR_CALIBRATE_DISABLED)
@@ -619,6 +587,9 @@ void IMU::cmd(IMU_CMD_t& cmd)
             snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Reset/Disabled");
             send_debug_data(s);
             break;
+        case IMU_SENSOR_CALIBRATE_SAVE:
+	    params_save();
+            break;
         case IMU_AHRS_YAW_TOGGLE:
             show_yaw = !show_yaw;
             break;
@@ -629,10 +600,10 @@ void IMU::cmd(IMU_CMD_t& cmd)
             show_roll = !show_roll;
             break;
         case IMU_SENSOR_DATA_ZERO:
-            if (sensor_select == IMU_GYROSCOPE) 
+            if (sensor_select == IMU_GYROSCOPE)
 	    {
                 zero_data[1] = !zero_data[1];
-                if (zero_data[1]) 
+                if (zero_data[1])
 	        {
                     snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro Data Disabled");
                     send_debug_data(s);
@@ -641,10 +612,10 @@ void IMU::cmd(IMU_CMD_t& cmd)
                     snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro Data Enabled");
                     send_debug_data(s);
 	        }
-            } else if (sensor_select == IMU_ACCELEROMETER) 
+            } else if (sensor_select == IMU_ACCELEROMETER)
             {
                 zero_data[0] = !zero_data[0];
-                if (zero_data[0]) 
+                if (zero_data[0])
 		{
                     snprintf(s, IMU_PRINT_STR_MAX_LEN, "Acc Data Disabled");
                     send_debug_data(s);
@@ -653,10 +624,10 @@ void IMU::cmd(IMU_CMD_t& cmd)
                     snprintf(s, IMU_PRINT_STR_MAX_LEN, "Acc Data Enabled");
                     send_debug_data(s);
 		}
-            } else if (sensor_select == IMU_MAGNETOMETER) 
+            } else if (sensor_select == IMU_MAGNETOMETER)
             {
                 zero_data[2] = !zero_data[2];
-                if (zero_data[2]) 
+                if (zero_data[2])
 		{
                     snprintf(s, IMU_PRINT_STR_MAX_LEN, "Mag Data Disabled");
                     send_debug_data(s);
@@ -668,22 +639,22 @@ void IMU::cmd(IMU_CMD_t& cmd)
             }
             break;
         case IMU_SENSOR_DATA_IDEAL:
-            if (sensor_select == IMU_GYROSCOPE) 
+            if (sensor_select == IMU_GYROSCOPE)
             {
                 ideal_data[1] = ideal_data[1] ? 0 : 1;
-                if (ideal_data[1]) 
+                if (ideal_data[1])
 	        {
                     snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro Data Ideal");
                     send_debug_data(s);
-	        } else 
+	        } else
 	        {
                     snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro Data Real");
                     send_debug_data(s);
 		}
-            } else if (sensor_select == IMU_ACCELEROMETER) 
+            } else if (sensor_select == IMU_ACCELEROMETER)
             {
                 ideal_data[0] = ideal_data[0] ? 0 : 1;
-                if (ideal_data[0]) 
+                if (ideal_data[0])
 		{
                     snprintf(s, IMU_PRINT_STR_MAX_LEN, "Acc Data Ideal");
                     send_debug_data(s);
@@ -692,10 +663,10 @@ void IMU::cmd(IMU_CMD_t& cmd)
                     snprintf(s, IMU_PRINT_STR_MAX_LEN, "Acc Data Real");
                     send_debug_data(s);
 		}
-            } else if (sensor_select == IMU_MAGNETOMETER) 
+            } else if (sensor_select == IMU_MAGNETOMETER)
             {
                 ideal_data[2] = ideal_data[2] ? 0 : 1;
-                if (ideal_data[2]) 
+                if (ideal_data[2])
 		{
                     snprintf(s, IMU_PRINT_STR_MAX_LEN, "Mag Data Ideal");
                     send_debug_data(s);
@@ -740,12 +711,12 @@ void IMU::cmd(IMU_CMD_t& cmd)
             send_debug_data(s);
             break;
         case IMU_GYROSCOPE_SENSITIVITY_UP:
-            gyroscope_sensitivity++; 
+            gyroscope_sensitivity++;
             snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro sens: %ld", gyroscope_sensitivity);
             send_debug_data(s);
             break;
         case IMU_GYROSCOPE_SENSITIVITY_DOWN:
-            gyroscope_sensitivity--; 
+            gyroscope_sensitivity--;
             snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro sense: %ld", gyroscope_sensitivity);
             send_debug_data(s);
             break;

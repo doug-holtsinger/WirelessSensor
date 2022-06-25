@@ -1,5 +1,5 @@
 /**
- * @brief Header file for IMU 
+ * @brief Header file for IMU
  *
  */
 
@@ -10,11 +10,14 @@
 #include "TwoWire.h"
 #include "LSM6DS3Sensor.h"
 #include "LIS3MDLSensor.h"
+#include "imu_cal.h"
+#include "param_store.h"
 
 // FIXME: remove constants
 // #define ACCELEROMETER_MIN_THRESHOLD 100
 // #define GYROSCOPE_MIN_THRESHOLD 0.05
 // #define MAGNETOMETER_MIN_THRESHOLD 15
+#define GYROSCOPE_SENSITIVITY_THRESHOLD 16
 #define NOISE_THRESHOLD_MULTIPLIER 2
 
 /* print defines */
@@ -43,11 +46,12 @@ typedef enum
 {
     IMU_NOCMD = 0,
     IMU_PRINT_MAGNETOMETER,
-    IMU_PRINT_GYROSCOPE, 
+    IMU_PRINT_GYROSCOPE,
     IMU_PRINT_ACCELEROMETER,
     IMU_PRINT_AHRS,
     IMU_SENSOR_CALIBRATE_TOGGLE,
     IMU_SENSOR_CALIBRATE_RESET,
+    IMU_SENSOR_CALIBRATE_SAVE,
     IMU_AHRS_INPUT_TOGGLE,
     IMU_AHRS_YAW_TOGGLE,
     IMU_AHRS_PITCH_TOGGLE,
@@ -68,20 +72,14 @@ typedef enum
 typedef enum {
         IMU_SENSOR_CALIBRATE_DISABLED = 0,
         IMU_SENSOR_CALIBRATE_MIN = IMU_SENSOR_CALIBRATE_DISABLED,
-        IMU_SENSOR_CALIBRATE_ZERO_OFFSET, 
+        IMU_SENSOR_CALIBRATE_ZERO_OFFSET,
         IMU_SENSOR_CALIBRATE_MAGNETOMETER,
         IMU_SENSOR_CALIBRATE_MAX = IMU_SENSOR_CALIBRATE_MAGNETOMETER
 } IMU_SENSOR_CALIBRATE_t;
 
 typedef enum
 {
-#if 0
-    ROLL = 0,
-    PITCH,
-    YAW,
-#else
     EULER_ANGLES = 0,
-#endif
 
     ACCELEROMETER_NORMAL,
     ACCELEROMETER_CAL,
@@ -105,13 +103,13 @@ typedef enum
 
 } IMU_DATA_NOTIFY_t;
 
-
 class IMU {
     public:
         IMU();
+        ~IMU();
         void update(void);
-        // FIXME: fold init() into constructor
         void init(void);
+        void get_params(imu_calibration_params_t& params);
         void cmd(IMU_CMD_t& cmd);
         void print_debug_data();
         void send_debug_data(char*);
@@ -124,6 +122,9 @@ class IMU {
         void reset_calibration(void);
         void calibrate_data(void);
         void AHRS(void);
+        void init_params(imu_calibration_params_t params);
+        void params_save();
+        void params_print(imu_calibration_params_t& params);
 
         LSM6DS3Sensor* AccGyr;
         LIS3MDLSensor* Magneto;
@@ -139,27 +140,19 @@ class IMU {
 
         float roll, pitch, yaw;
 
+	imu_calibration_params_t cp;				// local copy of calibration params
+
+        ParamStore<imu_calibration_params_t> param_store;	// parameter storage object
+
         int32_t accelerometer_uncal[3];
         int32_t accelerometer_cal[3];
-        int32_t accelerometer_bias;
-        uint32_t accelerometer_min_threshold[3] = { 0, 0, 0 };
-        int32_t accelerometer_min[3] = { 0, 0, 0 };
-        int32_t accelerometer_max[3] = { 0, 0, 0 };
 
         int32_t gyroscope_uncal[3];
         float gyroscope_cal[3];
-        int32_t gyroscope_min[3] =  { 0, 0, 0 };
-        int32_t gyroscope_max[3] =  { 0, 0, 0 };
-        float gyroscope_min_threshold[3] = { 0.0, 0.0, 0.0 };
-        // FIXME: remove constant
-        int32_t gyroscope_sensitivity = 16;
+        int32_t gyroscope_sensitivity = GYROSCOPE_SENSITIVITY_THRESHOLD;
 
         int32_t magnetometer_uncal[3];
-        int32_t magnetometer_uncal_last[3];
         int32_t magnetometer_cal[3];
-        int32_t magnetometer_min[3] = { 0, 0, 0 };
-        int32_t magnetometer_max[3] = { 0, 0, 0 };
-        int32_t magnetometer_min_threshold[3] = { 0, 0, 0 };
         IMU_SENSOR_t sensor_select = IMU_AHRS;
         uint32_t show_input_ahrs = 0;
         float gx, gy, gz, ax, ay, az, mx, my, mz;

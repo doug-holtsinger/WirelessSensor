@@ -16,11 +16,11 @@
 //----------------------------------------------------------------------------------------------------
 // Variable declaration
 
-extern volatile float sampleFreq;		// Sample Frequency 
-extern volatile float twoKp;			// 2 * proportional gain (Kp)
-extern volatile float twoKi;			// 2 * integral gain (Ki)
-extern volatile float q0, q1, q2, q3;	// quaternion of sensor frame relative to auxiliary frame
-extern volatile float q0X, q1X, q2X, q3X;	// quaternion of sensor frame relative to auxiliary frame
+extern float sampleFreq;		// Sample Frequency 
+extern float twoKp;			// 2 * proportional gain (Kp)
+extern float twoKi;			// 2 * integral gain (Ki)
+extern float q0, q1, q2, q3;	// quaternion of sensor frame relative to auxiliary frame
+extern float q0X, q1X, q2X, q3X;	// quaternion of sensor frame relative to auxiliary frame
 // extern float roll, pitch, yaw;
 extern float axN, ayN, azN;
 extern float gxN, gyN, gzN;

@@ -16,6 +16,8 @@ AHRS_SRC_DIR := ./AHRS
 AHRS_INC_DIR := ./AHRS
 BLE_SRC_DIR := ./BLE
 BLE_INC_DIR := ./BLE
+FLASH_SRC_DIR := ./Flash
+FLASH_INC_DIR := ./Flash
 CONFIG_DIR := ../config
 VERBOSE := 1
 
@@ -28,6 +30,7 @@ SRC_FILES += \
   $(PROJ_DIR)/TwoWire.cpp \
   $(IMU_SRC_DIR)/imu.cpp \
   $(BLE_SRC_DIR)/ble_svcs.cpp \
+  $(FLASH_SRC_DIR)/param_store.cpp \
   $(LSM6DS3_SRC_DIR)/LSM6DS3_ACC_GYRO_Driver.c \
   $(LSM6DS3_SRC_DIR)/LSM6DS3Sensor.cpp \
   $(LIS3MDL_SRC_DIR)/LIS3MDL_MAG_Driver.c \
@@ -150,6 +153,7 @@ INC_FOLDERS += \
   $(PROJ_INC_DIR) \
   $(IMU_INC_DIR) \
   $(BLE_INC_DIR) \
+  $(FLASH_INC_DIR) \
   $(LSM6DS3_INC_DIR) \
   $(LIS3MDL_INC_DIR) \
   $(AHRS_INC_DIR) \
@@ -312,7 +316,7 @@ OPT = -O3 -g3
 #OPT += -flto
 OPT += -DDEBUG -DDEBUG_NRF
 # OPT += -Wa,-adhln
-
+OPT += -Wno-error=register
 
 # C flags common to all targets
 CFLAGS += $(OPT)
@@ -338,6 +342,8 @@ CFLAGS += -fno-builtin -fshort-enums
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)
+#CXXFLAGS += -std=c++14
+CXXFLAGS += -std=c++17
 # Assembler flags common to all targets
 ASMFLAGS += -g3
 ASMFLAGS += -mcpu=cortex-m4
@@ -357,7 +363,7 @@ ASMFLAGS += -DSOFTDEVICE_PRESENT
 
 # Linker flags
 LDFLAGS += $(OPT)
-LDFLAGS += -mthumb -mabi=aapcs -L$(SDK_ROOT)/modules/nrfx/mdk -T$(LINKER_SCRIPT)
+LDFLAGS += -mthumb -mabi=aapcs -L$(SDK_ROOT)/modules/nrfx/mdk -T$(PROJ_DIR)/gcc_nrf52.ld
 LDFLAGS += -mcpu=cortex-m4
 LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # let linker dump unused sections
@@ -402,19 +408,19 @@ endef
 
 # Use the c++ linker instead of the C linker
 %.out:
-	$(info $(call PROGRESS,Linking target: $@))
+	$(info $(call PROGRESS,Linking target Doug: $@))
 	$(NO_ECHO)$(GENERATE_LD_INPUT_FILE)
 	$(NO_ECHO)$(CXX) $(LDFLAGS) $(LD_INPUT) -Wl,-Map=$(@:.out=.map) -o $@
 	$(NO_ECHO)$(SIZE) $@
 
 # Create listing .lst file from the .out file
-#%.lst: %.out
-#	$(info Preparing: $@)
-#	$(NO_ECHO)$(OBJDUMP) -D -S $< >& $@
+%.lst: %.out
+	$(info Preparing: $@)
+	$(NO_ECHO)$(OBJDUMP) -D -S $< >& $@
 
 $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
-#listing: nrf52840_xxaa.lst
+listing: nrf52840_xxaa.lst
 
 .PHONY: flash flash_softdevice erase
 
