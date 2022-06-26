@@ -504,11 +504,11 @@ void IMU::update()
         reset_calibration();
     } else if (new_data_avail)
     {
-        if (calibrate_enable == IMU_SENSOR_CALIBRATE_ZERO_OFFSET)
+        if (calibrate_enable == IMU_CALIBRATE_ZERO_OFFSET)
         {
             calibrate_zero_offset();
         }
-        if (calibrate_enable == IMU_SENSOR_CALIBRATE_MAGNETOMETER)
+        if (calibrate_enable == IMU_CALIBRATE_MAGNETOMETER)
         {
             calibrate_magnetometer();
         }
@@ -534,7 +534,6 @@ void IMU::sensor_init(void)
 
 void IMU::cmd(IMU_CMD_t& cmd)
 {
-    char s[IMU_PRINT_STR_MAX_LEN];
     switch (cmd)
     {
         case IMU_PRINT_MAGNETOMETER:
@@ -555,37 +554,23 @@ void IMU::cmd(IMU_CMD_t& cmd)
         case IMU_AHRS_INPUT_TOGGLE:
             show_input_ahrs = ( show_input_ahrs + 1 ) % 4;
             break;
-        case IMU_SENSOR_CALIBRATE_TOGGLE:
-            // calibrate command
-            switch (calibrate_enable)
-            {
-                case IMU_SENSOR_CALIBRATE_DISABLED:
-                        calibrate_enable = IMU_SENSOR_CALIBRATE_ZERO_OFFSET; break;
-                case IMU_SENSOR_CALIBRATE_ZERO_OFFSET:
-                        calibrate_enable = IMU_SENSOR_CALIBRATE_MAGNETOMETER; break;
-                case IMU_SENSOR_CALIBRATE_MAGNETOMETER:
-                        calibrate_enable = IMU_SENSOR_CALIBRATE_DISABLED; break;
-            }
-            if (calibrate_enable == IMU_SENSOR_CALIBRATE_DISABLED)
-	    {
-                snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Disabled");
-		send_debug_data(s);
-	    } else if (calibrate_enable == IMU_SENSOR_CALIBRATE_ZERO_OFFSET)
-	    {
-                snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Zero Offset Enable");
-		send_debug_data(s);
-	    } else if (calibrate_enable == IMU_SENSOR_CALIBRATE_MAGNETOMETER)
-	    {
-                snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Magnetometer Enable");
-		send_debug_data(s);
-	    }
-            break;
+        case IMU_SENSOR_CALIBRATE_NORMALIZED:
+            calibrate_enable = IMU_CALIBRATE_DISABLED; 
+	    break;
+        case IMU_SENSOR_CALIBRATE_ZERO_OFFSET:
+            calibrate_enable = IMU_CALIBRATE_ZERO_OFFSET; 
+	    break;
+        case IMU_SENSOR_CALIBRATE_MAGNETOMETER:
+            calibrate_enable = IMU_CALIBRATE_MAGNETOMETER; 
+            //snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Magnetometer Enable");
+	    //send_debug_data(s);
+	    break;
         case IMU_SENSOR_CALIBRATE_RESET:
             // reset calibration values
             calibrate_reset = true;
-            calibrate_enable = IMU_SENSOR_CALIBRATE_DISABLED;
-            snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Reset/Disabled");
-            send_debug_data(s);
+            calibrate_enable = IMU_CALIBRATE_DISABLED;
+            //snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Reset/Disabled");
+            //send_debug_data(s);
             break;
         case IMU_SENSOR_CALIBRATE_SAVE:
 	    params_save();
@@ -603,78 +588,24 @@ void IMU::cmd(IMU_CMD_t& cmd)
             if (sensor_select == IMU_GYROSCOPE)
 	    {
                 zero_data[1] = !zero_data[1];
-                if (zero_data[1])
-	        {
-                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro Data Disabled");
-                    send_debug_data(s);
-	        } else
-		{
-                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro Data Enabled");
-                    send_debug_data(s);
-	        }
             } else if (sensor_select == IMU_ACCELEROMETER)
             {
                 zero_data[0] = !zero_data[0];
-                if (zero_data[0])
-		{
-                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Acc Data Disabled");
-                    send_debug_data(s);
-		} else
-		{
-                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Acc Data Enabled");
-                    send_debug_data(s);
-		}
             } else if (sensor_select == IMU_MAGNETOMETER)
             {
                 zero_data[2] = !zero_data[2];
-                if (zero_data[2])
-		{
-                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Mag Data Disabled");
-                    send_debug_data(s);
-		} else
-		{
-                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Mag Data Enabled");
-                    send_debug_data(s);
-		}
             }
             break;
         case IMU_SENSOR_DATA_IDEAL:
             if (sensor_select == IMU_GYROSCOPE)
             {
                 ideal_data[1] = ideal_data[1] ? 0 : 1;
-                if (ideal_data[1])
-	        {
-                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro Data Ideal");
-                    send_debug_data(s);
-	        } else
-	        {
-                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Gyro Data Real");
-                    send_debug_data(s);
-		}
             } else if (sensor_select == IMU_ACCELEROMETER)
             {
                 ideal_data[0] = ideal_data[0] ? 0 : 1;
-                if (ideal_data[0])
-		{
-                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Acc Data Ideal");
-                    send_debug_data(s);
-		} else
-		{
-                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Acc Data Real");
-                    send_debug_data(s);
-		}
             } else if (sensor_select == IMU_MAGNETOMETER)
             {
                 ideal_data[2] = ideal_data[2] ? 0 : 1;
-                if (ideal_data[2])
-		{
-                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Mag Data Ideal");
-                    send_debug_data(s);
-		} else
-		{
-                    snprintf(s, IMU_PRINT_STR_MAX_LEN, "Mag Data Real");
-                    send_debug_data(s);
-		}
             }
             break;
         case IMU_SENSOR_DATA_FIXED_TOGGLE:
@@ -682,43 +613,27 @@ void IMU::cmd(IMU_CMD_t& cmd)
 	    break;
         case IMU_AHRS_PROP_GAIN_UP:
             twoKp += 0.1f;
-            snprintf(s, IMU_PRINT_STR_MAX_LEN, "twoKp %lu", (uint32_t)(twoKp * 1000.0));
-            send_debug_data(s);
             break;
         case IMU_AHRS_PROP_GAIN_DOWN:
             twoKp -= 0.1f;
-            snprintf(s, IMU_PRINT_STR_MAX_LEN, "twoKp %lu", (uint32_t)(twoKp * 1000.0));
-            send_debug_data(s);
             break;
         case IMU_AHRS_INTEG_GAIN_UP:
             twoKi += 0.1f;
-            snprintf(s, IMU_PRINT_STR_MAX_LEN, "twoKi %lu", (uint32_t)(twoKi * 1000.0));
-            send_debug_data(s);
             break;
         case IMU_AHRS_INTEG_GAIN_DOWN:
             twoKi -= 0.1f;
-            snprintf(s, IMU_PRINT_STR_MAX_LEN, "twoKi %lu", (uint32_t)(twoKi * 1000.0));
-            send_debug_data(s);
             break;
         case IMU_AHRS_SAMPLE_FREQ_UP:
             sampleFreq += 32.0f;
-            snprintf(s, IMU_PRINT_STR_MAX_LEN, "sampleFreq %lu", (uint32_t)(sampleFreq));
-            send_debug_data(s);
             break;
         case IMU_AHRS_SAMPLE_FREQ_DOWN:
             sampleFreq -= 32.0f;
-            snprintf(s, IMU_PRINT_STR_MAX_LEN, "sampleFreq %lu", (uint32_t)(sampleFreq));
-            send_debug_data(s);
             break;
         case IMU_GYROSCOPE_SENSITIVITY_UP:
             gyroscope_sensitivity++;
-            snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro sens: %ld", gyroscope_sensitivity);
-            send_debug_data(s);
             break;
         case IMU_GYROSCOPE_SENSITIVITY_DOWN:
             gyroscope_sensitivity--;
-            snprintf(s, IMU_PRINT_STR_MAX_LEN, "gyro sense: %ld", gyroscope_sensitivity);
-            send_debug_data(s);
             break;
         default: break;
     }

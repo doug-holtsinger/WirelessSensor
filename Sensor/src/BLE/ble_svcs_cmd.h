@@ -7,7 +7,8 @@
 
 typedef enum
 {
-    BLE_NOCMD = 0,
+    //FIXME
+    BLE_NOCMD = 128,
     BLE_STOP_ADVERTISING,
     BLE_MANUFACT_DATA_TOGGLE
 } BLE_CMD_t;

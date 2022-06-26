@@ -280,35 +280,13 @@ static void power_management_init(void)
 
 static void interpret_app_cmd(const uint8_t cmd, IMU_CMD_t& imu_cmd, BLE_CMD_t& ble_cmd)
 {
-    switch (cmd)
+    imu_cmd = IMU_NOCMD;
+    ble_cmd = BLE_NOCMD;
+    if (cmd >= IMU_CMD_MIN && cmd <= IMU_CMD_MAX)
     {
-        case 'b': ble_cmd = BLE_STOP_ADVERTISING; break;
-#ifdef SERIAL_CONSOLE_AVAILABLE
-        case 'f': ble_cmd = BLE_MANUFACT_DATA_TOGGLE; break;
-#endif
-        case 'm': imu_cmd = IMU_PRINT_MAGNETOMETER; break;
-        case 'g': imu_cmd = IMU_PRINT_GYROSCOPE; break;
-        case 'a': imu_cmd = IMU_PRINT_ACCELEROMETER; break;
-        case 'q': imu_cmd = IMU_PRINT_AHRS; break;
-        case 'i': imu_cmd = IMU_AHRS_INPUT_TOGGLE; break;
-        case 'z': imu_cmd = IMU_SENSOR_DATA_ZERO; break;
-        case 'k': imu_cmd = IMU_SENSOR_DATA_FIXED_TOGGLE; break;
-        case 'c': imu_cmd = IMU_SENSOR_CALIBRATE_TOGGLE; break;
-        case 'e': imu_cmd = IMU_SENSOR_CALIBRATE_RESET; break;
-        case 'w': imu_cmd = IMU_SENSOR_CALIBRATE_SAVE; break;
-        case 'y': imu_cmd = IMU_AHRS_YAW_TOGGLE; break;
-        case 'p': imu_cmd = IMU_AHRS_PITCH_TOGGLE; break;
-        case 'r': imu_cmd = IMU_AHRS_ROLL_TOGGLE; break;
-        case 'd': imu_cmd = IMU_SENSOR_DATA_IDEAL; break;
-        case 'h': imu_cmd = IMU_AHRS_PROP_GAIN_UP; break;
-        case 'j': imu_cmd = IMU_AHRS_PROP_GAIN_DOWN; break;
-        case 'l': imu_cmd = IMU_AHRS_INTEG_GAIN_UP; break;
-        case 'n': imu_cmd = IMU_AHRS_INTEG_GAIN_DOWN; break;
-        case 's': imu_cmd = IMU_AHRS_SAMPLE_FREQ_UP; break;
-        case 'o': imu_cmd = IMU_AHRS_SAMPLE_FREQ_DOWN; break;
-        case 'u': imu_cmd = IMU_GYROSCOPE_SENSITIVITY_UP; break;
-        case 't': imu_cmd = IMU_GYROSCOPE_SENSITIVITY_DOWN; break;
-        default: break;
+        imu_cmd = static_cast<IMU_CMD_t>(cmd);
+    } else {
+        ble_cmd = static_cast<BLE_CMD_t>(cmd);
     }
 }
 
