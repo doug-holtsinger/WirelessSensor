@@ -106,7 +106,6 @@ class AHRSConsole(tk.Frame):
 
         self.calibrate = tk.IntVar()
         self.calibrate.set(0)
-        self.calibrate_prev = 0
 
         self.twoKp = tk.DoubleVar()
         self.twoKi = tk.DoubleVar()
@@ -130,6 +129,35 @@ class AHRSConsole(tk.Frame):
         self.createWidgets()
         self.peripheral = None
         self.dev_addr = None
+
+        # Command dictionary
+
+        self.commandDict = dict() 
+        self.commandDict['IMU_NOCMD'] = 0
+        self.commandDict['IMU_PRINT_MAGNETOMETER'] = 1
+        self.commandDict['IMU_PRINT_GYROSCOPE'] = 2
+        self.commandDict['IMU_PRINT_ACCELEROMETER'] = 3
+        self.commandDict['IMU_PRINT_AHRS'] = 4
+        self.commandDict['IMU_SENSOR_CALIBRATE_NORMALIZED'] = 5
+        self.commandDict['IMU_SENSOR_CALIBRATE_ZERO_OFFSET'] = 6
+        self.commandDict['IMU_SENSOR_CALIBRATE_MAGNETOMETER'] = 7
+        self.commandDict['IMU_SENSOR_CALIBRATE_RESET'] = 8
+        self.commandDict['IMU_SENSOR_CALIBRATE_SAVE'] = 9
+        self.commandDict['IMU_AHRS_INPUT_TOGGLE'] = 10 
+        self.commandDict['IMU_AHRS_YAW_TOGGLE'] = 11 
+        self.commandDict['IMU_AHRS_PITCH_TOGGLE'] = 12
+        self.commandDict['IMU_AHRS_ROLL_TOGGLE'] = 13
+        self.commandDict['IMU_SENSOR_DATA_ZERO'] = 14 
+        self.commandDict['IMU_SENSOR_DATA_IDEAL'] = 15 
+        self.commandDict['IMU_SENSOR_DATA_FIXED_TOGGLE'] = 16
+        self.commandDict['IMU_AHRS_PROP_GAIN_UP'] = 17
+        self.commandDict['IMU_AHRS_PROP_GAIN_DOWN'] = 18
+        self.commandDict['IMU_AHRS_INTEG_GAIN_UP'] = 19
+        self.commandDict['IMU_AHRS_INTEG_GAIN_DOWN'] = 20
+        self.commandDict['IMU_AHRS_SAMPLE_FREQ_UP'] = 21
+        self.commandDict['IMU_AHRS_SAMPLE_FREQ_DOWN'] = 22
+        self.commandDict['IMU_GYROSCOPE_SENSITIVITY_UP'] = 23
+        self.commandDict['IMU_GYROSCOPE_SENSITIVITY_DOWN'] = 24
 
     def resetCalibration(self):
         self.twoKp.set(1.0)
@@ -215,7 +243,8 @@ class AHRSConsole(tk.Frame):
         first_ctrl_row_num = row_num
 
         self.cb = []
-        self.cb.append(tk.Radiobutton(lf, text="Normalized", command=self.calibrateButton, variable=self.calibrate, value=0))
+        self.calibrateNormalizedButton = tk.Radiobutton(lf, text="Normalized", command=self.calibrateButton, variable=self.calibrate, value=0)
+        self.cb.append(self.calibrateNormalizedButton)
         self.cb.append(tk.Radiobutton(lf, text="Zero Offset", command=self.calibrateButton, variable=self.calibrate, value=1))
         self.cb.append(tk.Radiobutton(lf, text="Magnetometer", command=self.calibrateButton, variable=self.calibrate, value=2))
         for cb in self.cb:
@@ -283,12 +312,12 @@ class AHRSConsole(tk.Frame):
         if self.twoKpSave < self.twoKp.get():
             # Send up
             print("Prop Gain Up from %f" % ( self.twoKpSave) )
-            self.writeCmd(b"h")
+            self.writeCmdStr('IMU_AHRS_PROP_GAIN_UP')
             self.twoKpSave = self.twoKpSave + 0.1
         else:
             # Send down
             print("Prop Gain Down from %f" % ( self.twoKpSave) )
-            self.writeCmd(b"j")
+            self.writeCmdStr('IMU_AHRS_PROP_GAIN_DOWN')
             self.twoKpSave = self.twoKpSave - 0.1
         print("twoKp = %f" % ( self.twoKpSave ))
 
@@ -297,12 +326,12 @@ class AHRSConsole(tk.Frame):
         if self.twoKiSave < self.twoKi.get():
             # Send up
             print("Integral Gain Up from %f" % ( self.twoKiSave) )
-            self.writeCmd(b"l")
+            self.writeCmdStr('IMU_AHRS_INTEG_GAIN_UP')
             self.twoKiSave = self.twoKiSave + 0.1
         else:
             # Send down
             print("Integral Gain Down from %f" % ( self.twoKiSave) )
-            self.writeCmd(b"n")
+            self.writeCmdStr('IMU_AHRS_INTEG_GAIN_DOWN')
             self.twoKiSave = self.twoKiSave - 0.1
         print("twoKi = %f" % ( self.twoKiSave ))
 
@@ -311,12 +340,12 @@ class AHRSConsole(tk.Frame):
         if self.sampleFreqSave < self.sampleFreq.get():
             # Send up
             print("Sample Frequency Up from %f" % ( self.sampleFreqSave ) )
-            self.writeCmd(b"s")
+            self.writeCmdStr('IMU_AHRS_SAMPLE_FREQ_UP')
             self.sampleFreqSave = self.sampleFreqSave + 32.0
         else:
             # Send down
             print("Sample Frequency Down from %f" % ( self.sampleFreqSave) )
-            self.writeCmd(b"o")
+            self.writeCmdStr('IMU_AHRS_SAMPLE_FREQ_DOWN')
             self.sampleFreqSave = self.sampleFreqSave - 32.0
         print("sampleFreq = %f" % ( self.sampleFreqSave ))
 
@@ -325,32 +354,34 @@ class AHRSConsole(tk.Frame):
         if self.gyroSensSave < self.gyroSens.get():
             # Send up
             print("Gyroscope Sensitivity Up from %f" % ( self.gyroSensSave ) )
-            self.writeCmd(b"u")
+            self.writeCmdStr('IMU_GYROSCOPE_SENSITIVITY_UP')
             self.gyroSensSave = self.gyroSensSave + 1
         else:
             # Send down
             print("Gyroscope Sensitivity Down from %f" % ( self.gyroSensSave ) )
-            self.writeCmd(b"t")
+            self.writeCmdStr('IMU_GYROSCOPE_SENSITIVITY_DOWN')
             self.gyroSensSave = self.gyroSensSave - 1
         print("gyroSens = %d" % ( self.gyroSensSave ))
 
     def calibrateResetButton(self):
         print("Calibrate Reset")
-        self.writeCmd(b"e")
+        self.writeCmdStr("IMU_SENSOR_CALIBRATE_RESET")
+        self.calibrateNormalizedButton.invoke()
         self.resetCalibration()
 
     def calibrateSaveButton(self):
         print("Calibrate Save")
-        self.writeCmd(b"w")
+        self.writeCmdStr("IMU_SENSOR_CALIBRATE_SAVE")
 
     def calibrateButton(self):
         if self.connected.get():
-            print("Calibrate Button %d" % ( self.calibrate.get() ))
-            while self.calibrate_prev != self.calibrate.get():
-                self.writeCmd(b"c")
-                self.calibrate_prev = ( self.calibrate_prev + 1 ) % 3
-        else:
-            self.calibrate.set(self.calibrate_prev)
+            #print("Calibrate Button %d" % ( self.calibrate.get() ))
+            if self.calibrate.get() == 0:
+                self.writeCmdStr('IMU_SENSOR_CALIBRATE_NORMALIZED')
+            elif self.calibrate.get() == 1:
+                self.writeCmdStr('IMU_SENSOR_CALIBRATE_ZERO_OFFSET')
+            elif self.calibrate.get() == 2:
+                self.writeCmdStr('IMU_SENSOR_CALIBRATE_MAGNETOMETER')
 
     def connectButton(self):
         if self.connected.get():
@@ -422,6 +453,18 @@ class AHRSConsole(tk.Frame):
         self.peripheral.disconnect()
         self.peripheral = None
         print("Disconnected from %s" % ( dev_addr) )
+
+    def writeCmdStr(self,cmd):
+        try:
+            print("Sending command %s" % ( cmd ))
+            cmdInt = self.commandDict[cmd]
+            self.writeCmdInt(cmdInt)
+        except:
+            print("ERROR: Trouble sending command %s" % (cmd))
+            self.disconnect()
+
+    def writeCmdInt(self,cmd):
+        self.writeCmd(cmd.to_bytes(1, byteorder=sys.byteorder))
 
     def writeCmd(self,cmd):
         try:
