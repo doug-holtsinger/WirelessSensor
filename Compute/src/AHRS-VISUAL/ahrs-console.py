@@ -111,8 +111,10 @@ class AHRSConsole(tk.Frame):
         self.twoKi = tk.DoubleVar()
         self.sampleFreq = tk.DoubleVar()
         self.gyroSens = tk.IntVar()
+        self.magnetometerStability = tk.IntVar()
+        self.AHRSalgorithm = tk.IntVar()
 
-        self.resetCalibration()
+        self.resetAHRSSettings()
         self.xpoints = 1500
 
         self.data_group = []
@@ -158,16 +160,18 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_AHRS_SAMPLE_FREQ_DOWN'] = 22
         self.commandDict['IMU_GYROSCOPE_SENSITIVITY_UP'] = 23
         self.commandDict['IMU_GYROSCOPE_SENSITIVITY_DOWN'] = 24
+        self.commandDict['IMU_MAGNETOMETER_STABILITY_TOGGLE'] = 25
 
-    def resetCalibration(self):
-        self.twoKp.set(1.0)
-        self.twoKpSave = 1.0
+    def resetAHRSSettings(self):
+        self.twoKp.set(0.0)
+        self.twoKpSave = 0.0
         self.twoKi.set(0.0)
         self.twoKiSave = 0.0
-        self.sampleFreq.set(416.0)
-        self.sampleFreqSave = 416.0
-        self.gyroSens.set(16)
-        self.gyroSensSave = 16
+        self.sampleFreq.set(0.0)
+        self.sampleFreqSave = 0.0
+        self.gyroSens.set(0)
+        self.gyroSensSave = 0
+        self.AHRSalgorithm.set(0)
 
     def scalePlot(self):
         self.ax.relim()
@@ -179,10 +183,31 @@ class AHRSConsole(tk.Frame):
             gidx = 0
             for gi in range(3):
                 self.data_group[gidx].setData(gi, data[gi])
-        else:
+        elif idx <= 16:
             gidx = int((idx + 3) / 4)
             gi = (idx + 3) & 0x3
             self.data_group[gidx].setData(gi, data)
+        elif idx == 17:
+            self.gyroSens.set(data[0])
+            self.gyroSensSave = int(data[0])
+        elif idx == 18:
+            # magnetometer stability
+            self.magnetometerStability.set(data[0]) 
+        elif idx == 19:
+            # prop gain 
+            self.twoKp.set(data[0])
+            self.twoKpSave = float(data[0])
+        elif idx == 20:
+            # integral gain 
+            self.twoKi.set(data[0])
+            self.twoKiSave = float(data[0])
+        elif idx == 21:
+            # sample frequency
+            self.sampleFreq.set(data[0])
+            self.sampleFreqSave = float(data[0])
+        elif idx == 22:
+            # AHRS algorithm
+            self.AHRSalgorithm.set(data[0]) 
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
             # It can cause a large backlog of notifications, causing the display to be unresponsive
@@ -238,7 +263,7 @@ class AHRSConsole(tk.Frame):
         row_num = row_num + 1
         data_row_num = row_num
 
-        lf = tk.LabelFrame(self, text="Calibration")
+        lf = tk.LabelFrame(self, text="IMU Calibration")
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
         first_ctrl_row_num = row_num
 
@@ -261,27 +286,36 @@ class AHRSConsole(tk.Frame):
         col_num = 0
         row_num = row_num + 1
 
+        lf = tk.LabelFrame(self, text="IMU Settings")
+        lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Label(lf, text="Gyroscope Sensitivity").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.gyroSensitivity, from_=1, to_=24, increment=1, textvariable=self.gyroSens).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        #tk.Button(lf, text="Magnetometer Stability", command=self.appExit).grid(column=col_num, row=row_num)
+        #DSH4
+        tk.Checkbutton(lf, text="Magnetometer Stability", command=self.magnetometerStabilityButton, variable=self.magnetometerStability).grid(column=0, row=row_num+1, padx=paddingx, pady=paddingy)
+
+        col_num = col_num + 1
+
         # 2,0
         # Controls
-        tk.Label(self, text="Proportional Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(self, text="Spinbox", command=self.proportionalGain, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        lf = tk.LabelFrame(self, text="AHRS Settings")
+        lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Label(lf, text="Proportional Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.proportionalGain, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         row_num = row_num + 1
-        tk.Label(self, text="Integral Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(self, text="Spinbox", command=self.integralGain, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Label(lf, text="Integral Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.integralGain, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         row_num = row_num + 1
-        tk.Label(self, text="Sample Frequency").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(self, text="Spinbox", command=self.sampleFrequency, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Label(lf, text="Sample Frequency").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.sampleFrequency, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
+        col_num = 0
         row_num = row_num + 1
-        tk.Label(self, text="Gyroscope Sensitivity").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(self, text="Spinbox", command=self.gyroSensitivity, from_=1, to_=24, increment=1, textvariable=self.gyroSens).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         # 3,0
         # Accelerometer Data
-        row_num = row_num + 1
-
         self.data_group.append(AHRSDataFrame(self, "Accelerometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, row_num, col_num))
 
         # 3,1
@@ -306,6 +340,9 @@ class AHRSConsole(tk.Frame):
         col_num = col_num + 1
         row_span=last_ctrl_row_num - first_ctrl_row_num + 1
         self.createWidgetPlot(data_row_num, col_num, row_span)
+
+    def magnetometerStabilityButton(self):
+        self.writeCmdStr('IMU_MAGNETOMETER_STABILITY_TOGGLE')
 
     def proportionalGain(self):
         print("Proportional Gain %f" % ( self.twoKp.get()) )
@@ -367,7 +404,6 @@ class AHRSConsole(tk.Frame):
         print("Calibrate Reset")
         self.writeCmdStr("IMU_SENSOR_CALIBRATE_RESET")
         self.calibrateNormalizedButton.invoke()
-        self.resetCalibration()
 
     def calibrateSaveButton(self):
         print("Calibrate Save")
@@ -435,8 +471,11 @@ class AHRSConsole(tk.Frame):
             return
 
         print("Connected to %s" % ( dev_addr ))
+        # Nordic UART Service UUID.  Vendor-specific. 
+        # Value is defined Inside ble_nus_c.h as NUS_BASE_UUID
         srv = self.peripheral.getServiceByUUID('6e400001-b5a3-f393-e0a9-e50e24dcca9e')
         ch = srv.getCharacteristics()
+        # Enable notifications
         for c in ch:
             for d in c.getDescriptors():
                 val = d.read()
