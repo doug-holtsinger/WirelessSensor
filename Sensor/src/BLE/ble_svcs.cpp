@@ -172,28 +172,16 @@ void ble_svcs_cmd(BLE_CMD_t ble_cmd, uint16_t data)
 }
 
 #ifdef BLE_CONSOLE_AVAILABLE
-/**@brief Function for sending debug data over BLE
+/**@brief Function for sending data to client over BLE using notifications
  */
-void ble_svcs_send_debug_data(uint8_t* p_data, const size_t len)
+void ble_svcs_send_client_notification(uint8_t* p_data, const size_t len)
 {
     ret_code_t err_code;
 
     if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
     {
         uint16_t length = static_cast<uint16_t>(len);
-#if 1
         err_code = ble_nus_data_send(&m_nus, p_data, &length, m_conn_handle);
-#else
-        do {
-            err_code = ble_nus_data_send(&m_nus, p_data, &length, m_conn_handle);
-	} while (err_code == NRF_ERROR_RESOURCES);
-#endif
-#if 0
-	if (err_code != NRF_SUCCESS)
-	{
-            NRF_LOG_INFO("data_send %d", err_code);
-	}
-#endif
         if ((err_code != NRF_SUCCESS) &&
             (err_code != NRF_ERROR_INVALID_STATE) &&
             (err_code != NRF_ERROR_RESOURCES) &&

@@ -133,12 +133,12 @@ void IMU::get_params(imu_calibration_params_t& params)
     }
 }
 
-void IMU::send_debug_data(char *p)
+void IMU::send_client_data(char *p)
 {
 #ifdef BLE_CONSOLE_AVAILABLE
     {
         uint8_t *p_data = (uint8_t *)p;
-        ble_svcs_send_debug_data(p_data, strlen(p));
+        ble_svcs_send_client_notification(p_data, strlen(p));
     }
 #endif
 #ifdef SERIAL_CONSOLE_AVAILABLE
@@ -280,7 +280,7 @@ void IMU::calibrate_data(void)
         }
 
         magnetometer_diff = abs(magnetometer_uncal[i] - cp.magnetometer_uncal_last[i]);
-        if (magnetometer_diff < cp.magnetometer_min_threshold[i])
+        if (magnetometer_stability && magnetometer_diff < cp.magnetometer_min_threshold[i])
         {
             magnetometer_cal[i] = cp.magnetometer_uncal_last[i] - ((cp.magnetometer_max[i] + cp.magnetometer_min[i]) / 2);
         } else
@@ -349,7 +349,7 @@ void IMU::AHRS()
 
 }
 
-void IMU::print_debug_data()
+void IMU::send_all_client_data()
 {
     char s[IMU_PRINT_STR_MAX_LEN];
 
@@ -363,11 +363,11 @@ void IMU::print_debug_data()
 
     // Euler Angles
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , EULER_ANGLES, PRINTF_FLOAT_VALUE(roll), PRINTF_FLOAT_VALUE(pitch), PRINTF_FLOAT_VALUE(yaw));
-    send_debug_data(s);
+    send_client_data(s);
 
     // Accelerometer
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 , ACCELEROMETER_NORMAL, PRINTF_FLOAT_VALUE2(axN), PRINTF_FLOAT_VALUE2(ayN), PRINTF_FLOAT_VALUE2(azN) );
-    send_debug_data(s);
+    send_client_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
              ACCELEROMETER_CAL,
@@ -375,7 +375,7 @@ void IMU::print_debug_data()
             (int)accelerometer_cal[1],
             (int)accelerometer_cal[2]
             );
-    send_debug_data(s);
+    send_client_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
              ACCELEROMETER_UNCAL,
@@ -383,7 +383,7 @@ void IMU::print_debug_data()
             (int)accelerometer_uncal[1],
             (int)accelerometer_uncal[2]
             );
-    send_debug_data(s);
+    send_client_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
              ACCELEROMETER_MIN_THRESHOLD,
@@ -391,11 +391,11 @@ void IMU::print_debug_data()
             (int)cp.accelerometer_min_threshold[1],
             (int)cp.accelerometer_min_threshold[2]
             );
-    send_debug_data(s);
+    send_client_data(s);
 
     // Gyroscope
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 , GYROSCOPE_NORMAL, PRINTF_FLOAT_VALUE2(gxN), PRINTF_FLOAT_VALUE2(gyN), PRINTF_FLOAT_VALUE2(gzN) );
-    send_debug_data(s);
+    send_client_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 ,
             GYROSCOPE_CAL,
@@ -403,7 +403,7 @@ void IMU::print_debug_data()
             PRINTF_FLOAT_VALUE2(gyroscope_cal[1]),
             PRINTF_FLOAT_VALUE2(gyroscope_cal[2])
         );
-    send_debug_data(s);
+    send_client_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
             GYROSCOPE_UNCAL,
@@ -411,7 +411,7 @@ void IMU::print_debug_data()
             (int)gyroscope_uncal[1],
             (int)gyroscope_uncal[2]
             );
-    send_debug_data(s);
+    send_client_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT ,
             GYROSCOPE_MIN_THRESHOLD,
@@ -419,11 +419,11 @@ void IMU::print_debug_data()
             PRINTF_FLOAT_VALUE(cp.gyroscope_min_threshold[1]),
             PRINTF_FLOAT_VALUE(cp.gyroscope_min_threshold[2])
         );
-    send_debug_data(s);
+    send_client_data(s);
 
     // Magnetometer
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 , MAGNETOMETER_NORMAL, PRINTF_FLOAT_VALUE2(mxN), PRINTF_FLOAT_VALUE2(myN), PRINTF_FLOAT_VALUE2(mzN) );
-    send_debug_data(s);
+    send_client_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
             MAGNETOMETER_CAL,
@@ -431,7 +431,7 @@ void IMU::print_debug_data()
             (int)magnetometer_cal[1],
             (int)magnetometer_cal[2]
             );
-    send_debug_data(s);
+    send_client_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
             MAGNETOMETER_UNCAL,
@@ -439,7 +439,7 @@ void IMU::print_debug_data()
             (int)magnetometer_uncal[1],
             (int)magnetometer_uncal[2]
             );
-    send_debug_data(s);
+    send_client_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
             MAGNETOMETER_MIN_THRESHOLD,
@@ -447,20 +447,44 @@ void IMU::print_debug_data()
             (int)cp.magnetometer_min_threshold[1],
             (int)cp.magnetometer_min_threshold[2]
             );
-    send_debug_data(s);
+    send_client_data(s);
 
     // Quaternion
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , QUATERNION_Q0, PRINTF_FLOAT_VALUE2(q0X) );
-    send_debug_data(s);
+    send_client_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , QUATERNION_Q1, PRINTF_FLOAT_VALUE2(q1X) );
-    send_debug_data(s);
+    send_client_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , QUATERNION_Q2, PRINTF_FLOAT_VALUE2(q2X) );
-    send_debug_data(s);
+    send_client_data(s);
 
     snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , QUATERNION_Q3, PRINTF_FLOAT_VALUE2(q3X) );
-    send_debug_data(s);
+    send_client_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %d",
+            GYRO_SENSITIVITY,
+            (int)gyroscope_sensitivity
+            );
+    send_client_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %d",
+            MAGNETOMETER_STABILITY,
+            (int)magnetometer_stability
+            );
+    send_client_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , PROP_GAIN, PRINTF_FLOAT_VALUE2(twoKp) );
+    send_client_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , INTEG_GAIN, PRINTF_FLOAT_VALUE2(twoKi) );
+    send_client_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , SAMPLE_FREQ, PRINTF_FLOAT_VALUE2(sampleFreq) );
+    send_client_data(s);
+
+    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , ALGORITHM, PRINTF_FLOAT_VALUE2(AHRSalgorithm) );
+    send_client_data(s);
 
 }
 
@@ -562,15 +586,11 @@ void IMU::cmd(IMU_CMD_t& cmd)
 	    break;
         case IMU_SENSOR_CALIBRATE_MAGNETOMETER:
             calibrate_enable = IMU_CALIBRATE_MAGNETOMETER; 
-            //snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Magnetometer Enable");
-	    //send_debug_data(s);
 	    break;
         case IMU_SENSOR_CALIBRATE_RESET:
             // reset calibration values
             calibrate_reset = true;
             calibrate_enable = IMU_CALIBRATE_DISABLED;
-            //snprintf(s, IMU_PRINT_STR_MAX_LEN, "Calibrate Reset/Disabled");
-            //send_debug_data(s);
             break;
         case IMU_SENSOR_CALIBRATE_SAVE:
 	    params_save();
@@ -634,6 +654,9 @@ void IMU::cmd(IMU_CMD_t& cmd)
             break;
         case IMU_GYROSCOPE_SENSITIVITY_DOWN:
             gyroscope_sensitivity--;
+            break;
+        case IMU_MAGNETOMETER_STABILITY_TOGGLE:
+            magnetometer_stability = !magnetometer_stability; 
             break;
         default: break;
     }

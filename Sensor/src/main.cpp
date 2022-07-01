@@ -381,7 +381,7 @@ int main(void)
         {
 
 #endif
-            imu.print_debug_data();
+            imu.send_all_client_data();
 #ifdef SERIAL_CONSOLE_AVAILABLE
         }
 #endif

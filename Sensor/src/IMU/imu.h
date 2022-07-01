@@ -70,7 +70,8 @@ typedef enum
     IMU_AHRS_SAMPLE_FREQ_DOWN,
     IMU_GYROSCOPE_SENSITIVITY_UP,
     IMU_GYROSCOPE_SENSITIVITY_DOWN,
-    IMU_CMD_MAX = IMU_GYROSCOPE_SENSITIVITY_DOWN
+    IMU_MAGNETOMETER_STABILITY_TOGGLE,
+    IMU_CMD_MAX = IMU_MAGNETOMETER_STABILITY_TOGGLE
 } IMU_CMD_t;
 
 typedef enum {
@@ -103,9 +104,22 @@ typedef enum
     QUATERNION_Q0,
     QUATERNION_Q1,
     QUATERNION_Q2,
-    QUATERNION_Q3
-
+    QUATERNION_Q3,
+    IMU_DATA_NOTIFY_MAX = QUATERNION_Q3
 } IMU_DATA_NOTIFY_t;
+
+typedef enum {
+    GYRO_SENSITIVITY = IMU_DATA_NOTIFY_MAX + 1,
+    MAGNETOMETER_STABILITY,
+    IMU_SETTINGS_NOTIFY_MAX = MAGNETOMETER_STABILITY
+} IMU_SETTINGS_NOTIFY_t;
+
+typedef enum {
+    PROP_GAIN = IMU_SETTINGS_NOTIFY_MAX + 1,
+    INTEG_GAIN,
+    SAMPLE_FREQ,
+    ALGORITHM
+} AHRS_SETTINGS_NOTIFY_t;
 
 class IMU {
     public:
@@ -115,8 +129,8 @@ class IMU {
         void init(void);
         void get_params(imu_calibration_params_t& params);
         void cmd(IMU_CMD_t& cmd);
-        void print_debug_data();
-        void send_debug_data(char*);
+        void send_all_client_data();
+        void send_client_data(char*);
         void get_angles(float& roll, float& pitch, float& yaw);
         TwoWire* dev_i2c;
     private:
@@ -157,9 +171,11 @@ class IMU {
 
         int32_t magnetometer_uncal[3];
         int32_t magnetometer_cal[3];
+	bool magnetometer_stability = true;
         IMU_SENSOR_t sensor_select = IMU_AHRS;
         uint32_t show_input_ahrs = 0;
         float gx, gy, gz, ax, ay, az, mx, my, mz;
+	int32_t AHRSalgorithm = 0;
 };
 
 #endif
