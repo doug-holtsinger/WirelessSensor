@@ -113,6 +113,7 @@ class AHRSConsole(tk.Frame):
         self.gyroSens = tk.IntVar()
         self.magnetometerStability = tk.IntVar()
         self.AHRSalgorithm = tk.IntVar()
+        self.betaGain = tk.DoubleVar()
 
         self.resetAHRSSettings()
         self.xpoints = 1500
@@ -161,17 +162,23 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_GYROSCOPE_SENSITIVITY_UP'] = 23
         self.commandDict['IMU_GYROSCOPE_SENSITIVITY_DOWN'] = 24
         self.commandDict['IMU_MAGNETOMETER_STABILITY_TOGGLE'] = 25
+        self.commandDict['IMU_AHRS_BETA_GAIN_UP'] = 26
+        self.commandDict['IMU_AHRS_BETA_GAIN_DOWN'] = 27
+        self.commandDict['IMU_AHRS_ALGORITHM_TOGGLE'] = 28
 
     def resetAHRSSettings(self):
         self.twoKp.set(0.0)
-        self.twoKpSave = 0.0
+        self.twoKpClient = 0.0
         self.twoKi.set(0.0)
-        self.twoKiSave = 0.0
+        self.twoKiClient = 0.0
         self.sampleFreq.set(0.0)
-        self.sampleFreqSave = 0.0
+        self.sampleFreqClient = 0.0
         self.gyroSens.set(0)
-        self.gyroSensSave = 0
+        self.gyroSensClient = 0
         self.AHRSalgorithm.set(0)
+        self.AHRSalgorithmClient = 0
+        self.betaGain.set(0.0)
+        self.betaGainClient = 0.0
 
     def scalePlot(self):
         self.ax.relim()
@@ -180,34 +187,42 @@ class AHRSConsole(tk.Frame):
 
     def setAHRSData(self, idx, data):
         if idx == 0:
+            # AHRS
             gidx = 0
             for gi in range(3):
                 self.data_group[gidx].setData(gi, data[gi])
         elif idx <= 16:
+            # Accelerometer, Gyroscope, Magnetometer, Quaternion
             gidx = int((idx + 3) / 4)
             gi = (idx + 3) & 0x3
             self.data_group[gidx].setData(gi, data)
         elif idx == 17:
+            # Gyro sensitivity
             self.gyroSens.set(data[0])
-            self.gyroSensSave = int(data[0])
+            self.gyroSensClient = int(data[0])
         elif idx == 18:
-            # magnetometer stability
+            # Magnetometer stability
             self.magnetometerStability.set(data[0]) 
         elif idx == 19:
             # prop gain 
             self.twoKp.set(data[0])
-            self.twoKpSave = float(data[0])
+            self.twoKpClient = float(data[0])
         elif idx == 20:
             # integral gain 
             self.twoKi.set(data[0])
-            self.twoKiSave = float(data[0])
+            self.twoKiClient = float(data[0])
         elif idx == 21:
             # sample frequency
             self.sampleFreq.set(data[0])
-            self.sampleFreqSave = float(data[0])
+            self.sampleFreqClient = float(data[0])
         elif idx == 22:
             # AHRS algorithm
-            self.AHRSalgorithm.set(data[0]) 
+            self.AHRSalgorithm.set(data[0])
+            self.AHRSalgorithmClient = int(data[0])
+        elif idx == 23:
+            # Beta gain 
+            self.betaGain.set(data[0]) 
+            self.betaGainClient = float(data[0])
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
             # It can cause a large backlog of notifications, causing the display to be unresponsive
@@ -289,9 +304,7 @@ class AHRSConsole(tk.Frame):
         lf = tk.LabelFrame(self, text="IMU Settings")
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
         tk.Label(lf, text="Gyroscope Sensitivity").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.gyroSensitivity, from_=1, to_=24, increment=1, textvariable=self.gyroSens).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
-        #tk.Button(lf, text="Magnetometer Stability", command=self.appExit).grid(column=col_num, row=row_num)
-        #DSH4
+        tk.Spinbox(lf, text="Spinbox", command=self.gyroSensitivitySelect, from_=1, to_=24, increment=1, textvariable=self.gyroSens).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
         tk.Checkbutton(lf, text="Magnetometer Stability", command=self.magnetometerStabilityButton, variable=self.magnetometerStability).grid(column=0, row=row_num+1, padx=paddingx, pady=paddingy)
 
         col_num = col_num + 1
@@ -300,16 +313,32 @@ class AHRSConsole(tk.Frame):
         # Controls
         lf = tk.LabelFrame(self, text="AHRS Settings")
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
+
+        #tk.Radiobutton(lf, text="Algorithm", command=self.AHRSAlgorithmSelect, textvariable=self.AHRSalgorithm).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+
+        #row_num = row_num + 1
+        #lf2 = tk.LabelFrame(self, text="Algorithm")
+        #lf2.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
+
+        tk.Label(lf, text="Algorithm").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Radiobutton(lf, text="Mahony", command=self.AHRSAlgorithmSelect, variable=self.AHRSalgorithm, value=0).grid(column=1, row=row_num)
+        tk.Radiobutton(lf, text="Madgwick", command=self.AHRSAlgorithmSelect, variable=self.AHRSalgorithm, value=1).grid(column=2, row=row_num)
+
+        row_num = row_num + 1
         tk.Label(lf, text="Proportional Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.proportionalGain, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.proportionalGainSelect, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         row_num = row_num + 1
         tk.Label(lf, text="Integral Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.integralGain, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.integralGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         row_num = row_num + 1
         tk.Label(lf, text="Sample Frequency").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.sampleFrequency, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.sampleFrequencySelect, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+
+        row_num = row_num + 1
+        tk.Label(lf, text="Beta Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.betaGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.betaGain).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         col_num = 0
         row_num = row_num + 1
@@ -342,63 +371,86 @@ class AHRSConsole(tk.Frame):
         self.createWidgetPlot(data_row_num, col_num, row_span)
 
     def magnetometerStabilityButton(self):
-        self.writeCmdStr('IMU_MAGNETOMETER_STABILITY_TOGGLE')
-
-    def proportionalGain(self):
-        print("Proportional Gain %f" % ( self.twoKp.get()) )
-        if self.twoKpSave < self.twoKp.get():
-            # Send up
-            print("Prop Gain Up from %f" % ( self.twoKpSave) )
-            self.writeCmdStr('IMU_AHRS_PROP_GAIN_UP')
-            self.twoKpSave = self.twoKpSave + 0.1
+        if not self.connected.get():
+            print("Not connected to AHRS")
         else:
-            # Send down
-            print("Prop Gain Down from %f" % ( self.twoKpSave) )
-            self.writeCmdStr('IMU_AHRS_PROP_GAIN_DOWN')
-            self.twoKpSave = self.twoKpSave - 0.1
-        print("twoKp = %f" % ( self.twoKpSave ))
+            self.writeCmdStr('IMU_MAGNETOMETER_STABILITY_TOGGLE')
 
-    def integralGain(self):
-        print("Integral Gain %f" % ( self.twoKi.get()) )
-        if self.twoKiSave < self.twoKi.get():
-            # Send up
-            print("Integral Gain Up from %f" % ( self.twoKiSave) )
-            self.writeCmdStr('IMU_AHRS_INTEG_GAIN_UP')
-            self.twoKiSave = self.twoKiSave + 0.1
+    def proportionalGainSelect(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
         else:
-            # Send down
-            print("Integral Gain Down from %f" % ( self.twoKiSave) )
-            self.writeCmdStr('IMU_AHRS_INTEG_GAIN_DOWN')
-            self.twoKiSave = self.twoKiSave - 0.1
-        print("twoKi = %f" % ( self.twoKiSave ))
+            print("Proportional Gain %f" % ( self.twoKp.get()) )
+            if self.twoKpClient < self.twoKp.get():
+                # Send up
+                print("Prop Gain Up from %f" % ( self.twoKpClient) )
+                self.writeCmdStr('IMU_AHRS_PROP_GAIN_UP')
+            elif self.twoKpClient > self.twoKp.get():
+                # Send down
+                print("Prop Gain Down from %f" % ( self.twoKpClient) )
+                self.writeCmdStr('IMU_AHRS_PROP_GAIN_DOWN')
 
-    def sampleFrequency(self):
-        print("Sample Frequency %f" % ( self.sampleFreq.get()) )
-        if self.sampleFreqSave < self.sampleFreq.get():
-            # Send up
-            print("Sample Frequency Up from %f" % ( self.sampleFreqSave ) )
-            self.writeCmdStr('IMU_AHRS_SAMPLE_FREQ_UP')
-            self.sampleFreqSave = self.sampleFreqSave + 32.0
+    def integralGainSelect(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
         else:
-            # Send down
-            print("Sample Frequency Down from %f" % ( self.sampleFreqSave) )
-            self.writeCmdStr('IMU_AHRS_SAMPLE_FREQ_DOWN')
-            self.sampleFreqSave = self.sampleFreqSave - 32.0
-        print("sampleFreq = %f" % ( self.sampleFreqSave ))
+            print("Integral Gain %f" % ( self.twoKi.get()) )
+            if self.twoKiClient < self.twoKi.get():
+                # Send up
+                print("Integral Gain Up from %f" % ( self.twoKiClient) )
+                self.writeCmdStr('IMU_AHRS_INTEG_GAIN_UP')
+            elif self.twoKiClient > self.twoKi.get():
+                # Send down
+                print("Integral Gain Down from %f" % ( self.twoKiClient) )
+                self.writeCmdStr('IMU_AHRS_INTEG_GAIN_DOWN')
 
-    def gyroSensitivity(self):
-        print("Gyroscope Sensitivity %d" % ( self.gyroSens.get()) )
-        if self.gyroSensSave < self.gyroSens.get():
-            # Send up
-            print("Gyroscope Sensitivity Up from %f" % ( self.gyroSensSave ) )
-            self.writeCmdStr('IMU_GYROSCOPE_SENSITIVITY_UP')
-            self.gyroSensSave = self.gyroSensSave + 1
+    def sampleFrequencySelect(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
         else:
-            # Send down
-            print("Gyroscope Sensitivity Down from %f" % ( self.gyroSensSave ) )
-            self.writeCmdStr('IMU_GYROSCOPE_SENSITIVITY_DOWN')
-            self.gyroSensSave = self.gyroSensSave - 1
-        print("gyroSens = %d" % ( self.gyroSensSave ))
+            print("Sample Frequency %f" % ( self.sampleFreq.get()) )
+            if self.sampleFreqClient < self.sampleFreq.get():
+                # Send up
+                print("Sample Frequency Up from %f" % ( self.sampleFreqClient ) )
+                self.writeCmdStr('IMU_AHRS_SAMPLE_FREQ_UP')
+            elif self.sampleFreqClient > self.sampleFreq.get():
+                # Send down
+                print("Sample Frequency Down from %f" % ( self.sampleFreqClient) )
+                self.writeCmdStr('IMU_AHRS_SAMPLE_FREQ_DOWN')
+
+    def gyroSensitivitySelect(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            print("Gyroscope Sensitivity %d" % ( self.gyroSens.get()) )
+            if self.gyroSensClient < self.gyroSens.get():
+                # Send up
+                print("Gyroscope Sensitivity Up from %f" % ( self.gyroSensClient ) )
+                self.writeCmdStr('IMU_GYROSCOPE_SENSITIVITY_UP')
+            elif self.gyroSensClient > self.gyroSens.get():
+                # Send down
+                print("Gyroscope Sensitivity Down from %f" % ( self.gyroSensClient ) )
+                self.writeCmdStr('IMU_GYROSCOPE_SENSITIVITY_DOWN')
+
+    def betaGainSelect(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            print("Beta Gain %f" % ( self.betaGain.get()) )
+            if self.betaGainClient < self.betaGain.get():
+                # Send up
+                print("Beta Gain Up from %f" % ( self.betaGainClient) )
+                self.writeCmdStr('IMU_AHRS_BETA_GAIN_UP')
+            elif self.betaGainClient > self.betaGain.get():
+                # Send down
+                print("Beta Gain Down from %f" % ( self.betaGainClient) )
+                self.writeCmdStr('IMU_AHRS_BETA_GAIN_DOWN')
+
+    def AHRSAlgorithmSelect(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        elif self.AHRSalgorithmClient != self.AHRSalgorithm.get():
+            self.writeCmdStr('IMU_AHRS_ALGORITHM_TOGGLE')
 
     def calibrateResetButton(self):
         print("Calibrate Reset")
