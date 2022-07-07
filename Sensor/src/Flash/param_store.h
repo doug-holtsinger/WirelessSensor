@@ -85,8 +85,6 @@ public:
         fds_record_desc_t desc = {0};
         fds_find_token_t  tok  = {0};
 
-        NRF_LOG_INFO("Finding Flash Record");
-
         rc = fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &tok);
 
         if (rc == NRF_SUCCESS)
@@ -112,8 +110,6 @@ public:
             {
                 APP_ERROR_CHECK(rc);
             }
-
-            NRF_LOG_INFO("Updating Flash Done");
         } else 
 	{
             APP_ERROR_CHECK(rc);
@@ -143,8 +139,6 @@ public:
         rc = fds_init();
         APP_ERROR_CHECK(rc);
 
-        NRF_LOG_INFO("Initializing Flash Done");
-
         rc = fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &tok);
         if (rc == NRF_SUCCESS)
         {
@@ -163,8 +157,6 @@ public:
             /* Close the record when done reading. */
             rc = fds_record_close(&desc);
             APP_ERROR_CHECK(rc);
-
-            NRF_LOG_INFO("Reading Flash Record Done");
 
         }
         else
@@ -190,8 +182,6 @@ public:
             {
                 APP_ERROR_CHECK(rc);
             }
-
-            NRF_LOG_INFO("Writing Flash Record Done");
 
         }
     }

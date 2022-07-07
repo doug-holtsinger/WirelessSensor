@@ -4,7 +4,12 @@
 
 #include "bsp.h"
 #include "imu.h"
+#include "imu_cal.h"
+#include "imu_cmd.h"
+#include "AHRS.h"
 #include "MahonyAHRS.h"
+#include "MadgwickAHRS.h"
+#include "notify.h"
 #include "ble_svcs_cmd.h"
 #include "ble_svcs.h"
 
@@ -16,10 +21,6 @@
 
 #include "app_config.h"
 #include "param_store.h"
-#include "imu_cal.h"
-
-#define IMU_PRINT_STR_MAX_LEN (size_t)256
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,17 +45,19 @@ void IMU::init(void)
     dev_i2c = new TwoWire();
     sensor_init();
     reset_calibration();
+    // Initialize AHRS algorithm
+    AHRSptr = new MahonyAHRS();
     // Initialize param storage device
     param_store.init(&cp);
     // Read parameters from storage and initialize local copy
     imu_cal_params = param_store.get();
-    params_print(imu_cal_params);
+    // params_print(imu_cal_params);
     init_params(imu_cal_params);
 }
 
 void IMU::params_save()
 {
-    params_print(cp);
+    // params_print(cp);
     param_store.set(&cp);
 }
 
@@ -143,8 +146,8 @@ void IMU::send_client_data(char *p)
 #endif
 #ifdef SERIAL_CONSOLE_AVAILABLE
     {
-        char s[IMU_PRINT_STR_MAX_LEN];
-        snprintf(s, IMU_PRINT_STR_MAX_LEN, "%s\r\n", p);
+        char s[NOTIFY_PRINT_STR_MAX_LEN];
+        snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%s\r\n", p);
         puts(s);
     }
 #endif
@@ -300,7 +303,7 @@ void IMU::get_angles(float& o_roll, float& o_pitch, float& o_yaw)
     o_yaw = yaw;
 }
 
-void IMU::AHRS()
+void IMU::AHRSCompute()
 {
     if (sensor_select == IMU_AHRS)
     {
@@ -337,8 +340,8 @@ void IMU::AHRS()
 	{
             mx = 400.0f; my = 0.0f ; mz = 0.0f;
 	}
-        MahonyAHRSupdate(gx, gy, gz, ax, ay, az, mx, my, mz);
-        MahonyAHRSComputeAngles(roll, pitch, yaw);
+        AHRSptr->Update(gx, gy, gz, ax, ay, az, mx, my, mz);
+        AHRSptr->ComputeAngles(roll, pitch, yaw);
 	if (fixed_data)
 	{
 		roll = 45.0;
@@ -351,7 +354,7 @@ void IMU::AHRS()
 
 void IMU::send_all_client_data()
 {
-    char s[IMU_PRINT_STR_MAX_LEN];
+    char s[NOTIFY_PRINT_STR_MAX_LEN];
 
 #if defined(BLE_CONSOLE_AVAILABLE) && !defined(SERIAL_CONSOLE_AVAILABLE)
     // Check if BLE connected, otherwise return.
@@ -362,14 +365,11 @@ void IMU::send_all_client_data()
 
 
     // Euler Angles
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , EULER_ANGLES, PRINTF_FLOAT_VALUE(roll), PRINTF_FLOAT_VALUE(pitch), PRINTF_FLOAT_VALUE(yaw));
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , EULER_ANGLES, PRINTF_FLOAT_VALUE(roll), PRINTF_FLOAT_VALUE(pitch), PRINTF_FLOAT_VALUE(yaw));
     send_client_data(s);
 
     // Accelerometer
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 , ACCELEROMETER_NORMAL, PRINTF_FLOAT_VALUE2(axN), PRINTF_FLOAT_VALUE2(ayN), PRINTF_FLOAT_VALUE2(azN) );
-    send_client_data(s);
-
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
              ACCELEROMETER_CAL,
             (int)accelerometer_cal[0],
             (int)accelerometer_cal[1],
@@ -377,7 +377,7 @@ void IMU::send_all_client_data()
             );
     send_client_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
              ACCELEROMETER_UNCAL,
             (int)accelerometer_uncal[0],
             (int)accelerometer_uncal[1],
@@ -385,7 +385,7 @@ void IMU::send_all_client_data()
             );
     send_client_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
              ACCELEROMETER_MIN_THRESHOLD,
             (int)cp.accelerometer_min_threshold[0],
             (int)cp.accelerometer_min_threshold[1],
@@ -394,10 +394,7 @@ void IMU::send_all_client_data()
     send_client_data(s);
 
     // Gyroscope
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 , GYROSCOPE_NORMAL, PRINTF_FLOAT_VALUE2(gxN), PRINTF_FLOAT_VALUE2(gyN), PRINTF_FLOAT_VALUE2(gzN) );
-    send_client_data(s);
-
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 ,
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 ,
             GYROSCOPE_CAL,
             PRINTF_FLOAT_VALUE2(gyroscope_cal[0]),
             PRINTF_FLOAT_VALUE2(gyroscope_cal[1]),
@@ -405,7 +402,7 @@ void IMU::send_all_client_data()
         );
     send_client_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
             GYROSCOPE_UNCAL,
             (int)gyroscope_uncal[0],
             (int)gyroscope_uncal[1],
@@ -413,7 +410,7 @@ void IMU::send_all_client_data()
             );
     send_client_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT ,
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT ,
             GYROSCOPE_MIN_THRESHOLD,
             PRINTF_FLOAT_VALUE(cp.gyroscope_min_threshold[0]),
             PRINTF_FLOAT_VALUE(cp.gyroscope_min_threshold[1]),
@@ -421,11 +418,14 @@ void IMU::send_all_client_data()
         );
     send_client_data(s);
 
-    // Magnetometer
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 , MAGNETOMETER_NORMAL, PRINTF_FLOAT_VALUE2(mxN), PRINTF_FLOAT_VALUE2(myN), PRINTF_FLOAT_VALUE2(mzN) );
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %d",
+            GYRO_SENSITIVITY,
+            (int)gyroscope_sensitivity
+            );
     send_client_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
+    // Magnetometer
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
             MAGNETOMETER_CAL,
             (int)magnetometer_cal[0],
             (int)magnetometer_cal[1],
@@ -433,7 +433,7 @@ void IMU::send_all_client_data()
             );
     send_client_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
             MAGNETOMETER_UNCAL,
             (int)magnetometer_uncal[0],
             (int)magnetometer_uncal[1],
@@ -441,7 +441,7 @@ void IMU::send_all_client_data()
             );
     send_client_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %04d %04d %04d",
             MAGNETOMETER_MIN_THRESHOLD,
             (int)cp.magnetometer_min_threshold[0],
             (int)cp.magnetometer_min_threshold[1],
@@ -449,42 +449,17 @@ void IMU::send_all_client_data()
             );
     send_client_data(s);
 
-    // Quaternion
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , QUATERNION_Q0, PRINTF_FLOAT_VALUE2(q0X) );
-    send_client_data(s);
-
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , QUATERNION_Q1, PRINTF_FLOAT_VALUE2(q1X) );
-    send_client_data(s);
-
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , QUATERNION_Q2, PRINTF_FLOAT_VALUE2(q2X) );
-    send_client_data(s);
-
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , QUATERNION_Q3, PRINTF_FLOAT_VALUE2(q3X) );
-    send_client_data(s);
-
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %d",
-            GYRO_SENSITIVITY,
-            (int)gyroscope_sensitivity
-            );
-    send_client_data(s);
-
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d %d",
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %d",
             MAGNETOMETER_STABILITY,
-            (int)magnetometer_stability
+            static_cast<int>(magnetometer_stability)
             );
     send_client_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , PROP_GAIN, PRINTF_FLOAT_VALUE2(twoKp) );
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %d", AHRS_ALGORITHM, static_cast<int>(AHRSalgorithm));
     send_client_data(s);
 
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , INTEG_GAIN, PRINTF_FLOAT_VALUE2(twoKi) );
-    send_client_data(s);
-
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , SAMPLE_FREQ, PRINTF_FLOAT_VALUE2(sampleFreq) );
-    send_client_data(s);
-
-    snprintf(s, IMU_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , ALGORITHM, PRINTF_FLOAT_VALUE2(AHRSalgorithm) );
-    send_client_data(s);
+    // AHRS sends data to client
+    AHRSptr->send_all_client_data();
 
 }
 
@@ -537,7 +512,7 @@ void IMU::update()
             calibrate_magnetometer();
         }
         calibrate_data();
-        AHRS();
+        AHRSCompute();
     }
 
 }
@@ -556,7 +531,7 @@ void IMU::sensor_init(void)
     Magneto->Enable();
 }
 
-void IMU::cmd(IMU_CMD_t& cmd)
+void IMU::cmd(const IMU_CMD_t cmd)
 {
     switch (cmd)
     {
@@ -631,24 +606,6 @@ void IMU::cmd(IMU_CMD_t& cmd)
         case IMU_SENSOR_DATA_FIXED_TOGGLE:
 	    fixed_data = !fixed_data;
 	    break;
-        case IMU_AHRS_PROP_GAIN_UP:
-            twoKp += 0.1f;
-            break;
-        case IMU_AHRS_PROP_GAIN_DOWN:
-            twoKp -= 0.1f;
-            break;
-        case IMU_AHRS_INTEG_GAIN_UP:
-            twoKi += 0.1f;
-            break;
-        case IMU_AHRS_INTEG_GAIN_DOWN:
-            twoKi -= 0.1f;
-            break;
-        case IMU_AHRS_SAMPLE_FREQ_UP:
-            sampleFreq += 32.0f;
-            break;
-        case IMU_AHRS_SAMPLE_FREQ_DOWN:
-            sampleFreq -= 32.0f;
-            break;
         case IMU_GYROSCOPE_SENSITIVITY_UP:
             gyroscope_sensitivity++;
             break;
@@ -657,6 +614,30 @@ void IMU::cmd(IMU_CMD_t& cmd)
             break;
         case IMU_MAGNETOMETER_STABILITY_TOGGLE:
             magnetometer_stability = !magnetometer_stability; 
+            break;
+	case IMU_AHRS_ALGORITHM_TOGGLE:
+            if (AHRSalgorithm == AHRS_MAHONY)
+	    {
+		AHRSptr->~AHRS();
+                AHRSptr = new MadgwickAHRS();
+                AHRSalgorithm = AHRS_MADGWICH;
+	    } else 
+	    {
+		AHRSptr->~AHRS();
+                AHRSptr = new MahonyAHRS();
+                AHRSalgorithm = AHRS_MAHONY;
+	    }
+            break;
+        case IMU_AHRS_PROP_GAIN_UP:
+        case IMU_AHRS_PROP_GAIN_DOWN:
+        case IMU_AHRS_INTEG_GAIN_UP:
+        case IMU_AHRS_INTEG_GAIN_DOWN:
+        case IMU_AHRS_SAMPLE_FREQ_UP:
+        case IMU_AHRS_SAMPLE_FREQ_DOWN:
+        case IMU_AHRS_BETA_GAIN_UP:
+        case IMU_AHRS_BETA_GAIN_DOWN:
+	    // Fall through
+	    AHRSptr->cmd(cmd);
             break;
         default: break;
     }

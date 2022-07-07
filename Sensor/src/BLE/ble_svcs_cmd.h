@@ -13,13 +13,4 @@ typedef enum
     BLE_MANUFACT_DATA_TOGGLE
 } BLE_CMD_t;
 
-#if 0
-typedef enum
-{
-        ROLL_ANGLE,
-        PITCH_ANGLE,
-        YAW_ANGLE
-} EULER_ANGLE_t;
-#endif
-
 #endif

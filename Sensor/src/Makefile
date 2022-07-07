@@ -28,6 +28,9 @@ $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
 SRC_FILES += \
   $(PROJ_DIR)/main.cpp \
   $(PROJ_DIR)/TwoWire.cpp \
+  $(AHRS_SRC_DIR)/AHRS.cpp \
+  $(AHRS_SRC_DIR)/MahonyAHRS.cpp \
+  $(AHRS_SRC_DIR)/MadgwickAHRS.cpp \
   $(IMU_SRC_DIR)/imu.cpp \
   $(BLE_SRC_DIR)/ble_svcs.cpp \
   $(FLASH_SRC_DIR)/param_store.cpp \
@@ -35,7 +38,6 @@ SRC_FILES += \
   $(LSM6DS3_SRC_DIR)/LSM6DS3Sensor.cpp \
   $(LIS3MDL_SRC_DIR)/LIS3MDL_MAG_Driver.c \
   $(LIS3MDL_SRC_DIR)/LIS3MDLSensor.cpp \
-  $(AHRS_SRC_DIR)/MahonyAHRS.cpp \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52840.S \
   $(SDK_ROOT)/components/libraries/bsp/bsp.c \
   $(SDK_ROOT)/components/libraries/bsp/bsp_btn_ble.c \
