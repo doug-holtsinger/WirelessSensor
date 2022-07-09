@@ -76,7 +76,7 @@ class IMU {
         bool show_pitch = false;
         bool show_yaw   = false;
         bool show_roll  = false;
-        unsigned int ideal_data[3] = { 0, 0, 0 };
+        bool ideal_data[3] = { false, false, false };
         bool zero_data[3] = { false, false, false };
 	bool fixed_data = false;
 

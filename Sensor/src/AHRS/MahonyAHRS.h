@@ -38,8 +38,6 @@ private:
 
     float integralFBx = 0.0f,  integralFBy = 0.0f, integralFBz = 0.0f;    // integral error terms scaled by Ki
 
-    unsigned int ideal_data[3];
-
 };
 
 #endif

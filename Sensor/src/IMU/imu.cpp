@@ -46,7 +46,13 @@ void IMU::init(void)
     sensor_init();
     reset_calibration();
     // Initialize AHRS algorithm
-    AHRSptr = new MahonyAHRS();
+    if (AHRSalgorithm == AHRS_MAHONY)
+    {
+        AHRSptr = new MahonyAHRS();
+    } else 
+    {
+        AHRSptr = new MadgwickAHRS();
+    }
     // Initialize param storage device
     param_store.init(&cp);
     // Read parameters from storage and initialize local copy
@@ -90,7 +96,7 @@ void IMU::init_params(imu_calibration_params_t params)
     for (int i = 0 ; i < 3 ; i++)
     {
         cp.magnetometer_min[i] = params.magnetometer_min[i];
-	cp.magnetometer_max[i] = params.magnetometer_max[i];
+        cp.magnetometer_max[i] = params.magnetometer_max[i];
         cp.magnetometer_min_threshold[i] = params.magnetometer_min_threshold[i];
         cp.magnetometer_uncal_last[i] = params.magnetometer_uncal_last[i];
     }
@@ -116,7 +122,7 @@ void IMU::get_params(imu_calibration_params_t& params)
     for (int i = 0 ; i < 3 ; i++)
     {
         params.magnetometer_min[i] = cp.magnetometer_min[i];
-	params.magnetometer_max[i] = cp.magnetometer_max[i];
+        params.magnetometer_max[i] = cp.magnetometer_max[i];
         params.magnetometer_min_threshold[i] = cp.magnetometer_min_threshold[i];
         params.magnetometer_uncal_last[i] = cp.magnetometer_uncal_last[i];
     }
@@ -328,26 +334,26 @@ void IMU::AHRSCompute()
         {
             mz = my = mx = 0.0f;
         }
-	if (ideal_data[0])
-	{
+        if (ideal_data[0])
+        {
             ax = 1000.0f; ay = 0.0f ; az = 0.0f;
-	}
-	if (ideal_data[1])
-	{
+        }
+        if (ideal_data[1])
+        {
             gx = 0.0f; gy = 0.0f ; gz = 0.0f;
-	}
-	if (ideal_data[2])
-	{
+        }
+        if (ideal_data[2])
+        {
             mx = 400.0f; my = 0.0f ; mz = 0.0f;
-	}
+        }
         AHRSptr->Update(gx, gy, gz, ax, ay, az, mx, my, mz);
         AHRSptr->ComputeAngles(roll, pitch, yaw);
-	if (fixed_data)
-	{
-		roll = 45.0;
-		pitch = 90.0;
-		yaw = 180.0;
-	}
+        if (fixed_data)
+        {
+               	roll = 45.0;
+                pitch = 90.0;
+                yaw = 180.0;
+        }
     }
 
 }
@@ -359,7 +365,7 @@ void IMU::send_all_client_data()
 #if defined(BLE_CONSOLE_AVAILABLE) && !defined(SERIAL_CONSOLE_AVAILABLE)
     // Check if BLE connected, otherwise return.
     if ( !ble_svcs_connected() ) {
-	    return;
+            return;
     }
 #endif
 
@@ -555,20 +561,20 @@ void IMU::cmd(const IMU_CMD_t cmd)
             break;
         case IMU_SENSOR_CALIBRATE_NORMALIZED:
             calibrate_enable = IMU_CALIBRATE_DISABLED; 
-	    break;
+            break;
         case IMU_SENSOR_CALIBRATE_ZERO_OFFSET:
             calibrate_enable = IMU_CALIBRATE_ZERO_OFFSET; 
-	    break;
+            break;
         case IMU_SENSOR_CALIBRATE_MAGNETOMETER:
             calibrate_enable = IMU_CALIBRATE_MAGNETOMETER; 
-	    break;
+            break;
         case IMU_SENSOR_CALIBRATE_RESET:
             // reset calibration values
             calibrate_reset = true;
             calibrate_enable = IMU_CALIBRATE_DISABLED;
             break;
         case IMU_SENSOR_CALIBRATE_SAVE:
-	    params_save();
+            params_save();
             break;
         case IMU_AHRS_YAW_TOGGLE:
             show_yaw = !show_yaw;
@@ -581,7 +587,7 @@ void IMU::cmd(const IMU_CMD_t cmd)
             break;
         case IMU_SENSOR_DATA_ZERO:
             if (sensor_select == IMU_GYROSCOPE)
-	    {
+            {
                 zero_data[1] = !zero_data[1];
             } else if (sensor_select == IMU_ACCELEROMETER)
             {
@@ -594,18 +600,18 @@ void IMU::cmd(const IMU_CMD_t cmd)
         case IMU_SENSOR_DATA_IDEAL:
             if (sensor_select == IMU_GYROSCOPE)
             {
-                ideal_data[1] = ideal_data[1] ? 0 : 1;
+                ideal_data[1] = !ideal_data[1];
             } else if (sensor_select == IMU_ACCELEROMETER)
             {
-                ideal_data[0] = ideal_data[0] ? 0 : 1;
+                ideal_data[0] = !ideal_data[0];
             } else if (sensor_select == IMU_MAGNETOMETER)
             {
-                ideal_data[2] = ideal_data[2] ? 0 : 1;
+                ideal_data[2] = !ideal_data[2];
             }
             break;
         case IMU_SENSOR_DATA_FIXED_TOGGLE:
-	    fixed_data = !fixed_data;
-	    break;
+            fixed_data = !fixed_data;
+            break;
         case IMU_GYROSCOPE_SENSITIVITY_UP:
             gyroscope_sensitivity++;
             break;
@@ -615,18 +621,18 @@ void IMU::cmd(const IMU_CMD_t cmd)
         case IMU_MAGNETOMETER_STABILITY_TOGGLE:
             magnetometer_stability = !magnetometer_stability; 
             break;
-	case IMU_AHRS_ALGORITHM_TOGGLE:
+        case IMU_AHRS_ALGORITHM_TOGGLE:
             if (AHRSalgorithm == AHRS_MAHONY)
-	    {
-		AHRSptr->~AHRS();
+            {
+                AHRSptr->~AHRS();
                 AHRSptr = new MadgwickAHRS();
                 AHRSalgorithm = AHRS_MADGWICH;
-	    } else 
-	    {
-		AHRSptr->~AHRS();
+            } else 
+            {
+                AHRSptr->~AHRS();
                 AHRSptr = new MahonyAHRS();
                 AHRSalgorithm = AHRS_MAHONY;
-	    }
+            }
             break;
         case IMU_AHRS_PROP_GAIN_UP:
         case IMU_AHRS_PROP_GAIN_DOWN:
@@ -636,8 +642,8 @@ void IMU::cmd(const IMU_CMD_t cmd)
         case IMU_AHRS_SAMPLE_FREQ_DOWN:
         case IMU_AHRS_BETA_GAIN_UP:
         case IMU_AHRS_BETA_GAIN_DOWN:
-	    // Fall through
-	    AHRSptr->cmd(cmd);
+            // Fall through
+            AHRSptr->cmd(cmd);
             break;
         default: break;
     }

@@ -121,10 +121,6 @@ void MahonyAHRS::Update(float gx, float gy, float gz, float ax, float ay, float 
         ax *= recipNorm;
         ay *= recipNorm;
         az *= recipNorm;     
-	if (ideal_data[0])
-        {
-            ax = 1.0f; ay = 0.0f ; az = 0.0f;
-        }
 	axN = ax;
 	ayN = ay;
 	azN = az;
@@ -134,10 +130,6 @@ void MahonyAHRS::Update(float gx, float gy, float gz, float ax, float ay, float 
         mx *= recipNorm;
         my *= recipNorm;
         mz *= recipNorm;   
-	if (ideal_data[2])
-        {
-            mx = 1.0f; my = 0.0f ; mz = 0.0f;
-        }
 	mxN = mx;
 	myN = my;
 	mzN = mz;
@@ -172,11 +164,6 @@ void MahonyAHRS::Update(float gx, float gy, float gz, float ax, float ay, float 
         halfex = (ay * halfvz - az * halfvy) + (my * halfwz - mz * halfwy);
         halfey = (az * halfvx - ax * halfvz) + (mz * halfwx - mx * halfwz);
         halfez = (ax * halfvy - ay * halfvx) + (mx * halfwy - my * halfwx);
-
-	if (ideal_data[1])
-        {
-            gx = 0.0f; gy = 0.0f ; gz = 0.0f;
-        }
 
         // Compute and apply integral feedback if enabled
         if(twoKi > 0.0f) {
