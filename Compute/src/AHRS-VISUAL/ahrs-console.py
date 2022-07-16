@@ -137,10 +137,10 @@ class AHRSConsole(tk.Frame):
 
         self.commandDict = dict() 
         self.commandDict['IMU_NOCMD'] = 0
-        self.commandDict['IMU_PRINT_MAGNETOMETER'] = 1
-        self.commandDict['IMU_PRINT_GYROSCOPE'] = 2
-        self.commandDict['IMU_PRINT_ACCELEROMETER'] = 3
-        self.commandDict['IMU_PRINT_AHRS'] = 4
+        self.commandDict['IMU_SELECT_MAGNETOMETER'] = 1
+        self.commandDict['IMU_SELECT_GYROSCOPE'] = 2
+        self.commandDict['IMU_SELECT_ACCELEROMETER'] = 3
+        self.commandDict['IMU_SELECT_AHRS'] = 4
         self.commandDict['IMU_SENSOR_CALIBRATE_NORMALIZED'] = 5
         self.commandDict['IMU_SENSOR_CALIBRATE_ZERO_OFFSET'] = 6
         self.commandDict['IMU_SENSOR_CALIBRATE_MAGNETOMETER'] = 7
@@ -151,7 +151,7 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_AHRS_PITCH_TOGGLE'] = 12
         self.commandDict['IMU_AHRS_ROLL_TOGGLE'] = 13
         self.commandDict['IMU_SENSOR_DATA_ZERO'] = 14 
-        self.commandDict['IMU_SENSOR_DATA_IDEAL'] = 15 
+        self.commandDict['IMU_SENSOR_DATA_IDEAL_TOGGLE'] = 15 
         self.commandDict['IMU_SENSOR_DATA_FIXED_TOGGLE'] = 16
         self.commandDict['IMU_AHRS_PROP_GAIN_UP'] = 17
         self.commandDict['IMU_AHRS_PROP_GAIN_DOWN'] = 18
@@ -191,35 +191,42 @@ class AHRSConsole(tk.Frame):
             gidx = 0
             for gi in range(3):
                 self.data_group[gidx].setData(gi, data[gi])
-        elif idx <= 16:
-            # Accelerometer, Gyroscope, Magnetometer, Quaternion
+        elif idx <= 12:
+            # Accelerometer, Magnetometer, Quaternion
+            # gidx 1 to 3
             gidx = int((idx + 3) / 4)
+            # gi 0 to 3
             gi = (idx + 3) & 0x3
             self.data_group[gidx].setData(gi, data)
-        elif idx == 17:
+        elif idx <= 18:
+            # Gyroscope
+            gidx = 4
+            gi = idx - 13
+            self.data_group[gidx].setData(gi, data)
+        elif idx == 19:
             # Gyro sensitivity
             self.gyroSens.set(data[0])
             self.gyroSensClient = int(data[0])
-        elif idx == 18:
+        elif idx == 20:
             # Magnetometer stability
             self.magnetometerStability.set(data[0]) 
-        elif idx == 19:
+        elif idx == 21:
             # prop gain 
             self.twoKp.set(data[0])
             self.twoKpClient = float(data[0])
-        elif idx == 20:
+        elif idx == 22:
             # integral gain 
             self.twoKi.set(data[0])
             self.twoKiClient = float(data[0])
-        elif idx == 21:
+        elif idx == 23:
             # sample frequency
             self.sampleFreq.set(data[0])
             self.sampleFreqClient = float(data[0])
-        elif idx == 22:
+        elif idx == 24:
             # AHRS algorithm
             self.AHRSalgorithm.set(data[0])
             self.AHRSalgorithmClient = int(data[0])
-        elif idx == 23:
+        elif idx == 25:
             # Beta gain 
             self.betaGain.set(data[0]) 
             self.betaGainClient = float(data[0])
@@ -343,25 +350,21 @@ class AHRSConsole(tk.Frame):
         col_num = 0
         row_num = row_num + 1
 
-        # 3,0
         # Accelerometer Data
         self.data_group.append(AHRSDataFrame(self, "Accelerometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, row_num, col_num))
 
-        # 3,1
-        # Gyroscope Data
-        col_num = col_num + 1
-        self.data_group.append(AHRSDataFrame(self, "Gyroscope", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, row_num, col_num))
-
-        # 4,0
         # Magnetometer Data
-        row_num = row_num + 1
-        col_num = 0
+        col_num = col_num + 1
         self.data_group.append(AHRSDataFrame(self, "Magnetometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, row_num, col_num))
 
-        # 4,1
         # Quaternion Data
-        col_num = col_num + 1
+        row_num = row_num + 1
+        col_num = 0
         self.data_group.append(AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, row_num, col_num))
+
+        # Gyroscope Data
+        col_num = col_num + 1
+        self.data_group.append(AHRSDataFrame(self, "Gyroscope", ["Normalized X", "Normalized Y", "Normalized Z", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, row_num, col_num))
 
         last_ctrl_row_num = row_num
 
