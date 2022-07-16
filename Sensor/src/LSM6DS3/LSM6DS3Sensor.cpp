@@ -43,12 +43,16 @@
 #include "LSM6DS3Sensor.h"
 #include <string.h>
 
+// FIXME -- make these constants settable
 #define GYROSCOPE_FS     2000.0f
 #define GYROSCOPE_ODR    416.0f 
 
+// FIXME -- make these constants settable
 #define ACCELEROMETER_FS     2.0f
 #define ACCELEROMETER_ODR    416.0f 
 // original 104.0f;
+
+//FIXME -- allow setting of register LSM6DS3_ACC_GYRO_CTRL7_G
 
 /* Class Implementation ------------------------------------------------------*/
 

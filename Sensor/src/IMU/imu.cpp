@@ -311,51 +311,47 @@ void IMU::get_angles(float& o_roll, float& o_pitch, float& o_yaw)
 
 void IMU::AHRSCompute()
 {
-    if (sensor_select == IMU_AHRS)
+    gx = gyroscope_cal[0];
+    gy = gyroscope_cal[1];
+    gz = gyroscope_cal[2];
+    ax = (float)accelerometer_cal[0];
+    ay = (float)accelerometer_cal[1];
+    az = (float)accelerometer_cal[2];
+    mx = (float)magnetometer_cal[0];
+    my = (float)magnetometer_cal[1];
+    mz = (float)magnetometer_cal[2];
+    if (zero_data[1])
     {
-        gx = gyroscope_cal[0];
-        gy = gyroscope_cal[1];
-        gz = gyroscope_cal[2];
-        ax = (float)accelerometer_cal[0];
-        ay = (float)accelerometer_cal[1];
-        az = (float)accelerometer_cal[2];
-        mx = (float)magnetometer_cal[0];
-        my = (float)magnetometer_cal[1];
-        mz = (float)magnetometer_cal[2];
-        if (zero_data[1])
-        {
-            gz = gy = gx = 0.0f;
-        }
-        if (zero_data[0])
-        {
-            az = ay = ax = 0.0f;
-        }
-        if (zero_data[2])
-        {
-            mz = my = mx = 0.0f;
-        }
-        if (ideal_data[0])
-        {
-            ax = 1000.0f; ay = 0.0f ; az = 0.0f;
-        }
-        if (ideal_data[1])
-        {
-            gx = 0.0f; gy = 0.0f ; gz = 0.0f;
-        }
-        if (ideal_data[2])
-        {
-            mx = 400.0f; my = 0.0f ; mz = 0.0f;
-        }
-        AHRSptr->Update(gx, gy, gz, ax, ay, az, mx, my, mz);
-        AHRSptr->ComputeAngles(roll, pitch, yaw);
-        if (fixed_data)
-        {
-               	roll = 45.0;
-                pitch = 90.0;
-                yaw = 180.0;
-        }
+        gz = gy = gx = 0.0f;
     }
-
+    if (zero_data[0])
+    {
+        az = ay = ax = 0.0f;
+    }
+    if (zero_data[2])
+    {
+        mz = my = mx = 0.0f;
+    }
+    if (ideal_data[0])
+    {
+        ax = 1000.0f; ay = 0.0f ; az = 0.0f;
+    }
+    if (ideal_data[1])
+    {
+        gx = 0.0f; gy = 0.0f ; gz = 0.0f;
+    }
+    if (ideal_data[2])
+    {
+        mx = 400.0f; my = 0.0f ; mz = 0.0f;
+    }
+    AHRSptr->Update(gx, gy, gz, ax, ay, az, mx, my, mz);
+    AHRSptr->ComputeAngles(roll, pitch, yaw);
+    if (fixed_data)
+    {
+        roll = 45.0;
+        pitch = 90.0;
+        yaw = 180.0;
+    }
 }
 
 void IMU::send_all_client_data()
@@ -530,6 +526,7 @@ void IMU::sensor_init(void)
     AccGyr = new LSM6DS3Sensor(dev_i2c, TWI_ADDRESS_LSM6DS3);
     AccGyr->Enable_X();
     AccGyr->Enable_G();
+    // FIXME -- what to do here?
     // AccGyr->Enable_G_Filter(LSM6DS3_ACC_GYRO_HPCF_G_16Hz32);
     // AccGyr->Enable_6D_Orientation();
 
@@ -541,19 +538,19 @@ void IMU::cmd(const IMU_CMD_t cmd)
 {
     switch (cmd)
     {
-        case IMU_PRINT_MAGNETOMETER:
+        case IMU_SELECT_MAGNETOMETER:
             // magnetometer
             sensor_select = IMU_MAGNETOMETER;
             break;
-        case IMU_PRINT_GYROSCOPE:
+        case IMU_SELECT_GYROSCOPE:
             // gyro
             sensor_select = IMU_GYROSCOPE;
             break;
-        case IMU_PRINT_ACCELEROMETER:
+        case IMU_SELECT_ACCELEROMETER:
             // accelerometer
             sensor_select = IMU_ACCELEROMETER;
             break;
-        case IMU_PRINT_AHRS:
+        case IMU_SELECT_AHRS:
             sensor_select = IMU_AHRS;
             break;
         case IMU_AHRS_INPUT_TOGGLE:
@@ -597,7 +594,7 @@ void IMU::cmd(const IMU_CMD_t cmd)
                 zero_data[2] = !zero_data[2];
             }
             break;
-        case IMU_SENSOR_DATA_IDEAL:
+        case IMU_SENSOR_DATA_IDEAL_TOGGLE:
             if (sensor_select == IMU_GYROSCOPE)
             {
                 ideal_data[1] = !ideal_data[1];

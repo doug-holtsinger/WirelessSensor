@@ -53,6 +53,8 @@ GNU_VERSION := 9.2.1
 2. Type 'make'
 3. Install Nordic firmware onto board using nRF Connect for Desktop via USB or SEGGER debugger
 
+# Software Architecture
+
 # Operation of the AHRS Device
 
 ## Calibration and Control GUI on the Raspberry Pi
@@ -69,6 +71,8 @@ GNU_VERSION := 9.2.1
    - remove fixed constants
    - require less operator intervention to do calibration
    - Angles take a while to stabilize
+   - use magnetometer to calibrate gyroscope
+   - add support for setting hardware register configuration bits
 2. Fix singularity at North and South Poles, can't get to 90 degree pitch (gimbal lock)
 3. Fix Pitch sign reversal
 4. Further testing
@@ -90,4 +94,5 @@ components/libraries/fds/fds.h
 14. Develop Mechanical Test fixture to hold board and measure actual orientation to compare against calculated orientation.
 15. Improve Calibration and Control GUI
 16. Look at adding support for Visual Studio Code
-
+17. On Server side, look at adding support for Arduino
+18. On Client side, look at adding Android support

@@ -20,5 +20,11 @@
                            (int32_t)((((val) > 0) ? (val) - (int32_t)(val)       \
                                                 : (int32_t)(val) - (val))*100)
 
+#define PRINTF_FLOAT_FORMAT3 " %c%ld.%03ld"
+#define PRINTF_FLOAT_VALUE3(val) (uint8_t)(((val) < 0 && (val) > -1.0) ? '-' : ' '),   \
+                           (int32_t)(val),                                       \
+                           (int32_t)((((val) > 0) ? (val) - (int32_t)(val)       \
+                                                : (int32_t)(val) - (val))*1000)
+
 
 #endif

@@ -42,7 +42,11 @@ void AHRS::send_all_client_data()
     send_client_data(s);
 
     // Gyroscope
-    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMAT2 , GYROSCOPE_NORMAL, PRINTF_FLOAT_VALUE2(gxN), PRINTF_FLOAT_VALUE2(gyN), PRINTF_FLOAT_VALUE2(gzN) );
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT3 , GYROSCOPE_NORMAL_X, PRINTF_FLOAT_VALUE3(gxN) );
+    send_client_data(s);
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT3 , GYROSCOPE_NORMAL_Y, PRINTF_FLOAT_VALUE3(gyN) );
+    send_client_data(s);
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT3 , GYROSCOPE_NORMAL_Z, PRINTF_FLOAT_VALUE3(gzN) );
     send_client_data(s);
 
     // Magnetometer
