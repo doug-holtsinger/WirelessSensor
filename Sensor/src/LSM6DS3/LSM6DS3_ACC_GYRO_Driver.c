@@ -6343,6 +6343,20 @@ mems_status_t LSM6DS3_ACC_GYRO_Get_GetTimestamp(void *handle, u8_t *buff)
 }
 
 /*******************************************************************************
+* Function Name  : mems_status_t LSM6DS3_ACC_GYRO_Reset_Timestamp()
+* Description    : Reset Timestamp output register
+* Return         : Status [MEMS_ERROR, MEMS_SUCCESS]
+*******************************************************************************/
+mems_status_t LSM6DS3_ACC_GYRO_Reset_Timestamp(void *handle)
+{
+  u8_t value = RESET_TIMESTAMP_VALUE;
+  if( !LSM6DS3_ACC_GYRO_WriteReg(handle, LSM6DS3_ACC_GYRO_TIMESTAMP2_REG, &value, 1))
+    return MEMS_ERROR;
+
+  return MEMS_SUCCESS;
+}
+
+/*******************************************************************************
 * Function Name  : mems_status_t LSM6DS3_ACC_GYRO_Get_GetStepCounter(u8_t *buff)
 * Description    : Read GetStepCounter output register
 * Input          : pointer to [u8_t]

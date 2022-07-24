@@ -80,10 +80,6 @@ void MahonyAHRS::UpdateIMU(float gx, float gy, float gz, float ax, float ay, flo
     gx *= (0.5f * (1.0f / sampleFreq));    // pre-multiply common factors
     gy *= (0.5f * (1.0f / sampleFreq));
     gz *= (0.5f * (1.0f / sampleFreq));
-    // FIXME -- what are these gXN values?
-    gxN = gx;
-    gyN = gy;
-    gzN = gz;
     qa = q0;
     qb = q1;
     qc = q2;
@@ -195,6 +191,10 @@ void MahonyAHRS::Update(float gx, float gy, float gz, float ax, float ay, float 
     gy *= (0.5f * (1.0f / sampleFreq));
     gz *= (0.5f * (1.0f / sampleFreq));
 
+    // Save inputs into the quaternion calculation 
+    gxN = gx;
+    gyN = gy;
+    gzN = gz;
 
     qa = q0;
     qb = q1;

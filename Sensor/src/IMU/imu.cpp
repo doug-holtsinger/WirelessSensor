@@ -93,6 +93,8 @@ void IMU::params_print(imu_calibration_params_t& params)
 void IMU::init_params(imu_calibration_params_t params)
 {
     // FIXME -- reset AHRS settings, like gyro sensitivity, as well
+    cp.gyroscope_correction = params.gyroscope_correction;
+    cp.gyroscope_enabled = params.gyroscope_enabled;
     for (int i = 0 ; i < 3 ; i++)
     {
         cp.magnetometer_min[i] = params.magnetometer_min[i];
@@ -159,10 +161,44 @@ void IMU::send_client_data(char *p)
 #endif
 }
 
+void IMU::calibrate_gyroscope(void)
+{
+    uint32_t timer_diff;
+    float rotation_rate;
+
+    //
+    //  gyroscope calibration -- done while rotating in Z axis
+    //
+
+    timer_diff = timestamp - timestamp_prev;
+    if (timestamp_valid && timer_diff != 0 && timestamp_prev != 0)
+    {
+        // estimated rotation rate in milli-degrees per second
+	rotation_rate = (1000.0/timer_diff) * TIMER_TICKS_PER_SECOND * abs(yaw - yaw_last_cal); 
+        // Estimated rotation rate mdps = gyro uncal (mdps)  * Correction Factor (unitless)
+	if (gyroscope_cal_before_correction_abs[2] != 0)
+	{
+            float gyro_correct = rotation_rate / gyroscope_cal_before_correction_abs[2];
+	    //FIXME -- how to set this right?
+	    if (gyro_correct > 0.0 && gyro_correct < cp.gyroscope_correction)
+	    {
+                cp.gyroscope_correction = gyro_correct;
+	    }
+	}
+    }
+
+    if (timestamp_valid)
+    {
+        yaw_last_cal = yaw;
+        timestamp_prev = timestamp;
+    }
+
+}
+
 void IMU::calibrate_magnetometer(void)
 {
     //
-    //  magnetometer calibration -- done while moving
+    //  magnetometer calibration -- done while rotating in X / Y /  Z axis
     //
     for (int i = 0 ; i < 3 ; i++) {
         if (cp.magnetometer_min[i] == 0 && cp.magnetometer_max[i] == 0)
@@ -181,8 +217,7 @@ void IMU::calibrate_magnetometer(void)
 void IMU::calibrate_zero_offset(void)
 {
     uint32_t noise_threshold;
-    int32_t noise_threshold_i;
-    float noise_threshold_f;
+    uint32_t noise_threshold_i;
     int32_t accelerometer_bias;
 
     //
@@ -212,10 +247,10 @@ void IMU::calibrate_zero_offset(void)
         {
             cp.gyroscope_max[i] = gyroscope_uncal[i];
         }
-        noise_threshold_f = NOISE_THRESHOLD_MULTIPLIER * abs ( gyroscope_uncal[i] - ((cp.gyroscope_max[i] + cp.gyroscope_min[i]) / 2) ) / (float)(1ULL << gyroscope_sensitivity) ;
-        if (noise_threshold_f > cp.gyroscope_min_threshold[i])
+        noise_threshold_i = NOISE_THRESHOLD_MULTIPLIER * abs ( gyroscope_uncal[i] - ((cp.gyroscope_max[i] + cp.gyroscope_min[i]) / 2) ); 
+        if (noise_threshold_i > cp.gyroscope_min_threshold[i])
         {
-            cp.gyroscope_min_threshold[i] = noise_threshold_f;
+            cp.gyroscope_min_threshold[i] = noise_threshold_i;
         }
     }
 
@@ -272,7 +307,7 @@ void IMU::reset_calibration(void)
 
 void IMU::calibrate_data(void)
 {
-    int32_t magnetometer_diff = 0;
+    uint32_t magnetometer_diff = 0;
 
     // calibrate raw data values using zero offset and Min thresholds.
     for (int i = 0 ; i < 3 ; i++) {
@@ -281,12 +316,15 @@ void IMU::calibrate_data(void)
         {
             accelerometer_cal[i] = 0;
         }
-        gyroscope_cal[i] = ( gyroscope_uncal[i] - ((cp.gyroscope_max[i] + cp.gyroscope_min[i]) / 2) ) / (float)(1ULL << gyroscope_sensitivity) ;
-        if (gyroscope_cal[i] > -cp.gyroscope_min_threshold[i] &&
-            gyroscope_cal[i] < cp.gyroscope_min_threshold[i] )
+        gyroscope_cal_before_correction[i] = ( gyroscope_uncal[i] - ((cp.gyroscope_max[i] + cp.gyroscope_min[i]) / 2) );
+	gyroscope_cal_before_correction_abs[i] = abs(gyroscope_cal_before_correction[i]);
+        if ( gyroscope_cal_before_correction_abs[i] < cp.gyroscope_min_threshold[i] )
         {
             gyroscope_cal[i] = 0;
-        }
+        } else {
+	    // Convert from milldegrees per second to radians per second and apply correction factor.
+            gyroscope_cal[i] = gyroscope_cal_before_correction[i] * cp.gyroscope_correction / ( DEGREES_PER_RADIAN * MILLIDEGREES_PER_DEGREE);
+	}
 
         magnetometer_diff = abs(magnetometer_uncal[i] - cp.magnetometer_uncal_last[i]);
         if (magnetometer_stability && magnetometer_diff < cp.magnetometer_min_threshold[i])
@@ -311,9 +349,15 @@ void IMU::get_angles(float& o_roll, float& o_pitch, float& o_yaw)
 
 void IMU::AHRSCompute()
 {
-    gx = gyroscope_cal[0];
-    gy = gyroscope_cal[1];
-    gz = gyroscope_cal[2];
+    if (cp.gyroscope_enabled)
+    {
+        gx = gyroscope_cal[0];
+        gy = gyroscope_cal[1];
+        gz = gyroscope_cal[2];
+    } else
+    {
+        gx = gy = gz = 0.0f;
+    }
     ax = (float)accelerometer_cal[0];
     ay = (float)accelerometer_cal[1];
     az = (float)accelerometer_cal[2];
@@ -420,9 +464,9 @@ void IMU::send_all_client_data()
         );
     send_client_data(s);
 
-    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %d",
-            GYRO_SENSITIVITY,
-            (int)gyroscope_sensitivity
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT7 ,
+            GYRO_CORRECTION,
+            PRINTF_FLOAT_VALUE7(cp.gyroscope_correction)
             );
     send_client_data(s);
 
@@ -460,6 +504,9 @@ void IMU::send_all_client_data()
     snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %d", AHRS_ALGORITHM, static_cast<int>(AHRSalgorithm));
     send_client_data(s);
 
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %d", GYROSCOPE_ENABLE, cp.gyroscope_enabled ? 1 : 0); 
+    send_client_data(s);
+
     // AHRS sends data to client
     AHRSptr->send_all_client_data();
 
@@ -471,6 +518,8 @@ void IMU::update()
     LIS3MDLStatusTypeDef lis_err_code = LIS3MDL_STATUS_OK;
     uint8_t reg_data = 0;
     bool new_data_avail = false;
+
+    timestamp_valid = false;
 
     //
     // Read LSM6DS3
@@ -491,6 +540,12 @@ void IMU::update()
         new_data_avail = true;
         lsm_err_code = AccGyr->Get_G_Axes(gyroscope_uncal);
         APP_ERROR_CHECK(lsm_err_code);
+        if (calibrate_enable == IMU_CALIBRATE_GYROSCOPE)
+        {
+            lsm_err_code = AccGyr->Read_Timestamp(&timestamp);
+            APP_ERROR_CHECK(lsm_err_code);
+            timestamp_valid = true;
+        }
     }
 
     //
@@ -513,6 +568,10 @@ void IMU::update()
         {
             calibrate_magnetometer();
         }
+        if (calibrate_enable == IMU_CALIBRATE_GYROSCOPE)
+        {
+            calibrate_gyroscope();
+        }
         calibrate_data();
         AHRSCompute();
     }
@@ -526,6 +585,8 @@ void IMU::sensor_init(void)
     AccGyr = new LSM6DS3Sensor(dev_i2c, TWI_ADDRESS_LSM6DS3);
     AccGyr->Enable_X();
     AccGyr->Enable_G();
+    AccGyr->Reset_Timestamp();
+    AccGyr->Enable_Timestamp();
     // FIXME -- what to do here?
     // AccGyr->Enable_G_Filter(LSM6DS3_ACC_GYRO_HPCF_G_16Hz32);
     // AccGyr->Enable_6D_Orientation();
@@ -564,6 +625,9 @@ void IMU::cmd(const IMU_CMD_t cmd)
             break;
         case IMU_SENSOR_CALIBRATE_MAGNETOMETER:
             calibrate_enable = IMU_CALIBRATE_MAGNETOMETER; 
+            break;
+        case IMU_SENSOR_CALIBRATE_GYROSCOPE:
+            calibrate_enable = IMU_CALIBRATE_GYROSCOPE; 
             break;
         case IMU_SENSOR_CALIBRATE_RESET:
             // reset calibration values
@@ -609,11 +673,11 @@ void IMU::cmd(const IMU_CMD_t cmd)
         case IMU_SENSOR_DATA_FIXED_TOGGLE:
             fixed_data = !fixed_data;
             break;
-        case IMU_GYROSCOPE_SENSITIVITY_UP:
-            gyroscope_sensitivity++;
+        case IMU_GYROSCOPE_CORRECTION_UP:
+            cp.gyroscope_correction *= 10.0f;
             break;
-        case IMU_GYROSCOPE_SENSITIVITY_DOWN:
-            gyroscope_sensitivity--;
+        case IMU_GYROSCOPE_CORRECTION_DOWN:
+            cp.gyroscope_correction /= 10.0f;
             break;
         case IMU_MAGNETOMETER_STABILITY_TOGGLE:
             magnetometer_stability = !magnetometer_stability; 
@@ -630,6 +694,9 @@ void IMU::cmd(const IMU_CMD_t cmd)
                 AHRSptr = new MahonyAHRS();
                 AHRSalgorithm = AHRS_MAHONY;
             }
+            break;
+	case IMU_GYROSCOPE_ENABLE_TOGGLE:
+            cp.gyroscope_enabled = !cp.gyroscope_enabled; 
             break;
         case IMU_AHRS_PROP_GAIN_UP:
         case IMU_AHRS_PROP_GAIN_DOWN:

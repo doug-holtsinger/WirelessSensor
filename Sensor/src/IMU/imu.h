@@ -20,8 +20,13 @@
 // #define ACCELEROMETER_MIN_THRESHOLD 100
 // #define GYROSCOPE_MIN_THRESHOLD 0.05
 // #define MAGNETOMETER_MIN_THRESHOLD 15
-#define GYROSCOPE_SENSITIVITY_THRESHOLD 16
+// #define GYROSCOPE_SENSITIVITY_THRESHOLD 16
 #define NOISE_THRESHOLD_MULTIPLIER 2
+
+#define DEGREES_PER_RADIAN 57.2957795
+#define MILLIDEGREES_PER_DEGREE 1000
+#define SECONDS_PER_TIMER_TICK 0.000025
+#define TIMER_TICKS_PER_SECOND 40000
 
 typedef enum
 {
@@ -36,6 +41,7 @@ typedef enum {
         IMU_CALIBRATE_MIN = IMU_CALIBRATE_DISABLED,
         IMU_CALIBRATE_ZERO_OFFSET,
         IMU_CALIBRATE_MAGNETOMETER,
+        IMU_CALIBRATE_GYROSCOPE,
         IMU_CALIBRATE_MAX = IMU_CALIBRATE_MAGNETOMETER
 } IMU_CALIBRATE_t;
 
@@ -60,6 +66,7 @@ class IMU {
         void sensor_init(void);
         void calibrate_zero_offset(void);
         void calibrate_magnetometer(void);
+        void calibrate_gyroscope(void);
         void reset_calibration(void);
         void calibrate_data(void);
         void AHRSCompute(void);
@@ -81,6 +88,7 @@ class IMU {
 	bool fixed_data = false;
 
         float roll, pitch, yaw;
+        float yaw_last_cal;
 
 	imu_calibration_params_t cp;				// local copy of calibration params
 
@@ -90,12 +98,18 @@ class IMU {
         int32_t accelerometer_cal[3];
 
         int32_t gyroscope_uncal[3];
+        int32_t gyroscope_cal_before_correction[3];
+        uint32_t gyroscope_cal_before_correction_abs[3];
         float gyroscope_cal[3];
-        int32_t gyroscope_sensitivity = GYROSCOPE_SENSITIVITY_THRESHOLD;
 
         int32_t magnetometer_uncal[3];
         int32_t magnetometer_cal[3];
 	bool magnetometer_stability = true;
+
+        bool timestamp_valid = false;
+        int32_t timestamp = 0;
+        int32_t timestamp_prev = 0;
+
         IMU_SENSOR_t sensor_select = IMU_AHRS;
         uint32_t show_input_ahrs = 0;
         float gx, gy, gz, ax, ay, az, mx, my, mz;

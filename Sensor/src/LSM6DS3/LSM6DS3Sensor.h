@@ -132,6 +132,9 @@ class LSM6DS3Sensor
   public:
     LSM6DS3Sensor                                     (TwoWire *i2c);
     LSM6DS3Sensor                                     (TwoWire *i2c, uint8_t addr);
+    LSM6DS3StatusTypeDef Enable_Timestamp             (void);
+    LSM6DS3StatusTypeDef Reset_Timestamp             (void);
+    LSM6DS3StatusTypeDef Read_Timestamp               (int32_t* timestampPtr);
     LSM6DS3StatusTypeDef Enable_X                     (void);
     LSM6DS3StatusTypeDef Enable_G                     (void);
     LSM6DS3StatusTypeDef Disable_X                    (void);

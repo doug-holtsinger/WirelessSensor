@@ -2533,6 +2533,15 @@ mems_status_t  LSM6DS3_ACC_GYRO_W_INACTIVITY_ON(void *handle, LSM6DS3_ACC_GYRO_I
 mems_status_t LSM6DS3_ACC_GYRO_R_INACTIVITY_ON(void *handle, LSM6DS3_ACC_GYRO_INACTIVITY_ON_t *value);
 
 /*******************************************************************************
+* Register      : TIMESTAMP2
+* Address       : 0X42
+* Bit Group Name: 
+* Permission    : RW
+*******************************************************************************/
+#define RESET_TIMESTAMP_VALUE 0xAA
+mems_status_t LSM6DS3_ACC_GYRO_Reset_Timestamp(void *handle);
+
+/*******************************************************************************
 * Register      : WAKE_UP_THS
 * Address       : 0X5B
 * Bit Group Name: SINGLE_DOUBLE_TAP

@@ -43,6 +43,9 @@
 #include "LSM6DS3Sensor.h"
 #include <string.h>
 
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
+
 // FIXME -- make these constants settable
 #define GYROSCOPE_FS     2000.0f
 #define GYROSCOPE_ODR    416.0f 
@@ -235,6 +238,94 @@ LSM6DS3Sensor::LSM6DS3Sensor(TwoWire *i2c, uint8_t addr) : dev_i2c(i2c), address
 
   G_isEnabled = 0;
 };
+
+/**
+ * @brief  Enable LSM6DS3 Timestamp, 1 LSB = 25usec
+ * @retval LSM6DS3_STATUS_OK in case of success, an error code otherwise
+ */
+LSM6DS3StatusTypeDef LSM6DS3Sensor::Enable_Timestamp(void)
+{
+  /* TIMER_HR setting */
+  if ( LSM6DS3_ACC_GYRO_W_TIMER_HR( (void *)this, LSM6DS3_ACC_GYRO_TIMER_HR_25us) == MEMS_ERROR )
+  {
+    return LSM6DS3_STATUS_ERROR;
+  }
+
+  /* Enable Timer setting */
+  if ( LSM6DS3_ACC_GYRO_W_TIMER_EN( (void *)this, LSM6DS3_ACC_GYRO_TIMER_EN_ENABLED) == MEMS_ERROR )
+  {
+    return LSM6DS3_STATUS_ERROR;
+  }
+
+  return LSM6DS3_STATUS_OK;
+  
+}
+
+/**
+ * @brief  Reset LSM6DS3 Timestamp
+ * @retval LSM6DS3_STATUS_OK in case of success, an error code otherwise
+ */
+LSM6DS3StatusTypeDef LSM6DS3Sensor::Reset_Timestamp()
+{
+
+  if ( LSM6DS3_ACC_GYRO_Reset_Timestamp( (void *)this) == MEMS_ERROR )
+  {
+    return LSM6DS3_STATUS_ERROR;
+  }
+
+  return LSM6DS3_STATUS_OK;
+}
+
+
+/**
+ * @brief  Read LSM6DS3 Timestamp
+ * @retval LSM6DS3_STATUS_OK in case of success, an error code otherwise
+ */
+LSM6DS3StatusTypeDef LSM6DS3Sensor::Read_Timestamp(int32_t *timestampPtr)
+{
+  u8_t bufTmp[3] = {{0}} ;
+  uint8_t *buf = (uint8_t*)timestampPtr; 
+
+  *timestampPtr = 0;
+
+  // bufTmp[0] is LSB, bufTmp[2] is MSB
+  if ( LSM6DS3_ACC_GYRO_Get_GetTimestamp( (void *)this, bufTmp) == MEMS_ERROR )
+  {
+    return LSM6DS3_STATUS_ERROR;
+  }
+
+  // NRF_LOG_INFO("TS %hhx %hhx %hhx", bufTmp[0], bufTmp[1], bufTmp[2] );
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+  //  least-significant byte at the smallest address
+  *buf++ = bufTmp[0];
+  *buf++ = bufTmp[1];
+  *buf++ = bufTmp[2];
+  if (bufTmp[2] & 0x80)
+  {
+      // sign-extend
+      *buf = 0xFF;
+  } else {
+      *buf = 0;
+  }
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+  //  most significant byte of a word at the smallest memory address
+  if (bufTmp[2] & 0x80)
+  {
+      // sign-extend
+      *buf++ = 0xFF;
+  } else {
+      *buf++ = 0;
+  }
+  *buf++ = bufTmp[2];
+  *buf++ = bufTmp[1];
+  *buf++ = bufTmp[0];
+#else
+#    error unsupported endianness
+#endif
+
+  return LSM6DS3_STATUS_OK;
+}
 
 /**
  * @brief  Enable LSM6DS3 Accelerator
