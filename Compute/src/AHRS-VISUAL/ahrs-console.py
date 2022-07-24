@@ -110,8 +110,9 @@ class AHRSConsole(tk.Frame):
         self.twoKp = tk.DoubleVar()
         self.twoKi = tk.DoubleVar()
         self.sampleFreq = tk.DoubleVar()
-        self.gyroSens = tk.IntVar()
+        self.gyroCorrection = tk.DoubleVar()
         self.magnetometerStability = tk.IntVar()
+        self.gyroscopeEnable = tk.IntVar()
         self.AHRSalgorithm = tk.IntVar()
         self.betaGain = tk.DoubleVar()
 
@@ -144,27 +145,29 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_SENSOR_CALIBRATE_NORMALIZED'] = 5
         self.commandDict['IMU_SENSOR_CALIBRATE_ZERO_OFFSET'] = 6
         self.commandDict['IMU_SENSOR_CALIBRATE_MAGNETOMETER'] = 7
-        self.commandDict['IMU_SENSOR_CALIBRATE_RESET'] = 8
-        self.commandDict['IMU_SENSOR_CALIBRATE_SAVE'] = 9
-        self.commandDict['IMU_AHRS_INPUT_TOGGLE'] = 10 
-        self.commandDict['IMU_AHRS_YAW_TOGGLE'] = 11 
-        self.commandDict['IMU_AHRS_PITCH_TOGGLE'] = 12
-        self.commandDict['IMU_AHRS_ROLL_TOGGLE'] = 13
-        self.commandDict['IMU_SENSOR_DATA_ZERO'] = 14 
-        self.commandDict['IMU_SENSOR_DATA_IDEAL_TOGGLE'] = 15 
-        self.commandDict['IMU_SENSOR_DATA_FIXED_TOGGLE'] = 16
-        self.commandDict['IMU_AHRS_PROP_GAIN_UP'] = 17
-        self.commandDict['IMU_AHRS_PROP_GAIN_DOWN'] = 18
-        self.commandDict['IMU_AHRS_INTEG_GAIN_UP'] = 19
-        self.commandDict['IMU_AHRS_INTEG_GAIN_DOWN'] = 20
-        self.commandDict['IMU_AHRS_SAMPLE_FREQ_UP'] = 21
-        self.commandDict['IMU_AHRS_SAMPLE_FREQ_DOWN'] = 22
-        self.commandDict['IMU_GYROSCOPE_SENSITIVITY_UP'] = 23
-        self.commandDict['IMU_GYROSCOPE_SENSITIVITY_DOWN'] = 24
-        self.commandDict['IMU_MAGNETOMETER_STABILITY_TOGGLE'] = 25
-        self.commandDict['IMU_AHRS_BETA_GAIN_UP'] = 26
-        self.commandDict['IMU_AHRS_BETA_GAIN_DOWN'] = 27
-        self.commandDict['IMU_AHRS_ALGORITHM_TOGGLE'] = 28
+        self.commandDict['IMU_SENSOR_CALIBRATE_GYROSCOPE'] = 8
+        self.commandDict['IMU_SENSOR_CALIBRATE_RESET'] = 9
+        self.commandDict['IMU_SENSOR_CALIBRATE_SAVE'] = 10 
+        self.commandDict['IMU_AHRS_INPUT_TOGGLE'] = 11
+        self.commandDict['IMU_AHRS_YAW_TOGGLE'] = 12
+        self.commandDict['IMU_AHRS_PITCH_TOGGLE'] = 13
+        self.commandDict['IMU_AHRS_ROLL_TOGGLE'] = 14
+        self.commandDict['IMU_SENSOR_DATA_ZERO'] = 15 
+        self.commandDict['IMU_SENSOR_DATA_IDEAL_TOGGLE'] = 16
+        self.commandDict['IMU_SENSOR_DATA_FIXED_TOGGLE'] = 17
+        self.commandDict['IMU_AHRS_PROP_GAIN_UP'] = 18
+        self.commandDict['IMU_AHRS_PROP_GAIN_DOWN'] = 19
+        self.commandDict['IMU_AHRS_INTEG_GAIN_UP'] = 20
+        self.commandDict['IMU_AHRS_INTEG_GAIN_DOWN'] = 21
+        self.commandDict['IMU_AHRS_SAMPLE_FREQ_UP'] = 22
+        self.commandDict['IMU_AHRS_SAMPLE_FREQ_DOWN'] = 23
+        self.commandDict['IMU_GYROSCOPE_CORRECTION_UP'] = 24
+        self.commandDict['IMU_GYROSCOPE_CORRECTION_DOWN'] = 25
+        self.commandDict['IMU_MAGNETOMETER_STABILITY_TOGGLE'] = 26
+        self.commandDict['IMU_AHRS_BETA_GAIN_UP'] = 27
+        self.commandDict['IMU_AHRS_BETA_GAIN_DOWN'] = 28
+        self.commandDict['IMU_AHRS_ALGORITHM_TOGGLE'] = 29
+        self.commandDict['IMU_GYROSCOPE_ENABLE_TOGGLE'] = 30 
 
     def resetAHRSSettings(self):
         self.twoKp.set(0.0)
@@ -173,8 +176,8 @@ class AHRSConsole(tk.Frame):
         self.twoKiClient = 0.0
         self.sampleFreq.set(0.0)
         self.sampleFreqClient = 0.0
-        self.gyroSens.set(0)
-        self.gyroSensClient = 0
+        self.gyroCorrection.set(0.0)
+        self.gyroCorrectionClient = 0.0
         self.AHRSalgorithm.set(0)
         self.AHRSalgorithmClient = 0
         self.betaGain.set(0.0)
@@ -205,8 +208,8 @@ class AHRSConsole(tk.Frame):
             self.data_group[gidx].setData(gi, data)
         elif idx == 19:
             # Gyro sensitivity
-            self.gyroSens.set(data[0])
-            self.gyroSensClient = int(data[0])
+            self.gyroCorrection.set(data[0])
+            self.gyroCorrectionClient = float(data[0])
         elif idx == 20:
             # Magnetometer stability
             self.magnetometerStability.set(data[0]) 
@@ -230,6 +233,9 @@ class AHRSConsole(tk.Frame):
             # Beta gain 
             self.betaGain.set(data[0]) 
             self.betaGainClient = float(data[0])
+        elif idx == 26:
+            # Gyroscope Enable 
+            self.gyroscopeEnable.set(data[0]) 
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
             # It can cause a large backlog of notifications, causing the display to be unresponsive
@@ -294,6 +300,7 @@ class AHRSConsole(tk.Frame):
         self.cb.append(self.calibrateNormalizedButton)
         self.cb.append(tk.Radiobutton(lf, text="Zero Offset", command=self.calibrateButton, variable=self.calibrate, value=1))
         self.cb.append(tk.Radiobutton(lf, text="Magnetometer", command=self.calibrateButton, variable=self.calibrate, value=2))
+        self.cb.append(tk.Radiobutton(lf, text="Gyroscope", command=self.calibrateButton, variable=self.calibrate, value=3))
         for cb in self.cb:
             cb.pack(anchor="w")
 
@@ -310,9 +317,10 @@ class AHRSConsole(tk.Frame):
 
         lf = tk.LabelFrame(self, text="IMU Settings")
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Label(lf, text="Gyroscope Sensitivity").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.gyroSensitivitySelect, from_=1, to_=24, increment=1, textvariable=self.gyroSens).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Label(lf, text="Gyroscope Correction").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.gyroCorrectionSelect, from_=1, to_=9999, increment=1, textvariable=self.gyroCorrection).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
         tk.Checkbutton(lf, text="Magnetometer Stability", command=self.magnetometerStabilityButton, variable=self.magnetometerStability).grid(column=0, row=row_num+1, padx=paddingx, pady=paddingy)
+        tk.Checkbutton(lf, text="Gyroscope Enable", command=self.gyroscopeEnableButton, variable=self.gyroscopeEnable).grid(column=0, row=row_num+2, padx=paddingx, pady=paddingy)
 
         col_num = col_num + 1
 
@@ -379,6 +387,12 @@ class AHRSConsole(tk.Frame):
         else:
             self.writeCmdStr('IMU_MAGNETOMETER_STABILITY_TOGGLE')
 
+    def gyroscopeEnableButton(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            self.writeCmdStr('IMU_GYROSCOPE_ENABLE_TOGGLE')
+
     def proportionalGainSelect(self):
         if not self.connected.get():
             print("Not connected to AHRS")
@@ -421,19 +435,19 @@ class AHRSConsole(tk.Frame):
                 print("Sample Frequency Down from %f" % ( self.sampleFreqClient) )
                 self.writeCmdStr('IMU_AHRS_SAMPLE_FREQ_DOWN')
 
-    def gyroSensitivitySelect(self):
+    def gyroCorrectionSelect(self):
         if not self.connected.get():
             print("Not connected to AHRS")
         else:
-            print("Gyroscope Sensitivity %d" % ( self.gyroSens.get()) )
-            if self.gyroSensClient < self.gyroSens.get():
+            print("Gyroscope Correction %f" % ( self.gyroCorrection.get()) )
+            if self.gyroCorrectionClient < self.gyroCorrection.get():
                 # Send up
-                print("Gyroscope Sensitivity Up from %f" % ( self.gyroSensClient ) )
-                self.writeCmdStr('IMU_GYROSCOPE_SENSITIVITY_UP')
-            elif self.gyroSensClient > self.gyroSens.get():
+                print("Gyroscope Correction Up from %f" % ( self.gyroCorrectionClient ) )
+                self.writeCmdStr('IMU_GYROSCOPE_CORRECTION_UP')
+            elif self.gyroCorrectionClient > self.gyroCorrection.get():
                 # Send down
-                print("Gyroscope Sensitivity Down from %f" % ( self.gyroSensClient ) )
-                self.writeCmdStr('IMU_GYROSCOPE_SENSITIVITY_DOWN')
+                print("Gyroscope Correction Down from %f" % ( self.gyroCorrectionClient ) )
+                self.writeCmdStr('IMU_GYROSCOPE_CORRECTION_DOWN')
 
     def betaGainSelect(self):
         if not self.connected.get():
@@ -473,6 +487,8 @@ class AHRSConsole(tk.Frame):
                 self.writeCmdStr('IMU_SENSOR_CALIBRATE_ZERO_OFFSET')
             elif self.calibrate.get() == 2:
                 self.writeCmdStr('IMU_SENSOR_CALIBRATE_MAGNETOMETER')
+            elif self.calibrate.get() == 3:
+                self.writeCmdStr('IMU_SENSOR_CALIBRATE_GYROSCOPE')
 
     def connectButton(self):
         if self.connected.get():
