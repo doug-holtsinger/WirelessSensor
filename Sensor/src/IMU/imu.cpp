@@ -364,18 +364,6 @@ void IMU::AHRSCompute()
     mx = (float)magnetometer_cal[0];
     my = (float)magnetometer_cal[1];
     mz = (float)magnetometer_cal[2];
-    if (zero_data[1])
-    {
-        gz = gy = gx = 0.0f;
-    }
-    if (zero_data[0])
-    {
-        az = ay = ax = 0.0f;
-    }
-    if (zero_data[2])
-    {
-        mz = my = mx = 0.0f;
-    }
     if (ideal_data[0])
     {
         ax = 1000.0f; ay = 0.0f ; az = 0.0f;
@@ -401,6 +389,7 @@ void IMU::AHRSCompute()
 void IMU::send_all_client_data()
 {
     char s[NOTIFY_PRINT_STR_MAX_LEN];
+    uint32_t bit_flags = 0;
 
 #if defined(BLE_CONSOLE_AVAILABLE) && !defined(SERIAL_CONSOLE_AVAILABLE)
     // Check if BLE connected, otherwise return.
@@ -495,16 +484,18 @@ void IMU::send_all_client_data()
             );
     send_client_data(s);
 
-    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %d",
-            MAGNETOMETER_STABILITY,
-            static_cast<int>(magnetometer_stability)
+    bit_flags |= (magnetometer_stability ? 1 << MAGNETOMETER_STABILITY : 0);
+    bit_flags |= (cp.gyroscope_enabled ? 1 << GYROSCOPE_ENABLE : 0);
+    bit_flags |= (data_hold[IMU_ACCELEROMETER] ? 1 << DATA_HOLD_ACCELEROMETER : 0);
+    bit_flags |= (data_hold[IMU_MAGNETOMETER] ? 1 << DATA_HOLD_MAGNETOMETER : 0);
+    bit_flags |= (data_hold[IMU_GYROSCOPE] ? 1 << DATA_HOLD_GYROSCOPE : 0);
+
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %lu",
+            BIT_FLAGS, bit_flags
             );
     send_client_data(s);
 
-    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %d", AHRS_ALGORITHM, static_cast<int>(AHRSalgorithm));
-    send_client_data(s);
-
-    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %d", GYROSCOPE_ENABLE, cp.gyroscope_enabled ? 1 : 0); 
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %u", AHRS_ALGORITHM, static_cast<int>(AHRSalgorithm));
     send_client_data(s);
 
     // AHRS sends data to client
@@ -529,13 +520,13 @@ void IMU::update()
 
     // FIXME -- can combine status of Accel and Gyro according to app note
     // Gyro status lags Accel status.
-    if ((reg_data & LSM6DS3_ACC_GYRO_XLDA_MASK) == LSM6DS3_ACC_GYRO_XLDA_DATA_AVAIL)
+    if (!data_hold[IMU_ACCELEROMETER] && (reg_data & LSM6DS3_ACC_GYRO_XLDA_MASK) == LSM6DS3_ACC_GYRO_XLDA_DATA_AVAIL)
     {
         new_data_avail = true;
         lsm_err_code = AccGyr->Get_X_Axes(accelerometer_uncal);
         APP_ERROR_CHECK(lsm_err_code);
     }
-    if ((reg_data & LSM6DS3_ACC_GYRO_GDA_MASK) == LSM6DS3_ACC_GYRO_GDA_DATA_AVAIL)
+    if (!data_hold[IMU_GYROSCOPE] && (reg_data & LSM6DS3_ACC_GYRO_GDA_MASK) == LSM6DS3_ACC_GYRO_GDA_DATA_AVAIL)
     {
         new_data_avail = true;
         lsm_err_code = AccGyr->Get_G_Axes(gyroscope_uncal);
@@ -551,9 +542,11 @@ void IMU::update()
     //
     // Read LIS3MDL
     //
-
-    lis_err_code = Magneto->GetAxes(magnetometer_uncal);
-    APP_ERROR_CHECK(lis_err_code);
+    if (!data_hold[IMU_MAGNETOMETER])
+    {
+        lis_err_code = Magneto->GetAxes(magnetometer_uncal);
+        APP_ERROR_CHECK(lis_err_code);
+    }
 
     if (calibrate_reset)
     {
@@ -646,17 +639,11 @@ void IMU::cmd(const IMU_CMD_t cmd)
         case IMU_AHRS_ROLL_TOGGLE:
             show_roll = !show_roll;
             break;
-        case IMU_SENSOR_DATA_ZERO:
-            if (sensor_select == IMU_GYROSCOPE)
-            {
-                zero_data[1] = !zero_data[1];
-            } else if (sensor_select == IMU_ACCELEROMETER)
-            {
-                zero_data[0] = !zero_data[0];
-            } else if (sensor_select == IMU_MAGNETOMETER)
-            {
-                zero_data[2] = !zero_data[2];
-            }
+        case IMU_SENSOR_DATA_HOLD_TOGGLE:
+	    if (sensor_select >= IMU_SENSOR_MIN && sensor_select <= IMU_SENSOR_MAX)
+	    {
+                data_hold[sensor_select] = !data_hold[sensor_select];
+	    }
             break;
         case IMU_SENSOR_DATA_IDEAL_TOGGLE:
             if (sensor_select == IMU_GYROSCOPE)

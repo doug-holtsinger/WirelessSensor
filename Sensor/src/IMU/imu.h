@@ -31,9 +31,11 @@
 typedef enum
 {
     IMU_AHRS = 0,
+    IMU_SENSOR_MIN = IMU_AHRS,
     IMU_ACCELEROMETER,
     IMU_GYROSCOPE,
-    IMU_MAGNETOMETER
+    IMU_MAGNETOMETER,
+    IMU_SENSOR_MAX = IMU_MAGNETOMETER
 } IMU_SENSOR_t;
 
 typedef enum {
@@ -84,7 +86,7 @@ class IMU {
         bool show_yaw   = false;
         bool show_roll  = false;
         bool ideal_data[3] = { false, false, false };
-        bool zero_data[3] = { false, false, false };
+        bool data_hold[IMU_SENSOR_MAX+1] = { { false } };
 	bool fixed_data = false;
 
         float roll, pitch, yaw;
