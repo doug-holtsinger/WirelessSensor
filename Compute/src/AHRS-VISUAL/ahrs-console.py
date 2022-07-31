@@ -34,7 +34,7 @@ class ScanDelegate(DefaultDelegate):
         return self.dev_addr
 
 class AHRSDataFrame():
-    def __init__(self, master, data_group_name, data_names, data_label_width, row, column):
+    def __init__(self, master, data_group_name, data_names, data_label_width, row, column, data_hold=False):
         paddingx = 5
         paddingy = 5
         lf = tk.LabelFrame(master, text=data_group_name)
@@ -44,6 +44,8 @@ class AHRSDataFrame():
         for data_name in data_names:
             row = row + 1
             self.dataItems.append(AHRSDataItem(lf, data_name, data_label_width, row, column))
+        #if data_hold:
+        #    tk.Checkbutton(lf, text="Hold Data", command=self.gyroscopeEnableButton, variable=self.gyroscopeEnable).grid(column=0, row=row_num+2, padx=paddingx, pady=paddingy)
 
     def setData(self, idx, data):
         #print("DataFrame setData %s %d data = %s" % ( self.data_group_name, idx, data ))
@@ -115,6 +117,9 @@ class AHRSConsole(tk.Frame):
         self.gyroscopeEnable = tk.IntVar()
         self.AHRSalgorithm = tk.IntVar()
         self.betaGain = tk.DoubleVar()
+        self.dataHoldAccelerometer = tk.IntVar()
+        self.dataHoldMagnetometer = tk.IntVar()
+        self.dataHoldGyroscope = tk.IntVar()
 
         self.resetAHRSSettings()
         self.xpoints = 1500
@@ -152,7 +157,7 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_AHRS_YAW_TOGGLE'] = 12
         self.commandDict['IMU_AHRS_PITCH_TOGGLE'] = 13
         self.commandDict['IMU_AHRS_ROLL_TOGGLE'] = 14
-        self.commandDict['IMU_SENSOR_DATA_ZERO'] = 15 
+        self.commandDict['IMU_SENSOR_DATA_HOLD_TOGGLE'] = 15 
         self.commandDict['IMU_SENSOR_DATA_IDEAL_TOGGLE'] = 16
         self.commandDict['IMU_SENSOR_DATA_FIXED_TOGGLE'] = 17
         self.commandDict['IMU_AHRS_PROP_GAIN_UP'] = 18
@@ -211,8 +216,28 @@ class AHRSConsole(tk.Frame):
             self.gyroCorrection.set(data[0])
             self.gyroCorrectionClient = float(data[0])
         elif idx == 20:
-            # Magnetometer stability
-            self.magnetometerStability.set(data[0]) 
+            # bit flags 
+            bit_flags = int(data[0])
+            if bit_flags & 0x1:
+                self.magnetometerStability.set(1)
+            else:
+                self.magnetometerStability.set(0)
+            if bit_flags & 0x2:
+                self.gyroscopeEnable.set(1)
+            else:
+                self.gyroscopeEnable.set(0)
+            if bit_flags & 0x4:
+                self.dataHoldAccelerometer.set(1)
+            else:
+                self.dataHoldAccelerometer.set(0)
+            if bit_flags & 0x8:
+                self.dataHoldMagnetometer.set(1)
+            else:
+                self.dataHoldMagnetometer.set(0)
+            if bit_flags & 0x10:
+                self.dataHoldGyroscope.set(1)
+            else:
+                self.dataHoldGyroscope.set(0)
         elif idx == 21:
             # prop gain 
             self.twoKp.set(data[0])
@@ -233,9 +258,6 @@ class AHRSConsole(tk.Frame):
             # Beta gain 
             self.betaGain.set(data[0]) 
             self.betaGainClient = float(data[0])
-        elif idx == 26:
-            # Gyroscope Enable 
-            self.gyroscopeEnable.set(data[0]) 
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
             # It can cause a large backlog of notifications, causing the display to be unresponsive
@@ -321,6 +343,9 @@ class AHRSConsole(tk.Frame):
         tk.Spinbox(lf, text="Spinbox", command=self.gyroCorrectionSelect, from_=1, to_=9999, increment=1, textvariable=self.gyroCorrection).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
         tk.Checkbutton(lf, text="Magnetometer Stability", command=self.magnetometerStabilityButton, variable=self.magnetometerStability).grid(column=0, row=row_num+1, padx=paddingx, pady=paddingy)
         tk.Checkbutton(lf, text="Gyroscope Enable", command=self.gyroscopeEnableButton, variable=self.gyroscopeEnable).grid(column=0, row=row_num+2, padx=paddingx, pady=paddingy)
+        tk.Checkbutton(lf, text="Accelerometer Data Hold", command=self.accelerometerHoldButton, variable=self.dataHoldAccelerometer).grid(column=0, row=row_num+3, padx=paddingx, pady=paddingy)
+        tk.Checkbutton(lf, text="Magnetometer Data Hold", command=self.magnetometerHoldButton, variable=self.dataHoldMagnetometer).grid(column=0, row=row_num+4, padx=paddingx, pady=paddingy)
+        tk.Checkbutton(lf, text="Gyroscope Data Hold", command=self.gyroscopeHoldButton, variable=self.dataHoldGyroscope).grid(column=0, row=row_num+5, padx=paddingx, pady=paddingy)
 
         col_num = col_num + 1
 
@@ -386,6 +411,27 @@ class AHRSConsole(tk.Frame):
             print("Not connected to AHRS")
         else:
             self.writeCmdStr('IMU_MAGNETOMETER_STABILITY_TOGGLE')
+
+    def accelerometerHoldButton(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            self.writeCmdStr('IMU_SELECT_ACCELEROMETER')
+            self.writeCmdStr('IMU_SENSOR_DATA_HOLD_TOGGLE')
+
+    def magnetometerHoldButton(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            self.writeCmdStr('IMU_SELECT_MAGNETOMETER')
+            self.writeCmdStr('IMU_SENSOR_DATA_HOLD_TOGGLE')
+
+    def gyroscopeHoldButton(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            self.writeCmdStr('IMU_SELECT_GYROSCOPE')
+            self.writeCmdStr('IMU_SENSOR_DATA_HOLD_TOGGLE')
 
     def gyroscopeEnableButton(self):
         if not self.connected.get():
