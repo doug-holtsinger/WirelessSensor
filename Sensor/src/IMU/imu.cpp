@@ -364,15 +364,46 @@ void IMU::AHRSCompute()
     mx = (float)magnetometer_cal[0];
     my = (float)magnetometer_cal[1];
     mz = (float)magnetometer_cal[2];
-    if (ideal_data[0])
+    if (ideal_data[IMU_ACCELEROMETER])
     {
-        ax = 1000.0f; ay = 0.0f ; az = 0.0f;
+	float axN, ayN, azN;
+        AHRSptr->GetNormalizedVectors(IMU_ACCELEROMETER, axN, ayN, azN);
+	if ( abs(axN) < 0.1 && abs(ayN) < 0.1 )
+	{
+            ax = ay = 0.0f;
+	    if (az < 0.0)
+	    {
+                az = -1000.0f;
+	    } else {
+                az = 1000.0f;
+	    }
+	}
+	if ( abs(ayN) < 0.1 && abs(azN) < 0.1 )
+	{
+            ay = az = 0.0f;
+	    if (ax < 0.0)
+	    {
+                ax = -1000.0f;
+	    } else {
+                ax = 1000.0f;
+	    }
+	}
+	if ( abs(axN) < 0.1 && abs(azN) < 0.1 )
+	{
+            ax = az = 0.0f;
+	    if (ay < 0.0)
+	    {
+                ay = -1000.0f;
+	    } else {
+                ay = 1000.0f;
+	    }
+	}
     }
-    if (ideal_data[1])
+    if (ideal_data[IMU_GYROSCOPE])
     {
         gx = 0.0f; gy = 0.0f ; gz = 0.0f;
     }
-    if (ideal_data[2])
+    if (ideal_data[IMU_MAGNETOMETER])
     {
         mx = 400.0f; my = 0.0f ; mz = 0.0f;
     }
@@ -484,11 +515,14 @@ void IMU::send_all_client_data()
             );
     send_client_data(s);
 
-    bit_flags |= (magnetometer_stability ? 1 << MAGNETOMETER_STABILITY : 0);
-    bit_flags |= (cp.gyroscope_enabled ? 1 << GYROSCOPE_ENABLE : 0);
-    bit_flags |= (data_hold[IMU_ACCELEROMETER] ? 1 << DATA_HOLD_ACCELEROMETER : 0);
-    bit_flags |= (data_hold[IMU_MAGNETOMETER] ? 1 << DATA_HOLD_MAGNETOMETER : 0);
-    bit_flags |= (data_hold[IMU_GYROSCOPE] ? 1 << DATA_HOLD_GYROSCOPE : 0);
+    bit_flags |= (magnetometer_stability        ? 1 << MAGNETOMETER_STABILITY : 0);
+    bit_flags |= (cp.gyroscope_enabled          ? 1 << GYROSCOPE_ENABLE : 0);
+    bit_flags |= (data_hold[IMU_ACCELEROMETER]  ? 1 << DATA_HOLD_ACCELEROMETER : 0);
+    bit_flags |= (data_hold[IMU_MAGNETOMETER]   ? 1 << DATA_HOLD_MAGNETOMETER : 0);
+    bit_flags |= (data_hold[IMU_GYROSCOPE]      ? 1 << DATA_HOLD_GYROSCOPE : 0);
+    bit_flags |= (ideal_data[IMU_ACCELEROMETER] ? 1 << IDEAL_DATA_ACCELEROMETER : 0);
+    bit_flags |= (ideal_data[IMU_MAGNETOMETER]  ? 1 << IDEAL_DATA_MAGNETOMETER : 0);
+    bit_flags |= (ideal_data[IMU_GYROSCOPE]     ? 1 << IDEAL_DATA_GYROSCOPE : 0);
 
     snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %lu",
             BIT_FLAGS, bit_flags
@@ -646,16 +680,10 @@ void IMU::cmd(const IMU_CMD_t cmd)
 	    }
             break;
         case IMU_SENSOR_DATA_IDEAL_TOGGLE:
-            if (sensor_select == IMU_GYROSCOPE)
-            {
-                ideal_data[1] = !ideal_data[1];
-            } else if (sensor_select == IMU_ACCELEROMETER)
-            {
-                ideal_data[0] = !ideal_data[0];
-            } else if (sensor_select == IMU_MAGNETOMETER)
-            {
-                ideal_data[2] = !ideal_data[2];
-            }
+	    if (sensor_select >= IMU_SENSOR_MIN && sensor_select <= IMU_SENSOR_MAX)
+	    {
+                ideal_data[sensor_select] = !ideal_data[sensor_select];
+	    }
             break;
         case IMU_SENSOR_DATA_FIXED_TOGGLE:
             fixed_data = !fixed_data;

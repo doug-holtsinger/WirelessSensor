@@ -84,6 +84,21 @@ void AHRS::ComputeAngles(float& roll, float& pitch, float& yaw)
   yaw =  yaw * 57.29578f + 180.0f;
 }
 
+void AHRS::GetNormalizedVectors(IMU_SENSOR_t sensor, float& o_x, float& o_y, float& o_z)
+{
+    switch(sensor)
+    {
+        case IMU_ACCELEROMETER:
+	    o_x = axN; o_y = ayN ; o_z = azN; break;
+        case IMU_GYROSCOPE:
+	    o_x = gxN; o_y = gyN ; o_z = gzN; break;
+        case IMU_MAGNETOMETER:
+	    o_x = mxN; o_y = myN ; o_z = mzN; break;
+	default: break;
+    }
+
+}
+
 void AHRS::cmd(const IMU_CMD_t cmd)
 {
     switch (cmd)

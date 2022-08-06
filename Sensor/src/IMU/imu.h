@@ -28,16 +28,6 @@
 #define SECONDS_PER_TIMER_TICK 0.000025
 #define TIMER_TICKS_PER_SECOND 40000
 
-typedef enum
-{
-    IMU_AHRS = 0,
-    IMU_SENSOR_MIN = IMU_AHRS,
-    IMU_ACCELEROMETER,
-    IMU_GYROSCOPE,
-    IMU_MAGNETOMETER,
-    IMU_SENSOR_MAX = IMU_MAGNETOMETER
-} IMU_SENSOR_t;
-
 typedef enum {
         IMU_CALIBRATE_DISABLED = 0,
         IMU_CALIBRATE_MIN = IMU_CALIBRATE_DISABLED,
@@ -85,7 +75,7 @@ class IMU {
         bool show_pitch = false;
         bool show_yaw   = false;
         bool show_roll  = false;
-        bool ideal_data[3] = { false, false, false };
+        bool ideal_data[IMU_SENSOR_MAX+1] = { false, false, false };
         bool data_hold[IMU_SENSOR_MAX+1] = { { false } };
 	bool fixed_data = false;
 

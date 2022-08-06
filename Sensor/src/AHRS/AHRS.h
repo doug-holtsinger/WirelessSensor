@@ -11,6 +11,7 @@ public:
     virtual void cmd(const IMU_CMD_t cmd);
     virtual void send_all_client_data();
     void ComputeAngles(float& roll, float& pitch, float& yaw);
+    void GetNormalizedVectors(IMU_SENSOR_t sensor, float& o_x, float& o_y, float& o_z);
 
 protected:
     float invSqrt(float x);
