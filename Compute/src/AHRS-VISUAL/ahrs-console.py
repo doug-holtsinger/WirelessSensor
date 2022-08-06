@@ -34,21 +34,49 @@ class ScanDelegate(DefaultDelegate):
         return self.dev_addr
 
 class AHRSDataFrame():
-    def __init__(self, master, data_group_name, data_names, data_label_width, row, column, data_hold=False):
+    def __init__(self, master, data_group_name, data_names, data_label_width, check_button_names, row, column, data_hold=False):
+        # Save master object 
+        self.master = master
         paddingx = 5
         paddingy = 5
         lf = tk.LabelFrame(master, text=data_group_name)
         lf.grid(column=column, row=row, padx=paddingx, pady=paddingy)
         self.dataItems = []
         self.data_group_name = data_group_name
-        for data_name in data_names:
+        if data_names:
+            for data_name in data_names:
+                row = row + 1
+                self.dataItems.append(AHRSDataItem(lf, data_name, data_label_width, row, column))
+
+        self.checkButtonData = dict()
+        if check_button_names:
             row = row + 1
-            self.dataItems.append(AHRSDataItem(lf, data_name, data_label_width, row, column))
-        #if data_hold:
-        #    tk.Checkbutton(lf, text="Hold Data", command=self.gyroscopeEnableButton, variable=self.gyroscopeEnable).grid(column=0, row=row_num+2, padx=paddingx, pady=paddingy)
+            idx = 0
+            column_start = column
+            column_last = column + 2
+            for name in check_button_names:
+                self.checkButtonData[name] = tk.StringVar()
+                self.checkButtonData[name].set(0)
+                def buttonHandler(self=self, button_name=name):
+                    return self._buttonHandler(button_name)
+                tk.Checkbutton(lf, text=name, command=buttonHandler, variable=self.checkButtonData[name]).grid(column=column, row=row, padx=paddingx, pady=paddingy)
+                idx = idx + 1
+                column = column + 1
+                if column == column_last:
+                    row = row + 1
+                    column = column_start
+
+    def _buttonHandler(self, button_name):
+        if not self.master.connected.get():
+            print("Not connected to AHRS")
+        else:
+            self.master.writeCmdStr('IMU_SELECT_' + self.data_group_name.upper() )
+            self.master.writeCmdStr('IMU_SENSOR_DATA_' + button_name.upper() + '_TOGGLE')
+
+    def setButtonData(self, button_name, data):
+        self.checkButtonData[button_name].set(data)
 
     def setData(self, idx, data):
-        #print("DataFrame setData %s %d data = %s" % ( self.data_group_name, idx, data ))
         self.dataItems[idx].setData(data)
 
     def setupPlot(self, ax):
@@ -117,14 +145,11 @@ class AHRSConsole(tk.Frame):
         self.gyroscopeEnable = tk.IntVar()
         self.AHRSalgorithm = tk.IntVar()
         self.betaGain = tk.DoubleVar()
-        self.dataHoldAccelerometer = tk.IntVar()
-        self.dataHoldMagnetometer = tk.IntVar()
-        self.dataHoldGyroscope = tk.IntVar()
 
         self.resetAHRSSettings()
         self.xpoints = 1500
 
-        self.data_group = []
+        self.data_group = dict()
         self.dataplotcnt = 0
 
         self.dataplot_cnv = None
@@ -196,19 +221,31 @@ class AHRSConsole(tk.Frame):
     def setAHRSData(self, idx, data):
         if idx == 0:
             # AHRS
-            gidx = 0
+            gidx = 'Euler Angles'
             for gi in range(3):
                 self.data_group[gidx].setData(gi, data[gi])
-        elif idx <= 12:
-            # Accelerometer, Magnetometer, Quaternion
+        elif idx <= 4:
+            # Accelerometer
             # gidx 1 to 3
-            gidx = int((idx + 3) / 4)
+            gidx = 'Accelerometer' 
             # gi 0 to 3
-            gi = (idx + 3) & 0x3
+            gi = idx - 1 
+            self.data_group[gidx].setData(gi, data)
+        elif idx <= 8:
+            # gidx 1 to 3
+            gidx = 'Magnetometer' 
+            # gi 0 to 3
+            gi = idx - 5
+            self.data_group[gidx].setData(gi, data)
+        elif idx <= 12:
+            # gidx 1 to 3
+            gidx = 'Quaternion' 
+            # gi 0 to 3
+            gi = idx - 9
             self.data_group[gidx].setData(gi, data)
         elif idx <= 18:
             # Gyroscope
-            gidx = 4
+            gidx = 'Gyroscope'
             gi = idx - 13
             self.data_group[gidx].setData(gi, data)
         elif idx == 19:
@@ -226,18 +263,32 @@ class AHRSConsole(tk.Frame):
                 self.gyroscopeEnable.set(1)
             else:
                 self.gyroscopeEnable.set(0)
+
             if bit_flags & 0x4:
-                self.dataHoldAccelerometer.set(1)
+                self.data_group['Accelerometer'].setButtonData('Hold', 1)
             else:
-                self.dataHoldAccelerometer.set(0)
+                self.data_group['Accelerometer'].setButtonData('Hold', 0)
             if bit_flags & 0x8:
-                self.dataHoldMagnetometer.set(1)
+                self.data_group['Magnetometer'].setButtonData('Hold', 1)
             else:
-                self.dataHoldMagnetometer.set(0)
+                self.data_group['Magnetometer'].setButtonData('Hold', 0)
             if bit_flags & 0x10:
-                self.dataHoldGyroscope.set(1)
+                self.data_group['Gyroscope'].setButtonData('Hold', 1)
             else:
-                self.dataHoldGyroscope.set(0)
+                self.data_group['Gyroscope'].setButtonData('Hold', 0)
+
+            if bit_flags & 0x20:
+                self.data_group['Accelerometer'].setButtonData('Ideal', 1)
+            else:
+                self.data_group['Accelerometer'].setButtonData('Ideal', 0)
+            if bit_flags & 0x40:
+                self.data_group['Magnetometer'].setButtonData('Ideal', 1)
+            else:
+                self.data_group['Magnetometer'].setButtonData('Ideal', 0)
+            if bit_flags & 0x80:
+                self.data_group['Gyroscope'].setButtonData('Ideal', 1)
+            else:
+                self.data_group['Gyroscope'].setButtonData('Ideal', 0)
         elif idx == 21:
             # prop gain 
             self.twoKp.set(data[0])
@@ -275,9 +326,7 @@ class AHRSConsole(tk.Frame):
         self.fig, self.ax = plt.subplots(figsize=(10, 5.0), constrained_layout=True)
 
         # setup initial data plot
-        self.data_group[0].setupPlot(self.ax)
-        # self.data_group[1].setupPlot(self.ax)
-
+        self.data_group['Euler Angles'].setupPlot(self.ax)
         self.ax.set_xlabel('Time')
         self.ax.set_ylabel('Value');
         self.ax.legend()
@@ -332,7 +381,7 @@ class AHRSConsole(tk.Frame):
         # 1,1
         # Euler Angles
         col_num = col_num + 1
-        self.data_group.append(AHRSDataFrame(self, "Euler Angles", ["Roll", "Pitch", "Yaw"], data_label_width, row_num, col_num))
+        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", ["Roll", "Pitch", "Yaw"], data_label_width, None, row_num, col_num)
 
         col_num = 0
         row_num = row_num + 1
@@ -343,9 +392,6 @@ class AHRSConsole(tk.Frame):
         tk.Spinbox(lf, text="Spinbox", command=self.gyroCorrectionSelect, from_=1, to_=9999, increment=1, textvariable=self.gyroCorrection).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
         tk.Checkbutton(lf, text="Magnetometer Stability", command=self.magnetometerStabilityButton, variable=self.magnetometerStability).grid(column=0, row=row_num+1, padx=paddingx, pady=paddingy)
         tk.Checkbutton(lf, text="Gyroscope Enable", command=self.gyroscopeEnableButton, variable=self.gyroscopeEnable).grid(column=0, row=row_num+2, padx=paddingx, pady=paddingy)
-        tk.Checkbutton(lf, text="Accelerometer Data Hold", command=self.accelerometerHoldButton, variable=self.dataHoldAccelerometer).grid(column=0, row=row_num+3, padx=paddingx, pady=paddingy)
-        tk.Checkbutton(lf, text="Magnetometer Data Hold", command=self.magnetometerHoldButton, variable=self.dataHoldMagnetometer).grid(column=0, row=row_num+4, padx=paddingx, pady=paddingy)
-        tk.Checkbutton(lf, text="Gyroscope Data Hold", command=self.gyroscopeHoldButton, variable=self.dataHoldGyroscope).grid(column=0, row=row_num+5, padx=paddingx, pady=paddingy)
 
         col_num = col_num + 1
 
@@ -353,12 +399,6 @@ class AHRSConsole(tk.Frame):
         # Controls
         lf = tk.LabelFrame(self, text="AHRS Settings")
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
-
-        #tk.Radiobutton(lf, text="Algorithm", command=self.AHRSAlgorithmSelect, textvariable=self.AHRSalgorithm).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
-
-        #row_num = row_num + 1
-        #lf2 = tk.LabelFrame(self, text="Algorithm")
-        #lf2.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
 
         tk.Label(lf, text="Algorithm").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
         tk.Radiobutton(lf, text="Mahony", command=self.AHRSAlgorithmSelect, variable=self.AHRSalgorithm, value=0).grid(column=1, row=row_num)
@@ -384,20 +424,20 @@ class AHRSConsole(tk.Frame):
         row_num = row_num + 1
 
         # Accelerometer Data
-        self.data_group.append(AHRSDataFrame(self, "Accelerometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, row_num, col_num))
+        self.data_group['Accelerometer'] = AHRSDataFrame(self, "Accelerometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal'], row_num, col_num)
 
         # Magnetometer Data
         col_num = col_num + 1
-        self.data_group.append(AHRSDataFrame(self, "Magnetometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, row_num, col_num))
+        self.data_group['Magnetometer'] = AHRSDataFrame(self, "Magnetometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal'], row_num, col_num)
 
         # Quaternion Data
         row_num = row_num + 1
         col_num = 0
-        self.data_group.append(AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, row_num, col_num))
+        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, None, row_num, col_num)
 
         # Gyroscope Data
         col_num = col_num + 1
-        self.data_group.append(AHRSDataFrame(self, "Gyroscope", ["Normalized X", "Normalized Y", "Normalized Z", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, row_num, col_num))
+        self.data_group['Gyroscope'] = AHRSDataFrame(self, "Gyroscope", ["Normalized X", "Normalized Y", "Normalized Z", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal'], row_num, col_num)
 
         last_ctrl_row_num = row_num
 
@@ -411,27 +451,6 @@ class AHRSConsole(tk.Frame):
             print("Not connected to AHRS")
         else:
             self.writeCmdStr('IMU_MAGNETOMETER_STABILITY_TOGGLE')
-
-    def accelerometerHoldButton(self):
-        if not self.connected.get():
-            print("Not connected to AHRS")
-        else:
-            self.writeCmdStr('IMU_SELECT_ACCELEROMETER')
-            self.writeCmdStr('IMU_SENSOR_DATA_HOLD_TOGGLE')
-
-    def magnetometerHoldButton(self):
-        if not self.connected.get():
-            print("Not connected to AHRS")
-        else:
-            self.writeCmdStr('IMU_SELECT_MAGNETOMETER')
-            self.writeCmdStr('IMU_SENSOR_DATA_HOLD_TOGGLE')
-
-    def gyroscopeHoldButton(self):
-        if not self.connected.get():
-            print("Not connected to AHRS")
-        else:
-            self.writeCmdStr('IMU_SELECT_GYROSCOPE')
-            self.writeCmdStr('IMU_SENSOR_DATA_HOLD_TOGGLE')
 
     def gyroscopeEnableButton(self):
         if not self.connected.get():
