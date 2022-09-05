@@ -37,23 +37,31 @@ class AHRSDataFrame():
     def __init__(self, master, data_group_name, data_names, data_label_width, check_button_names, row, column, data_hold=False):
         # Save master object 
         self.master = master
-        paddingx = 5
-        paddingy = 5
+        paddingx = 2
+        paddingy = 2
         lf = tk.LabelFrame(master, text=data_group_name)
         lf.grid(column=column, row=row, padx=paddingx, pady=paddingy)
         self.dataItems = []
         self.data_group_name = data_group_name
         if data_names:
+            row_first = row
             for data_name in data_names:
-                row = row + 1
-                self.dataItems.append(AHRSDataItem(lf, data_name, data_label_width, row, column))
+                if isinstance(data_name, (list)):
+                    for dat in data_name:
+                        row = row + 1
+                        self.dataItems.append(AHRSDataItem(lf, dat, data_label_width, row, column))
+                    row = row_first
+                    column = column + 2
+                else:
+                    row = row + 1
+                    self.dataItems.append(AHRSDataItem(lf, data_name, data_label_width, row, column))
 
         self.checkButtonData = dict()
         if check_button_names:
             row = row + 1
             idx = 0
             column_start = column
-            column_last = column + 2
+            column_last = column + 3
             for name in check_button_names:
                 self.checkButtonData[name] = tk.StringVar()
                 self.checkButtonData[name].set(0)
@@ -145,6 +153,8 @@ class AHRSConsole(tk.Frame):
         self.gyroscopeEnable = tk.IntVar()
         self.AHRSalgorithm = tk.IntVar()
         self.betaGain = tk.DoubleVar()
+        self.uncalibratedDisplay = tk.IntVar()
+        self.settingsDisplay = tk.IntVar()
 
         self.resetAHRSSettings()
         self.xpoints = 1500
@@ -171,7 +181,10 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_SELECT_MAGNETOMETER'] = 1
         self.commandDict['IMU_SELECT_GYROSCOPE'] = 2
         self.commandDict['IMU_SELECT_ACCELEROMETER'] = 3
+        # AHRS and Quaternion overloaded
         self.commandDict['IMU_SELECT_AHRS'] = 4
+        self.commandDict['IMU_SELECT_QUATERNION'] = 4
+        #
         self.commandDict['IMU_SENSOR_CALIBRATE_NORMALIZED'] = 5
         self.commandDict['IMU_SENSOR_CALIBRATE_ZERO_OFFSET'] = 6
         self.commandDict['IMU_SENSOR_CALIBRATE_MAGNETOMETER'] = 7
@@ -185,19 +198,22 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_SENSOR_DATA_HOLD_TOGGLE'] = 15 
         self.commandDict['IMU_SENSOR_DATA_IDEAL_TOGGLE'] = 16
         self.commandDict['IMU_SENSOR_DATA_FIXED_TOGGLE'] = 17
-        self.commandDict['IMU_AHRS_PROP_GAIN_UP'] = 18
-        self.commandDict['IMU_AHRS_PROP_GAIN_DOWN'] = 19
-        self.commandDict['IMU_AHRS_INTEG_GAIN_UP'] = 20
-        self.commandDict['IMU_AHRS_INTEG_GAIN_DOWN'] = 21
-        self.commandDict['IMU_AHRS_SAMPLE_FREQ_UP'] = 22
-        self.commandDict['IMU_AHRS_SAMPLE_FREQ_DOWN'] = 23
-        self.commandDict['IMU_GYROSCOPE_CORRECTION_UP'] = 24
-        self.commandDict['IMU_GYROSCOPE_CORRECTION_DOWN'] = 25
-        self.commandDict['IMU_MAGNETOMETER_STABILITY_TOGGLE'] = 26
-        self.commandDict['IMU_AHRS_BETA_GAIN_UP'] = 27
-        self.commandDict['IMU_AHRS_BETA_GAIN_DOWN'] = 28
-        self.commandDict['IMU_AHRS_ALGORITHM_TOGGLE'] = 29
-        self.commandDict['IMU_GYROSCOPE_ENABLE_TOGGLE'] = 30 
+        self.commandDict['IMU_SENSOR_DATA_DISPLAY_TOGGLE'] = 18
+        self.commandDict['IMU_AHRS_PROP_GAIN_UP'] = 19
+        self.commandDict['IMU_AHRS_PROP_GAIN_DOWN'] = 20
+        self.commandDict['IMU_AHRS_INTEG_GAIN_UP'] = 21
+        self.commandDict['IMU_AHRS_INTEG_GAIN_DOWN'] = 22
+        self.commandDict['IMU_AHRS_SAMPLE_FREQ_UP'] = 23
+        self.commandDict['IMU_AHRS_SAMPLE_FREQ_DOWN'] = 24
+        self.commandDict['IMU_GYROSCOPE_CORRECTION_UP'] = 25
+        self.commandDict['IMU_GYROSCOPE_CORRECTION_DOWN'] = 26
+        self.commandDict['IMU_MAGNETOMETER_STABILITY_TOGGLE'] = 27
+        self.commandDict['IMU_AHRS_BETA_GAIN_UP'] = 28
+        self.commandDict['IMU_AHRS_BETA_GAIN_DOWN'] = 29
+        self.commandDict['IMU_AHRS_ALGORITHM_TOGGLE'] = 30
+        self.commandDict['IMU_GYROSCOPE_ENABLE_TOGGLE'] = 31
+        self.commandDict['IMU_UNCALIBRATED_DISPLAY_TOGGLE'] = 32
+        self.commandDict['IMU_SETTINGS_DISPLAY_TOGGLE'] = 33
 
     def resetAHRSSettings(self):
         self.twoKp.set(0.0)
@@ -219,6 +235,7 @@ class AHRSConsole(tk.Frame):
         self.dataplot_cnv.draw_idle()
 
     def setAHRSData(self, idx, data):
+        # print("NOTIF %d" % ( idx ))
         if idx == 0:
             # AHRS
             gidx = 'Euler Angles'
@@ -255,6 +272,7 @@ class AHRSConsole(tk.Frame):
         elif idx == 20:
             # bit flags 
             bit_flags = int(data[0])
+            # print("BIT FLAGS %s" % ( hex(bit_flags)))
             if bit_flags & 0x1:
                 self.magnetometerStability.set(1)
             else:
@@ -289,6 +307,34 @@ class AHRSConsole(tk.Frame):
                 self.data_group['Gyroscope'].setButtonData('Ideal', 1)
             else:
                 self.data_group['Gyroscope'].setButtonData('Ideal', 0)
+
+            if bit_flags & 0x100:
+                self.data_group['Quaternion'].setButtonData('Display', 1)
+            else:
+                self.data_group['Quaternion'].setButtonData('Display', 0)
+            if bit_flags & 0x200:
+                self.data_group['Accelerometer'].setButtonData('Display', 1)
+            else:
+                self.data_group['Accelerometer'].setButtonData('Display', 0)
+            if bit_flags & 0x400:
+                self.data_group['Magnetometer'].setButtonData('Display', 1)
+            else:
+                self.data_group['Magnetometer'].setButtonData('Display', 0)
+            if bit_flags & 0x800:
+                self.data_group['Gyroscope'].setButtonData('Display', 1)
+            else:
+                self.data_group['Gyroscope'].setButtonData('Display', 0)
+
+            if bit_flags & 0x1000:
+                self.uncalibratedDisplay.set(1)
+            else:
+                self.uncalibratedDisplay.set(0)
+
+            if bit_flags & 0x2000:
+                self.settingsDisplay.set(1)
+            else:
+                self.settingsDisplay.set(0)
+
         elif idx == 21:
             # prop gain 
             self.twoKp.set(data[0])
@@ -346,6 +392,7 @@ class AHRSConsole(tk.Frame):
         paddingx = 5
         paddingy = 5
         data_label_width = 17
+        spinbox_width = 10
 
         # 0,0
         # Menu
@@ -378,10 +425,13 @@ class AHRSConsole(tk.Frame):
         tk.Button(lf, text="Reset", command=self.calibrateResetButton).pack(anchor="w")
         tk.Button(lf, text="Save", command=self.calibrateSaveButton).pack(anchor="w")
 
-        # 1,1
         # Euler Angles
         col_num = col_num + 1
-        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", ["Roll", "Pitch", "Yaw"], data_label_width, None, row_num, col_num)
+        #self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", [["Roll", "Pitch", "Yaw"], ["Roll-Local", "Pitch-Local", "Yaw-Local"]], 8, None, row_num, col_num)
+        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", ["Roll", "Pitch", "Yaw"], 9, None, row_num, col_num)
+
+        #col_num = col_num + 1 
+        #self.data_group['Euler Angles Local'] = AHRSDataFrame(self, "Euler Angles Local", ["Roll", "Pitch", "Yaw"], 8, None, row_num, col_num)
 
         col_num = 0
         row_num = row_num + 1
@@ -389,9 +439,11 @@ class AHRSConsole(tk.Frame):
         lf = tk.LabelFrame(self, text="IMU Settings")
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
         tk.Label(lf, text="Gyroscope Correction").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.gyroCorrectionSelect, from_=1, to_=9999, increment=1, textvariable=self.gyroCorrection).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.gyroCorrectionSelect, from_=1, to_=9999, increment=1, textvariable=self.gyroCorrection, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
         tk.Checkbutton(lf, text="Magnetometer Stability", command=self.magnetometerStabilityButton, variable=self.magnetometerStability).grid(column=0, row=row_num+1, padx=paddingx, pady=paddingy)
         tk.Checkbutton(lf, text="Gyroscope Enable", command=self.gyroscopeEnableButton, variable=self.gyroscopeEnable).grid(column=0, row=row_num+2, padx=paddingx, pady=paddingy)
+        tk.Checkbutton(lf, text="Uncalibrated Display", command=self.uncalibratedDisplayButton, variable=self.uncalibratedDisplay).grid(column=0, row=row_num+3, padx=paddingx, pady=paddingy)
+        tk.Checkbutton(lf, text="Settings Display", command=self.settingsDisplayButton, variable=self.settingsDisplay).grid(column=0, row=row_num+4, padx=paddingx, pady=paddingy)
 
         col_num = col_num + 1
 
@@ -406,38 +458,38 @@ class AHRSConsole(tk.Frame):
 
         row_num = row_num + 1
         tk.Label(lf, text="Proportional Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.proportionalGainSelect, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.proportionalGainSelect, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         row_num = row_num + 1
         tk.Label(lf, text="Integral Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.integralGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.integralGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         row_num = row_num + 1
         tk.Label(lf, text="Sample Frequency").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.sampleFrequencySelect, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.sampleFrequencySelect, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         row_num = row_num + 1
         tk.Label(lf, text="Beta Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.betaGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.betaGain).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Spinbox(lf, text="Spinbox", command=self.betaGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.betaGain, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
 
         col_num = 0
         row_num = row_num + 1
 
         # Accelerometer Data
-        self.data_group['Accelerometer'] = AHRSDataFrame(self, "Accelerometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal'], row_num, col_num)
+        self.data_group['Accelerometer'] = AHRSDataFrame(self, "Accelerometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal', 'Display'], row_num, col_num)
 
         # Magnetometer Data
         col_num = col_num + 1
-        self.data_group['Magnetometer'] = AHRSDataFrame(self, "Magnetometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal'], row_num, col_num)
+        self.data_group['Magnetometer'] = AHRSDataFrame(self, "Magnetometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal', 'Display'], row_num, col_num)
 
         # Quaternion Data
         row_num = row_num + 1
         col_num = 0
-        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, None, row_num, col_num)
+        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, ["Display"], row_num, col_num)
 
         # Gyroscope Data
         col_num = col_num + 1
-        self.data_group['Gyroscope'] = AHRSDataFrame(self, "Gyroscope", ["Normalized X", "Normalized Y", "Normalized Z", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal'], row_num, col_num)
+        self.data_group['Gyroscope'] = AHRSDataFrame(self, "Gyroscope", ["Normalized X", "Normalized Y", "Normalized Z", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal', 'Display'], row_num, col_num)
 
         last_ctrl_row_num = row_num
 
@@ -457,6 +509,18 @@ class AHRSConsole(tk.Frame):
             print("Not connected to AHRS")
         else:
             self.writeCmdStr('IMU_GYROSCOPE_ENABLE_TOGGLE')
+
+    def uncalibratedDisplayButton(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            self.writeCmdStr('IMU_UNCALIBRATED_DISPLAY_TOGGLE')
+
+    def settingsDisplayButton(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            self.writeCmdStr('IMU_SETTINGS_DISPLAY_TOGGLE')
 
     def proportionalGainSelect(self):
         if not self.connected.get():
