@@ -66,11 +66,11 @@
 #include "bsp.h"
 #include "boards.h"
 
+#include "app_config.h"
 #include "imu.h"
 #include "ble_svcs_cmd.h"
 #include "ble_svcs.h"
 
-#include "app_config.h"
 
 IMU imu;
 static uint32_t cmd_get_cnt = 0;

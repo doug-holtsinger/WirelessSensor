@@ -221,20 +221,25 @@ void MahonyAHRS::Update(float gx, float gy, float gz, float ax, float ay, float 
 }
 
 
-void MahonyAHRS::send_all_client_data()
+#ifdef BLE_CONSOLE_AVAILABLE
+void MahonyAHRS::send_all_client_data(const bool *display_data, const bool settings_display)
 {
     char s[NOTIFY_PRINT_STR_MAX_LEN];
 
-    AHRS::send_all_client_data();
+    AHRS::send_all_client_data(display_data, settings_display);
 
     // Algorithm-specific data
-    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , PROP_GAIN, PRINTF_FLOAT_VALUE2(twoKp) );
-    send_client_data(s);
+    if (settings_display)
+    {
+        snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , PROP_GAIN, PRINTF_FLOAT_VALUE2(twoKp) );
+        send_client_data(s);
 
-    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , INTEG_GAIN, PRINTF_FLOAT_VALUE2(twoKi) );
-    send_client_data(s);
+        snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , INTEG_GAIN, PRINTF_FLOAT_VALUE2(twoKi) );
+        send_client_data(s);
+    }
 
 }
+#endif
 
 void MahonyAHRS::cmd(const IMU_CMD_t cmd)
 {

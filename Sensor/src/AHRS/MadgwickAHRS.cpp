@@ -209,17 +209,22 @@ void MadgwickAHRS::Update(float gx, float gy, float gz, float ax, float ay, floa
         q3X = q3;
 }
 
-void MadgwickAHRS::send_all_client_data()
+#ifdef BLE_CONSOLE_AVAILABLE
+void MadgwickAHRS::send_all_client_data(const bool *display_data, const bool settings_display)
 {
     char s[NOTIFY_PRINT_STR_MAX_LEN];
 
-    AHRS::send_all_client_data();
+    AHRS::send_all_client_data(display_data, settings_display);
 
     // Algorithm-specific data
-    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , BETA_GAIN, PRINTF_FLOAT_VALUE2(beta) );
-    send_client_data(s);
+    if (settings_display)
+    {
+        snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 , BETA_GAIN, PRINTF_FLOAT_VALUE2(beta) );
+        send_client_data(s);
+    }
 
 }
+#endif
 
 void MadgwickAHRS::cmd(const IMU_CMD_t cmd)
 {

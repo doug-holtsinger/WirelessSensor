@@ -16,7 +16,8 @@ typedef struct {
     int32_t gyroscope_max[3] = {{0}};
     uint32_t gyroscope_min_threshold[3] = {{0}};
     float gyroscope_correction = 1.0f; 
-    bool gyroscope_enabled = false;
+    bool gyroscope_enabled = true;
+    bool magnetometer_stability = true;
 
     int32_t magnetometer_min[3] = {{0}}; 
     int32_t magnetometer_max[3] = {{0}};

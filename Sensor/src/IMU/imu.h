@@ -75,9 +75,12 @@ class IMU {
         bool show_pitch = false;
         bool show_yaw   = false;
         bool show_roll  = false;
-        bool ideal_data[IMU_SENSOR_MAX+1] = { false, false, false };
+        bool ideal_data[IMU_SENSOR_MAX+1] = { { false } };
         bool data_hold[IMU_SENSOR_MAX+1] = { { false } };
+        bool display_data[IMU_SENSOR_MAX+1] = { true, true, true, true };
 	bool fixed_data = false;
+	bool uncalibrated_display = false;
+	bool settings_display = true;
 
         float roll, pitch, yaw;
         float yaw_last_cal;
@@ -96,7 +99,6 @@ class IMU {
 
         int32_t magnetometer_uncal[3];
         int32_t magnetometer_cal[3];
-	bool magnetometer_stability = true;
 
         bool timestamp_valid = false;
         int32_t timestamp = 0;
