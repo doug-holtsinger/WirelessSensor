@@ -5,6 +5,7 @@ from ahrs cimport MahonyAHRS
 # Create a Cython extension type which holds a C++ instance
 # as an attribute and create a bunch of forwarding methods
 # Python extension type.
+
 cdef class PyMahonyAHRS:
     cdef MahonyAHRS c_mahonyAHRS  # Hold a C++ instance which we're wrapping
 
@@ -16,4 +17,10 @@ cdef class PyMahonyAHRS:
 
     def ComputeAngles(self, float& roll, float& pitch, float& yaw):
         self.c_mahonyAHRS.ComputeAngles(roll, pitch, yaw)
+
+    def GetAngle(self, angle_select):
+        return self.c_mahonyAHRS.GetAngle(angle_select)
+
+    def GetQuaternion(self, quaternion_select):
+        return self.c_mahonyAHRS.GetQuaternion(quaternion_select)
 

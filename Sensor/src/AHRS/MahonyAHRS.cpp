@@ -39,7 +39,7 @@ void MahonyAHRS::UpdateIMU(float gx, float gy, float gz, float ax, float ay, flo
     if(!((ax == 0.0f) && (ay == 0.0f) && (az == 0.0f))) {
 
         // Normalise accelerometer measurement
-        recipNorm = invSqrt(ax * ax + ay * ay + az * az);
+        recipNorm = invSqrt(ax * ax + ay * ay + az * az, false);
         ax *= recipNorm;
         ay *= recipNorm;
         az *= recipNorm;        
@@ -89,7 +89,7 @@ void MahonyAHRS::UpdateIMU(float gx, float gy, float gz, float ax, float ay, flo
     q3 += (qa * gz + qb * gy - qc * gx); 
     
     // Normalise quaternion
-    recipNorm = invSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
+    recipNorm = invSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3, true);
     q0 *= recipNorm;
     q1 *= recipNorm;
     q2 *= recipNorm;
@@ -113,7 +113,7 @@ void MahonyAHRS::Update(float gx, float gy, float gz, float ax, float ay, float 
     // Compute feedback only if accelerometer measurement valid (avoids NaN in accelerometer normalisation)
     if(!((ax == 0.0f) && (ay == 0.0f) && (az == 0.0f))) {
         // Normalise accelerometer measurement
-        recipNorm = invSqrt(ax * ax + ay * ay + az * az);
+        recipNorm = invSqrt(ax * ax + ay * ay + az * az, false);
         ax *= recipNorm;
         ay *= recipNorm;
         az *= recipNorm;     
@@ -122,7 +122,7 @@ void MahonyAHRS::Update(float gx, float gy, float gz, float ax, float ay, float 
 	azN = az;
 
         // Normalise magnetometer measurement
-        recipNorm = invSqrt(mx * mx + my * my + mz * mz);
+        recipNorm = invSqrt(mx * mx + my * my + mz * mz, false);
         mx *= recipNorm;
         my *= recipNorm;
         mz *= recipNorm;   
@@ -208,7 +208,7 @@ void MahonyAHRS::Update(float gx, float gy, float gz, float ax, float ay, float 
     //  gz has no effect on yaw
 
     // Normalise quaternion
-    recipNorm = invSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
+    recipNorm = invSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3, true);
     q0 *= recipNorm;
     q1 *= recipNorm;
     q2 *= recipNorm;

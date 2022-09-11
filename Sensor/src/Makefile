@@ -346,6 +346,7 @@ CFLAGS += -fno-builtin -fshort-enums
 CXXFLAGS += $(OPT)
 #CXXFLAGS += -std=c++14
 CXXFLAGS += -std=c++17
+CXXFLAGS += -DBOARD_PCA10059
 # Assembler flags common to all targets
 ASMFLAGS += -g3
 ASMFLAGS += -mcpu=cortex-m4

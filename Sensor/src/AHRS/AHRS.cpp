@@ -12,19 +12,27 @@
 #include "ble_svcs.h"
 #endif
 
+#include <math.h>
 
 //---------------------------------------------------------------------------------------------------
 // Fast inverse square-root
 // See: http://en.wikipedia.org/wiki/Fast_inverse_square_root
 
 //---------------------------------------------------------------------------------------------------
-float AHRS::invSqrt(float x) {
-    float halfx = 0.5f * x;
+float AHRS::invSqrt(float x, bool accurate_calc) {
     float y = x;
-    long i = *(long*)&y;
-    i = 0x5f3759df - (i>>1);
-    y = *(float*)&i;
-    y = y * (1.5f - (halfx * y * y));
+
+    if (accurate_calc)
+    {
+        y = 1.0 / sqrt(x);
+    } else {
+        float halfx = 0.5f * x;
+        long i = *(long*)&y;
+        i = 0x5f3759df - (i>>1);
+        y = *(float*)&i;
+        y = y * (1.5f - (halfx * y * y));
+    }
+
     return y;
 }
 
@@ -92,17 +100,48 @@ void AHRS::send_all_client_data(const bool *display_data, const bool settings_di
 void AHRS::ComputeAngles(float& roll, float& pitch, float& yaw) 
 {
   roll = atan2f(q0 * q1 + q2 * q3, 0.5f - q1 * q1 - q2 * q2);
-  roll = roll * 57.29578f;
+  roll = l_roll = roll * 57.29578f;
 
   // attitude = asin(2*qx*qy + 2*qz*qw)
-  pitch = asinf(-2.0f * (q1 * q3 - q0 * q2));
-  pitch = pitch * 57.29578f;
+  float arg = -2.0f * (q1 * q3 - q0 * q2);
+  if (arg < 1.0f || arg > 1.0f)
+  {
+	  arg -= 0.00001; 
+  }
+  pitch = asinf(arg);
+  pitch = l_pitch = pitch * 57.29578f;
 
   yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
-  yaw =  yaw * 57.29578f + 180.0f;
+  yaw = l_yaw = yaw * 57.29578f + 180.0f;
 }
 
-void AHRS::GetNormalizedVectors(IMU_SENSOR_t sensor, float& o_x, float& o_y, float& o_z)
+// Cython doesn't work with references passed back.
+float AHRS::GetAngle(const EULER_ANGLE_SELECT_t angle_select) const
+{
+    switch (angle_select)
+    {
+        case ROLL: return l_roll; break; 
+        case PITCH: return l_pitch; break; 
+        case YAW: return l_yaw; break; 
+	default: break;
+    }
+    return 0.0;
+}
+
+float AHRS::GetQuaternion(const QUATERNION_SELECT_t quaternion_select) const
+{
+    switch (quaternion_select)
+    {
+        case Q0: return q0; break; 
+        case Q1: return q1; break; 
+        case Q2: return q2; break; 
+        case Q3: return q3; break; 
+	default: break;
+    }
+    return 0.0;
+}
+
+void AHRS::GetNormalizedVectors(const IMU_SENSOR_t sensor, float& o_x, float& o_y, float& o_z) const
 {
     switch(sensor)
     {

@@ -1,6 +1,8 @@
 
 // Define if BLE console is wanted
+#ifdef BOARD_PCA10059
 #define BLE_CONSOLE_AVAILABLE 
+#endif
 
 // Define if serial port is wanted on nRF52 board
 // #define SERIAL_CONSOLE_AVAILABLE
