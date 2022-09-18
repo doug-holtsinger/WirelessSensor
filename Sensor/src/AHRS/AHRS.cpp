@@ -12,8 +12,6 @@
 #include "ble_svcs.h"
 #endif
 
-#include <math.h>
-
 //---------------------------------------------------------------------------------------------------
 // Fast inverse square-root
 // See: http://en.wikipedia.org/wiki/Fast_inverse_square_root
@@ -99,20 +97,43 @@ void AHRS::send_all_client_data(const bool *display_data, const bool settings_di
 
 void AHRS::ComputeAngles(float& roll, float& pitch, float& yaw) 
 {
-  roll = atan2f(q0 * q1 + q2 * q3, 0.5f - q1 * q1 - q2 * q2);
-  roll = l_roll = roll * 57.29578f;
+    // calculate roll in degrees
+    float y = q0 * q1 + q2 * q3;
+    float x = 0.5f - q1 * q1 - q2 * q2;
+    if (y != 0.0f && x != 0.0f)
+    {
+        roll = atan2f(y, x);
+        roll = l_roll = roll * 57.29578f;
+    } else 
+    {
+        roll = l_roll;
+    }
 
-  // attitude = asin(2*qx*qy + 2*qz*qw)
-  float arg = -2.0f * (q1 * q3 - q0 * q2);
-  if (arg < 1.0f || arg > 1.0f)
-  {
-	  arg -= 0.00001; 
-  }
-  pitch = asinf(arg);
-  pitch = l_pitch = pitch * 57.29578f;
+    // attitude = asin(2*qx*qy + 2*qz*qw)
+    // calculate pitch in degrees
+    float arg = -2.0f * (q1 * q3 - q0 * q2);
+    if (arg > 1.0f)
+    {
+        arg = 1.0f;
+    } else if (arg < -1.0f)
+    {
+        arg = -1.0f;
+    }
+    pitch = asinf(arg);
+    pitch = l_pitch = pitch * 57.29578f;
 
-  yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
-  yaw = l_yaw = yaw * 57.29578f + 180.0f;
+    // calculate yaw in degrees
+    y = q1 * q2 + q0 * q3;
+    x = 0.5f - q2 * q2 - q3 * q3;
+    yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
+    if (y != 0.0f && x != 0.0f)
+    {
+        yaw = atan2f(y, x);
+        yaw = l_yaw = yaw * 57.29578f + 180.0f;
+    } else 
+    {
+        yaw = l_yaw;
+    }
 }
 
 // Cython doesn't work with references passed back.

@@ -16,17 +16,16 @@
 #include "AHRS.h"
 #include "logdef.h"
 
-// FIXME: remove constants
-// #define ACCELEROMETER_MIN_THRESHOLD 100
-// #define GYROSCOPE_MIN_THRESHOLD 0.05
-// #define MAGNETOMETER_MIN_THRESHOLD 15
-// #define GYROSCOPE_SENSITIVITY_THRESHOLD 16
+// FIXME: remove arbitrary constants
 #define NOISE_THRESHOLD_MULTIPLIER 2
 
 #define DEGREES_PER_RADIAN 57.2957795
 #define MILLIDEGREES_PER_DEGREE 1000
+// FIXME: move this into the LSM6DS3 code
 #define SECONDS_PER_TIMER_TICK 0.000025
 #define TIMER_TICKS_PER_SECOND 40000
+
+#define ODR_UPDATE_INTERVAL 200
 
 typedef enum {
         IMU_CALIBRATE_DISABLED = 0,
@@ -65,6 +64,7 @@ class IMU {
         void init_params(imu_calibration_params_t params);
         void params_save();
         void params_print(imu_calibration_params_t& params);
+	void MeasureODR();
 
         LSM6DS3Sensor* AccGyr;
         LIS3MDLSensor* Magneto;
@@ -77,7 +77,7 @@ class IMU {
         bool show_roll  = false;
         bool ideal_data[IMU_SENSOR_MAX+1] = { { false } };
         bool data_hold[IMU_SENSOR_MAX+1] = { { false } };
-        bool display_data[IMU_SENSOR_MAX+1] = { true, true, true, true };
+        bool display_data[IMU_SENSOR_MAX+1] = { true, true, true, true, true };
 	bool fixed_data = false;
 	bool uncalibrated_display = false;
 	bool settings_display = true;
@@ -100,9 +100,13 @@ class IMU {
         int32_t magnetometer_uncal[3];
         int32_t magnetometer_cal[3];
 
+	unsigned int odr_select = 0;
         bool timestamp_valid = false;
+        bool timestamp_odr_valid = false;
         int32_t timestamp = 0;
         int32_t timestamp_prev = 0;
+	float odr_hz[3];
+	int odr_update_cnt = 0;
 
         IMU_SENSOR_t sensor_select = IMU_AHRS;
         uint32_t show_input_ahrs = 0;

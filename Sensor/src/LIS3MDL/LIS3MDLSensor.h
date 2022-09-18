@@ -84,6 +84,7 @@ class LIS3MDLSensor
 	LIS3MDLStatusTypeDef SetODR         (float odr);
 	LIS3MDLStatusTypeDef GetFS          (float *fullScale);
 	LIS3MDLStatusTypeDef SetFS          (float fullScale);
+	LIS3MDLStatusTypeDef NewDataAvailable (bool *newDataAvail);
 	LIS3MDLStatusTypeDef ReadReg        (uint8_t reg, uint8_t *data);
 	LIS3MDLStatusTypeDef WriteReg       (uint8_t reg, uint8_t data);
 	

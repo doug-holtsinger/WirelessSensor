@@ -516,6 +516,16 @@ void IMU::send_all_client_data()
 
     }
 
+    if (display_data[IMU_ODR])
+    {
+        snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%u " PRINTF_FLOAT_FORMAT2 ,
+            ODR_HZ_ACCELEROMETER + odr_select,
+            PRINTF_FLOAT_VALUE2(odr_hz[odr_select])
+            );
+        send_client_data(s);
+    }
+
+
     // Magnetometer
     if (display_data[IMU_MAGNETOMETER])
     {
@@ -563,6 +573,8 @@ void IMU::send_all_client_data()
     bit_flags |= (display_data[IMU_GYROSCOPE]     ? 1 << DISPLAY_DATA_GYROSCOPE : 0);
     bit_flags |= (uncalibrated_display            ? 1 << UNCALIBRATED_DISPLAY : 0); 
     bit_flags |= (settings_display                ? 1 << SETTINGS_DISPLAY : 0); 
+    bit_flags |= (ideal_data[IMU_ODR]             ? 1 << IDEAL_DATA_ODR : 0); 
+    bit_flags |= (display_data[IMU_ODR]           ? 1 << DISPLAY_DATA_ODR : 0); 
 
     snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %lu",
             BIT_FLAGS, bit_flags
@@ -574,12 +586,50 @@ void IMU::send_all_client_data()
 
 }
 
+void IMU::MeasureODR()
+{
+    bool timestamp_overflow;
+    if (odr_update_cnt == ODR_UPDATE_INTERVAL)
+    {
+        LSM6DS3StatusTypeDef lsm_err_code = AccGyr->Read_Timestamp(&timestamp, &timestamp_overflow);
+        APP_ERROR_CHECK(lsm_err_code);
+	if (timestamp_overflow) 
+	{
+	    // Reset timestamp
+            LSM6DS3StatusTypeDef lsm_err_code = AccGyr->Reset_Timestamp();
+            APP_ERROR_CHECK(lsm_err_code);
+	    odr_update_cnt = 0;
+	    timestamp_odr_valid = false;
+	} else if (timestamp_odr_valid)
+        {
+            // FIXME  LSM6DS3 timestamp sometimes runs backwards. Bug?
+            if (timestamp > timestamp_prev) 
+            {
+                odr_hz[odr_select] = 1.0f / (SECONDS_PER_TIMER_TICK * (timestamp - timestamp_prev));
+	    }
+	    odr_update_cnt = 0;
+	    timestamp_odr_valid = false;
+	    odr_select = odr_select + 1;
+	    if (odr_select == 3) 
+	    {
+                odr_select = 0;
+	    }
+        } else {
+            timestamp_prev = timestamp;
+	    timestamp_odr_valid = true;
+        }
+    } else {
+        odr_update_cnt++;
+    }
+}
+
 void IMU::update()
 {
     LSM6DS3StatusTypeDef lsm_err_code = LSM6DS3_STATUS_OK;
     LIS3MDLStatusTypeDef lis_err_code = LIS3MDL_STATUS_OK;
     uint8_t reg_data = 0;
     bool new_data_avail = false;
+    bool new_data_odr = false;
 
     timestamp_valid = false;
 
@@ -594,17 +644,25 @@ void IMU::update()
     if (!data_hold[IMU_ACCELEROMETER] && (reg_data & LSM6DS3_ACC_GYRO_XLDA_MASK) == LSM6DS3_ACC_GYRO_XLDA_DATA_AVAIL)
     {
         new_data_avail = true;
+	if (odr_select == 0)
+	{
+            new_data_odr = true;
+	}
         lsm_err_code = AccGyr->Get_X_Axes(accelerometer_uncal);
         APP_ERROR_CHECK(lsm_err_code);
     }
     if (!data_hold[IMU_GYROSCOPE] && (reg_data & LSM6DS3_ACC_GYRO_GDA_MASK) == LSM6DS3_ACC_GYRO_GDA_DATA_AVAIL)
     {
         new_data_avail = true;
+	if (odr_select == 1)
+	{
+            new_data_odr = true;
+	}
         lsm_err_code = AccGyr->Get_G_Axes(gyroscope_uncal);
         APP_ERROR_CHECK(lsm_err_code);
         if (calibrate_enable == IMU_CALIBRATE_GYROSCOPE)
         {
-            lsm_err_code = AccGyr->Read_Timestamp(&timestamp);
+            lsm_err_code = AccGyr->Read_Timestamp(&timestamp, nullptr);
             APP_ERROR_CHECK(lsm_err_code);
             timestamp_valid = true;
         }
@@ -615,8 +673,18 @@ void IMU::update()
     //
     if (!data_hold[IMU_MAGNETOMETER])
     {
-        lis_err_code = Magneto->GetAxes(magnetometer_uncal);
+	bool magNewData;
+        lis_err_code = Magneto->NewDataAvailable(&magNewData);
         APP_ERROR_CHECK(lis_err_code);
+	if (magNewData)
+	{
+            lis_err_code = Magneto->GetAxes(magnetometer_uncal);
+            APP_ERROR_CHECK(lis_err_code);
+	    if (odr_select == 2)
+	    {
+                new_data_odr = true;
+	    }
+	}
     }
 
     if (calibrate_reset)
@@ -636,8 +704,15 @@ void IMU::update()
         {
             calibrate_gyroscope();
         }
-        calibrate_data();
-        AHRSCompute();
+        if (new_data_odr)
+	{
+	   MeasureODR();
+	}	
+	if (!ideal_data[IMU_ODR]) 
+	{
+            calibrate_data();
+            AHRSCompute();
+	}
     }
 
 }
@@ -677,6 +752,9 @@ void IMU::cmd(const IMU_CMD_t cmd)
             break;
         case IMU_SELECT_AHRS:
             sensor_select = IMU_AHRS;
+            break;
+        case IMU_SELECT_ODR:
+            sensor_select = IMU_ODR;
             break;
         case IMU_AHRS_INPUT_TOGGLE:
             show_input_ahrs = ( show_input_ahrs + 1 ) % 4;

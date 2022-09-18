@@ -281,7 +281,7 @@ LSM6DS3StatusTypeDef LSM6DS3Sensor::Reset_Timestamp()
  * @brief  Read LSM6DS3 Timestamp
  * @retval LSM6DS3_STATUS_OK in case of success, an error code otherwise
  */
-LSM6DS3StatusTypeDef LSM6DS3Sensor::Read_Timestamp(int32_t *timestampPtr)
+LSM6DS3StatusTypeDef LSM6DS3Sensor::Read_Timestamp(int32_t *timestampPtr, bool *overflow)
 {
   u8_t bufTmp[3] = {{0}} ;
   uint8_t *buf = (uint8_t*)timestampPtr; 
@@ -323,6 +323,15 @@ LSM6DS3StatusTypeDef LSM6DS3Sensor::Read_Timestamp(int32_t *timestampPtr)
 #else
 #    error unsupported endianness
 #endif
+  if (overflow != nullptr)
+  {
+      if (bufTmp[2] == 0xFF)
+      {
+          *overflow = true;
+      } else {
+          *overflow = false;
+      }
+  }
 
   return LSM6DS3_STATUS_OK;
 }

@@ -406,6 +406,25 @@ LIS3MDLStatusTypeDef LIS3MDLSensor::SetFS(float fullScale)
   return LIS3MDL_STATUS_OK;
 }
 
+/**
+ * @brief  Read LIS3MDL Data Available
+ * @param  newDataAvail the pointer to the flag to indicate new data
+ * @retval LIS3MDL_STATUS_OK in case of success, an error code otherwise
+ */
+LIS3MDLStatusTypeDef LIS3MDLSensor::NewDataAvailable(bool* newDataAvail)
+{
+  LIS3MDL_MAG_ZYXDA_t newData;
+
+  if ( LIS3MDL_MAG_R_NewXYZData( (void *)this, &newData) == MEMS_ERROR )
+  {
+    return LIS3MDL_STATUS_ERROR;
+  }
+
+  *newDataAvail = newData ? true : false;
+
+  return LIS3MDL_STATUS_OK;
+}
+
 
 /**
  * @brief Read magnetometer data from register

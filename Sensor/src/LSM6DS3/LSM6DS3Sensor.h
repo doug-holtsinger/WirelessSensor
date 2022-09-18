@@ -95,6 +95,8 @@
 #define LSM6DS3_TAP_DURATION_TIME_MID_HIGH  0x0C
 #define LSM6DS3_TAP_DURATION_TIME_HIGH      0x0F  /**< Highest value of wake up threshold */
 
+#define LSM6DS3_TIMESTAMP_MAX_VALUE	0xFFFFFF
+
 /* Typedefs ------------------------------------------------------------------*/
 typedef enum
 {
@@ -134,7 +136,7 @@ class LSM6DS3Sensor
     LSM6DS3Sensor                                     (TwoWire *i2c, uint8_t addr);
     LSM6DS3StatusTypeDef Enable_Timestamp             (void);
     LSM6DS3StatusTypeDef Reset_Timestamp             (void);
-    LSM6DS3StatusTypeDef Read_Timestamp               (int32_t* timestampPtr);
+    LSM6DS3StatusTypeDef Read_Timestamp               (int32_t* timestampPtr, bool *overflow);
     LSM6DS3StatusTypeDef Enable_X                     (void);
     LSM6DS3StatusTypeDef Enable_G                     (void);
     LSM6DS3StatusTypeDef Disable_X                    (void);
