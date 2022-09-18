@@ -34,13 +34,17 @@ class ScanDelegate(DefaultDelegate):
         return self.dev_addr
 
 class AHRSDataFrame():
-    def __init__(self, master, data_group_name, data_names, data_label_width, check_button_names, row, column, data_hold=False):
+    def __init__(self, master, data_group_name, data_names, data_label_width, check_button_names, row, column, data_hold=False, sticky=None):
         # Save master object 
         self.master = master
         paddingx = 2
         paddingy = 2
         lf = tk.LabelFrame(master, text=data_group_name)
-        lf.grid(column=column, row=row, padx=paddingx, pady=paddingy)
+        if sticky:
+            lf.grid(column=column, row=row, padx=paddingx, pady=paddingy, sticky=sticky)
+        else:
+            lf.grid(column=column, row=row, padx=paddingx, pady=paddingy)
+
         self.dataItems = []
         self.data_group_name = data_group_name
         if data_names:
@@ -153,6 +157,7 @@ class AHRSConsole(tk.Frame):
         self.gyroscopeEnable = tk.IntVar()
         self.AHRSalgorithm = tk.IntVar()
         self.betaGain = tk.DoubleVar()
+        self.dataRateHz = tk.DoubleVar()
         self.uncalibratedDisplay = tk.IntVar()
         self.settingsDisplay = tk.IntVar()
 
@@ -214,6 +219,7 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_GYROSCOPE_ENABLE_TOGGLE'] = 31
         self.commandDict['IMU_UNCALIBRATED_DISPLAY_TOGGLE'] = 32
         self.commandDict['IMU_SETTINGS_DISPLAY_TOGGLE'] = 33
+        self.commandDict['IMU_SELECT_ODR'] = 34 
 
     def resetAHRSSettings(self):
         self.twoKp.set(0.0)
@@ -228,6 +234,8 @@ class AHRSConsole(tk.Frame):
         self.AHRSalgorithmClient = 0
         self.betaGain.set(0.0)
         self.betaGainClient = 0.0
+        self.dataRateHz.set(0.0)
+        self.dataRateHzClient = 0.0
 
     def scalePlot(self):
         self.ax.relim()
@@ -334,6 +342,14 @@ class AHRSConsole(tk.Frame):
                 self.settingsDisplay.set(1)
             else:
                 self.settingsDisplay.set(0)
+            if bit_flags & 0x4000:
+                self.data_group['ODR'].setButtonData('Ideal', 1)
+            else:
+                self.data_group['ODR'].setButtonData('Ideal', 0)
+            if bit_flags & 0x8000:
+                self.data_group['ODR'].setButtonData('Display', 1)
+            else:
+                self.data_group['ODR'].setButtonData('Display', 0)
 
         elif idx == 21:
             # prop gain 
@@ -355,6 +371,11 @@ class AHRSConsole(tk.Frame):
             # Beta gain 
             self.betaGain.set(data[0]) 
             self.betaGainClient = float(data[0])
+        elif idx <= 28: 
+            # ODR Hz 
+            gidx = 'ODR'
+            gi = idx - 26
+            self.data_group[gidx].setData(gi, data)
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
             # It can cause a large backlog of notifications, causing the display to be unresponsive
@@ -410,7 +431,7 @@ class AHRSConsole(tk.Frame):
         data_row_num = row_num
 
         lf = tk.LabelFrame(self, text="IMU Calibration")
-        lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
+        lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, sticky=tk.W)
         first_ctrl_row_num = row_num
 
         self.cb = []
@@ -426,11 +447,14 @@ class AHRSConsole(tk.Frame):
         tk.Button(lf, text="Save", command=self.calibrateSaveButton).pack(anchor="w")
 
         # Euler Angles
-        col_num = col_num + 1
+        #col_num = col_num + 1
         #self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", [["Roll", "Pitch", "Yaw"], ["Roll-Local", "Pitch-Local", "Yaw-Local"]], 8, None, row_num, col_num)
-        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", ["Roll", "Pitch", "Yaw"], 9, None, row_num, col_num)
+        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", ["Roll", "Pitch", "Yaw"], 9, None, row_num, col_num, sticky=tk.NE)
 
-        #col_num = col_num + 1 
+        # Quaternion Data
+        col_num = col_num + 1
+        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, ["Display"], row_num, col_num)
+
         #self.data_group['Euler Angles Local'] = AHRSDataFrame(self, "Euler Angles Local", ["Roll", "Pitch", "Yaw"], 8, None, row_num, col_num)
 
         col_num = 0
@@ -482,14 +506,16 @@ class AHRSConsole(tk.Frame):
         col_num = col_num + 1
         self.data_group['Magnetometer'] = AHRSDataFrame(self, "Magnetometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal', 'Display'], row_num, col_num)
 
-        # Quaternion Data
+        
+        # Gyroscope Data
         row_num = row_num + 1
         col_num = 0
-        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, ["Display"], row_num, col_num)
-
-        # Gyroscope Data
-        col_num = col_num + 1
         self.data_group['Gyroscope'] = AHRSDataFrame(self, "Gyroscope", ["Normalized X", "Normalized Y", "Normalized Z", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal', 'Display'], row_num, col_num)
+
+
+        # Measured Output Data Rate
+        col_num = col_num + 1
+        self.data_group['ODR'] = AHRSDataFrame(self, "ODR", ["Accelerometer", "Gyroscope", "Magnetometer"], 8, ['Ideal', 'Display'], row_num, col_num, sticky=tk.NW)
 
         last_ctrl_row_num = row_num
 
