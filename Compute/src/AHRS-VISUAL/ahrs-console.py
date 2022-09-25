@@ -48,35 +48,43 @@ class AHRSDataFrame():
         self.dataItems = []
         self.data_group_name = data_group_name
         if data_names:
+            if check_button_names:
+                # create separate frames for data and check buttons
+                self.dataFrame = tk.Frame(lf)
+                self.dataFrame.grid(column=column, row=row, padx=paddingx, pady=paddingy)
+            else:
+                self.dataFrame = lf
+
             row_first = row
             for data_name in data_names:
                 if isinstance(data_name, (list)):
                     for dat in data_name:
                         row = row + 1
-                        self.dataItems.append(AHRSDataItem(lf, dat, data_label_width, row, column))
+                        self.dataItems.append(AHRSDataItem(self.dataFrame, dat, data_label_width, row, column))
                     row = row_first
                     column = column + 2
                 else:
                     row = row + 1
-                    self.dataItems.append(AHRSDataItem(lf, data_name, data_label_width, row, column))
+                    self.dataItems.append(AHRSDataItem(self.dataFrame, data_name, data_label_width, row, column))
 
-        self.checkButtonData = dict()
         if check_button_names:
-            row = row + 1
-            idx = 0
-            column_start = column
-            column_last = column + 3
+            self.checkButtonFrame = tk.Frame(lf)
+            self.checkButtonFrame.grid(column=column, row=row+1, padx=paddingx, pady=paddingy)
+            self.checkButtonData = dict()
+            brow = bcolumn = 0
+            bcolumn_start = bcolumn
+            bcolumn_last = bcolumn + 3
+            anch = tk.CENTER
             for name in check_button_names:
                 self.checkButtonData[name] = tk.StringVar()
                 self.checkButtonData[name].set(0)
                 def buttonHandler(self=self, button_name=name):
                     return self._buttonHandler(button_name)
-                tk.Checkbutton(lf, text=name, command=buttonHandler, variable=self.checkButtonData[name]).grid(column=column, row=row, padx=paddingx, pady=paddingy)
-                idx = idx + 1
-                column = column + 1
-                if column == column_last:
-                    row = row + 1
-                    column = column_start
+                tk.Checkbutton(self.checkButtonFrame, text=name, command=buttonHandler, variable=self.checkButtonData[name], indicatoron=1, anchor=anch).grid(column=bcolumn, row=brow, padx=paddingx, pady=paddingy)
+                bcolumn = bcolumn + 1
+                if bcolumn == bcolumn_last:
+                    brow = brow + 1
+                    bcolumn = bcolumn_start
 
     def _buttonHandler(self, button_name):
         if not self.master.connected.get():
@@ -103,10 +111,13 @@ class AHRSDataItem():
         self.data.set(0)
         paddingx = 5
         paddingy = 5
-        self.xpoints = 1500
-        tk.Label(master, text=data_name, justify=tk.LEFT, padx=20).grid(column=column, row=row, padx=paddingx, pady=paddingy)
-        self.data_label = tk.Label(master, relief=tk.SUNKEN, textvariable=self.data, width=data_label_width)
-        self.data_label.grid(column=column+1, row=row, padx=paddingx, pady=paddingy)
+        self.xpoints = 500
+        self.dataFrame = master
+        col_start=column
+        row_start=row
+        tk.Label(self.dataFrame, text=data_name, justify=tk.LEFT).grid(column=col_start, row=row_start, padx=paddingx, pady=paddingy)
+        self.data_label = tk.Label(self.dataFrame, relief=tk.SUNKEN, textvariable=self.data, width=data_label_width)
+        self.data_label.grid(column=col_start+1, row=row_start, padx=paddingx, pady=paddingy)
         def handler(event, self=self):
             return self._labelHandler(event)
         self.data_label.bind('<Button-1>', handler)
@@ -162,7 +173,7 @@ class AHRSConsole(tk.Frame):
         self.settingsDisplay = tk.IntVar()
 
         self.resetAHRSSettings()
-        self.xpoints = 1500
+        self.xpoints = 500
 
         self.data_group = dict()
         self.dataplotcnt = 0
@@ -390,7 +401,7 @@ class AHRSConsole(tk.Frame):
 
         paddingx = 5
         paddingy = 5
-        self.fig, self.ax = plt.subplots(figsize=(10, 5.0), constrained_layout=True)
+        self.fig, self.ax = plt.subplots(figsize=(6, 4.0), constrained_layout=True)
 
         # setup initial data plot
         self.data_group['Euler Angles'].setupPlot(self.ax)
@@ -403,7 +414,7 @@ class AHRSConsole(tk.Frame):
 
         self.dataplot_cnv = FigureCanvasTkAgg(self.fig, master=self)
         self.dataplot_cnv.draw()
-        self.dataplot_cnv.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span)
+        self.dataplot_cnv.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span, sticky=tk.N)
 
 
     def createWidgets(self):
@@ -412,17 +423,18 @@ class AHRSConsole(tk.Frame):
 
         paddingx = 5
         paddingy = 5
-        data_label_width = 17
+        data_label_width = 9
+        data_label_width_sensors = 17
         spinbox_width = 10
 
         # 0,0
         # Menu
-        self.connect_button = tk.Checkbutton(self, text="Connect", command=self.connectButton, variable=self.connected, onvalue=True, offvalue=False)
-        self.connect_button.grid(column=col_num, row=row_num)
-        col_num = col_num + 1
-        tk.Button(self, text="Quit", command=self.appExit).grid(column=col_num, row=row_num)
-        col_num = col_num + 1
-        tk.Button(self, text="Scale", command=self.scalePlot).grid(column=col_num, row=row_num)
+        self.menuFrame = tk.Frame(self)
+        self.menuFrame.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
+        self.connect_button = tk.Checkbutton(self.menuFrame, text="Connect", command=self.connectButton, variable=self.connected, onvalue=True, offvalue=False)
+        self.connect_button.grid(column=0, row=0)
+        tk.Button(self.menuFrame, text="Quit", command=self.appExit).grid(column=1, row=0)
+        tk.Button(self.menuFrame, text="Scale", command=self.scalePlot).grid(column=2, row=0)
 
         # 1,0
         # Calibration
@@ -432,7 +444,6 @@ class AHRSConsole(tk.Frame):
 
         lf = tk.LabelFrame(self, text="IMU Calibration")
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, sticky=tk.W)
-        first_ctrl_row_num = row_num
 
         self.cb = []
         self.calibrateNormalizedButton = tk.Radiobutton(lf, text="Normalized", command=self.calibrateButton, variable=self.calibrate, value=0)
@@ -447,13 +458,13 @@ class AHRSConsole(tk.Frame):
         tk.Button(lf, text="Save", command=self.calibrateSaveButton).pack(anchor="w")
 
         # Euler Angles
-        #col_num = col_num + 1
+        col_num = col_num + 1
         #self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", [["Roll", "Pitch", "Yaw"], ["Roll-Local", "Pitch-Local", "Yaw-Local"]], 8, None, row_num, col_num)
-        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", ["Roll", "Pitch", "Yaw"], 9, None, row_num, col_num, sticky=tk.NE)
+        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", ["Roll", "Pitch", "Yaw"], data_label_width, None, row_num, col_num, sticky=tk.W)
 
         # Quaternion Data
-        col_num = col_num + 1
-        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, ["Display"], row_num, col_num)
+        #col_num = col_num + 1
+        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, ["Display"], row_num, col_num, sticky=tk.E)
 
         #self.data_group['Euler Angles Local'] = AHRSDataFrame(self, "Euler Angles Local", ["Roll", "Pitch", "Yaw"], 8, None, row_num, col_num)
 
@@ -462,12 +473,12 @@ class AHRSConsole(tk.Frame):
 
         lf = tk.LabelFrame(self, text="IMU Settings")
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Label(lf, text="Gyroscope Correction").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.gyroCorrectionSelect, from_=1, to_=9999, increment=1, textvariable=self.gyroCorrection, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Checkbutton(lf, text="Magnetometer Stability", command=self.magnetometerStabilityButton, variable=self.magnetometerStability).grid(column=0, row=row_num+1, padx=paddingx, pady=paddingy)
-        tk.Checkbutton(lf, text="Gyroscope Enable", command=self.gyroscopeEnableButton, variable=self.gyroscopeEnable).grid(column=0, row=row_num+2, padx=paddingx, pady=paddingy)
-        tk.Checkbutton(lf, text="Uncalibrated Display", command=self.uncalibratedDisplayButton, variable=self.uncalibratedDisplay).grid(column=0, row=row_num+3, padx=paddingx, pady=paddingy)
-        tk.Checkbutton(lf, text="Settings Display", command=self.settingsDisplayButton, variable=self.settingsDisplay).grid(column=0, row=row_num+4, padx=paddingx, pady=paddingy)
+        #tk.Label(lf, text="Gyroscope Correction").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
+        #tk.Spinbox(lf, text="Spinbox", command=self.gyroCorrectionSelect, from_=1, to_=9999, increment=1, textvariable=self.gyroCorrection, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Checkbutton(lf, text="Magnetometer Stability", command=self.magnetometerStabilityButton, variable=self.magnetometerStability).grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Checkbutton(lf, text="Gyroscope Enable", command=self.gyroscopeEnableButton, variable=self.gyroscopeEnable).grid(column=0, row=row_num+1, padx=paddingx, pady=paddingy)
+        tk.Checkbutton(lf, text="Uncalibrated Display", command=self.uncalibratedDisplayButton, variable=self.uncalibratedDisplay).grid(column=0, row=row_num+2, padx=paddingx, pady=paddingy)
+        tk.Checkbutton(lf, text="Settings Display", command=self.settingsDisplayButton, variable=self.settingsDisplay).grid(column=0, row=row_num+3, padx=paddingx, pady=paddingy)
 
         col_num = col_num + 1
 
@@ -476,52 +487,50 @@ class AHRSConsole(tk.Frame):
         lf = tk.LabelFrame(self, text="AHRS Settings")
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
 
-        tk.Label(lf, text="Algorithm").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Radiobutton(lf, text="Mahony", command=self.AHRSAlgorithmSelect, variable=self.AHRSalgorithm, value=0).grid(column=1, row=row_num)
-        tk.Radiobutton(lf, text="Madgwick", command=self.AHRSAlgorithmSelect, variable=self.AHRSalgorithm, value=1).grid(column=2, row=row_num)
+        self.algorithmFrame = tk.Frame(lf)
+        self.algorithmFrame.grid(column=0, row=0, padx=paddingx, pady=paddingy)
+        tk.Label(self.algorithmFrame, text="Algorithm").grid(column=0, row=0, padx=paddingx, pady=paddingy)
+        tk.Radiobutton(self.algorithmFrame, text="Mahony", command=self.AHRSAlgorithmSelect, variable=self.AHRSalgorithm, value=0).grid(column=1, row=0)
+        tk.Radiobutton(self.algorithmFrame, text="Madgwick", command=self.AHRSAlgorithmSelect, variable=self.AHRSalgorithm, value=1).grid(column=2, row=0)
 
-        row_num = row_num + 1
-        tk.Label(lf, text="Proportional Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.proportionalGainSelect, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        self.ahrsSettingsFrame = tk.Frame(lf)
+        self.ahrsSettingsFrame.grid(column=0, row=1, padx=paddingx, pady=paddingy)
+        tk.Label(self.ahrsSettingsFrame, text="Proportional Gain").grid(column=0, row=0, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.proportionalGainSelect, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp, width=spinbox_width).grid(column=1, row=0, padx=paddingx, pady=paddingy)
 
-        row_num = row_num + 1
-        tk.Label(lf, text="Integral Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.integralGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Label(self.ahrsSettingsFrame, text="Integral Gain").grid(column=0, row=1, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.integralGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi, width=spinbox_width).grid(column=1, row=1, padx=paddingx, pady=paddingy)
 
-        row_num = row_num + 1
-        tk.Label(lf, text="Sample Frequency").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.sampleFrequencySelect, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Label(self.ahrsSettingsFrame, text="Sample Frequency").grid(column=0, row=2, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.sampleFrequencySelect, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq, width=spinbox_width).grid(column=1, row=2, padx=paddingx, pady=paddingy)
 
-        row_num = row_num + 1
-        tk.Label(lf, text="Beta Gain").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Spinbox(lf, text="Spinbox", command=self.betaGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.betaGain, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
+        tk.Label(self.ahrsSettingsFrame, text="Beta Gain").grid(column=0, row=3, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.betaGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.betaGain, width=spinbox_width).grid(column=1, row=3, padx=paddingx, pady=paddingy)
 
         col_num = 0
         row_num = row_num + 1
 
         # Accelerometer Data
-        self.data_group['Accelerometer'] = AHRSDataFrame(self, "Accelerometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal', 'Display'], row_num, col_num)
+        self.data_group['Accelerometer'] = AHRSDataFrame(self, "Accelerometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width_sensors, ['Hold', 'Ideal', 'Display'], row_num, col_num)
 
         # Magnetometer Data
         col_num = col_num + 1
-        self.data_group['Magnetometer'] = AHRSDataFrame(self, "Magnetometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal', 'Display'], row_num, col_num)
+        self.data_group['Magnetometer'] = AHRSDataFrame(self, "Magnetometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width_sensors, ['Hold', 'Ideal', 'Display'], row_num, col_num)
 
         
         # Gyroscope Data
         row_num = row_num + 1
         col_num = 0
-        self.data_group['Gyroscope'] = AHRSDataFrame(self, "Gyroscope", ["Normalized X", "Normalized Y", "Normalized Z", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width, ['Hold', 'Ideal', 'Display'], row_num, col_num)
+        self.data_group['Gyroscope'] = AHRSDataFrame(self, "Gyroscope", ["Normalized X", "Normalized Y", "Normalized Z", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width_sensors, ['Hold', 'Ideal', 'Display'], row_num, col_num)
 
 
         # Measured Output Data Rate
         col_num = col_num + 1
         self.data_group['ODR'] = AHRSDataFrame(self, "ODR", ["Accelerometer", "Gyroscope", "Magnetometer"], 8, ['Ideal', 'Display'], row_num, col_num, sticky=tk.NW)
 
-        last_ctrl_row_num = row_num
-
-        # 1,2  row_span=4-1 = 3
+        # Data Plot
         col_num = col_num + 1
-        row_span=last_ctrl_row_num - first_ctrl_row_num + 1
+        row_span=2
         self.createWidgetPlot(data_row_num, col_num, row_span)
 
     def magnetometerStabilityButton(self):
