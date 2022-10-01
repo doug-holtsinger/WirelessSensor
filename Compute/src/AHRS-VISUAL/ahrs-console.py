@@ -115,7 +115,7 @@ class AHRSDataItem():
         self.dataFrame = master
         col_start=column
         row_start=row
-        tk.Label(self.dataFrame, text=data_name, justify=tk.LEFT).grid(column=col_start, row=row_start, padx=paddingx, pady=paddingy)
+        tk.Label(self.dataFrame, text=data_name, justify=tk.LEFT).grid(column=col_start, row=row_start, padx=paddingx, pady=paddingy, sticky=tk.W)
         self.data_label = tk.Label(self.dataFrame, relief=tk.SUNKEN, textvariable=self.data, width=data_label_width)
         self.data_label.grid(column=col_start+1, row=row_start, padx=paddingx, pady=paddingy)
         def handler(event, self=self):
@@ -405,6 +405,7 @@ class AHRSConsole(tk.Frame):
 
         # setup initial data plot
         self.data_group['Euler Angles'].setupPlot(self.ax)
+        #self.data_group['Quaternion'].setupPlot(self.ax)
         self.ax.set_xlabel('Time')
         self.ax.set_ylabel('Value');
         self.ax.legend()
@@ -475,10 +476,10 @@ class AHRSConsole(tk.Frame):
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
         #tk.Label(lf, text="Gyroscope Correction").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
         #tk.Spinbox(lf, text="Spinbox", command=self.gyroCorrectionSelect, from_=1, to_=9999, increment=1, textvariable=self.gyroCorrection, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Checkbutton(lf, text="Magnetometer Stability", command=self.magnetometerStabilityButton, variable=self.magnetometerStability).grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
-        tk.Checkbutton(lf, text="Gyroscope Enable", command=self.gyroscopeEnableButton, variable=self.gyroscopeEnable).grid(column=0, row=row_num+1, padx=paddingx, pady=paddingy)
-        tk.Checkbutton(lf, text="Uncalibrated Display", command=self.uncalibratedDisplayButton, variable=self.uncalibratedDisplay).grid(column=0, row=row_num+2, padx=paddingx, pady=paddingy)
-        tk.Checkbutton(lf, text="Settings Display", command=self.settingsDisplayButton, variable=self.settingsDisplay).grid(column=0, row=row_num+3, padx=paddingx, pady=paddingy)
+        tk.Checkbutton(lf, text="Magnetometer Stability", command=self.magnetometerStabilityButton, variable=self.magnetometerStability).grid(column=0, row=row_num, padx=paddingx, pady=paddingy, sticky=tk.W)
+        tk.Checkbutton(lf, text="Gyroscope Enable", command=self.gyroscopeEnableButton, variable=self.gyroscopeEnable).grid(column=0, row=row_num+1, padx=paddingx, pady=paddingy, sticky=tk.W)
+        tk.Checkbutton(lf, text="Uncalibrated Display", command=self.uncalibratedDisplayButton, variable=self.uncalibratedDisplay).grid(column=0, row=row_num+2, padx=paddingx, pady=paddingy, sticky=tk.W)
+        tk.Checkbutton(lf, text="Settings Display", command=self.settingsDisplayButton, variable=self.settingsDisplay).grid(column=0, row=row_num+3, padx=paddingx, pady=paddingy, sticky=tk.W)
 
         col_num = col_num + 1
 
@@ -495,16 +496,16 @@ class AHRSConsole(tk.Frame):
 
         self.ahrsSettingsFrame = tk.Frame(lf)
         self.ahrsSettingsFrame.grid(column=0, row=1, padx=paddingx, pady=paddingy)
-        tk.Label(self.ahrsSettingsFrame, text="Proportional Gain").grid(column=0, row=0, padx=paddingx, pady=paddingy)
+        tk.Label(self.ahrsSettingsFrame, text="Proportional Gain").grid(column=0, row=0, padx=paddingx, pady=paddingy, sticky=tk.W)
         tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.proportionalGainSelect, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp, width=spinbox_width).grid(column=1, row=0, padx=paddingx, pady=paddingy)
 
-        tk.Label(self.ahrsSettingsFrame, text="Integral Gain").grid(column=0, row=1, padx=paddingx, pady=paddingy)
+        tk.Label(self.ahrsSettingsFrame, text="Integral Gain").grid(column=0, row=1, padx=paddingx, pady=paddingy, sticky=tk.W)
         tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.integralGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi, width=spinbox_width).grid(column=1, row=1, padx=paddingx, pady=paddingy)
 
-        tk.Label(self.ahrsSettingsFrame, text="Sample Frequency").grid(column=0, row=2, padx=paddingx, pady=paddingy)
+        tk.Label(self.ahrsSettingsFrame, text="Sample Frequency").grid(column=0, row=2, padx=paddingx, pady=paddingy, sticky=tk.W)
         tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.sampleFrequencySelect, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq, width=spinbox_width).grid(column=1, row=2, padx=paddingx, pady=paddingy)
 
-        tk.Label(self.ahrsSettingsFrame, text="Beta Gain").grid(column=0, row=3, padx=paddingx, pady=paddingy)
+        tk.Label(self.ahrsSettingsFrame, text="Beta Gain").grid(column=0, row=3, padx=paddingx, pady=paddingy, sticky=tk.W)
         tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.betaGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.betaGain, width=spinbox_width).grid(column=1, row=3, padx=paddingx, pady=paddingy)
 
         col_num = 0
