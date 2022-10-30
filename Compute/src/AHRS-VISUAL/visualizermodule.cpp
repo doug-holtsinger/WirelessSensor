@@ -273,9 +273,9 @@ visualizer_init(PyObject *self, PyObject *args)
         return NULL;
 
 #if 0
-    printf("WIDGET = %p\n", widget);
+    //printf("WIDGET INIT = %p\n", widget);
     PyObject* foo = PyObject_Repr(widget);
-    printf("WIDGET STR= %s\n", PyUnicode_AsUTF8(foo));
+    printf("WIDGET INIT= %s\n", PyUnicode_AsUTF8(foo));
 #endif
 
     togl = getToglFromWidget(widget);
@@ -320,6 +320,8 @@ visualizer_init(PyObject *self, PyObject *args)
     Togl_SetClientData(togl, (ClientData) Wg);
     check();
 
+    //printf("WIDGET INIT DONE= %s\n", PyUnicode_AsUTF8(foo));
+
     return PyLong_FromLong(0);
 }
 
@@ -351,6 +353,11 @@ visualizer_draw(PyObject *self, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "O", &widget))
         return NULL;
+
+#if 0
+    PyObject* foo = PyObject_Repr(widget);
+    printf("WIDGET DRAW= %s\n", PyUnicode_AsUTF8(foo));
+#endif
 
     togl = getToglFromWidget(widget);
 
@@ -388,6 +395,7 @@ visualizer_draw(PyObject *self, PyObject *args)
     Togl_SwapBuffers(togl);
     check();
 
+    //printf("WIDGET DRAW DONE= %s\n", PyUnicode_AsUTF8(foo));
     return PyLong_FromLong(0);
 }
 

@@ -421,6 +421,7 @@ class AHRSConsole(tk.Frame):
 
     def visualizationWidgetInit(self, args):
         print("init %s %s" % ( args, type(args) ) )
+        visualizer.init(self.visualizerw)
 
     def visualizationWidgetZap(self, foo):
         print("zap %s" % ( foo) )
@@ -428,7 +429,6 @@ class AHRSConsole(tk.Frame):
 
     def visualizationWidgetIdle(self, foo):
         #print("idle %s %s" % ( self.visualizerw , type(self.visualizerw) ) )
-        #visualizer.idle(self.visualizerw)
         visualizer.idle(self.visualizerw)
 
     def visualizationWidgetDraw(self, foo):
@@ -437,13 +437,12 @@ class AHRSConsole(tk.Frame):
 
     def visualizationWidgetReshape(self, foo):
         print("reshape %s" % ( foo) )
-        #visualizer.reshape(self.visualizerw)
+        visualizer.reshape(self.visualizerw)
 
     def render(self, foo):
         print("render %s" % ( foo) )
 
     def createVisualizationWidget(self, row_num, col_num, row_span):
-        #DSH4
         cnf = dict()
         cnf['rgba'] = True
         cnf['double'] = True
@@ -451,29 +450,34 @@ class AHRSConsole(tk.Frame):
         cnf['privatecmap'] = False
         #cnf['privatecmap'] = True
 
-        #DSH4
         #cnf['rgba'] = False
         #cnf['double'] = False
         #cnf['depth'] = False
-        #cnf['privatecmap'] = False
+        #cnf['privatecmap'] = True
 
-        cnf['time'] = 100
         cnf['width'] = 400
         cnf['height'] = 400
+        self.visualizerw = Togl.Togl(self, cnf)
+        print("self.visualizerw created")
+        cnf = dict()
         cnf['create'] = self.visualizationWidgetInit
-        cnf['destroy'] = self.visualizationWidgetZap
+        self.visualizerw.configure(cnf=cnf)
+        visualizer.init(self.visualizerw)
+
+        cnf = dict()
         cnf['display'] = self.visualizationWidgetDraw
+        cnf['destroy'] = self.visualizationWidgetZap
         cnf['reshape'] = self.visualizationWidgetReshape
         cnf['timer'] = self.visualizationWidgetIdle
-        self.visualizerw = Togl.Togl(self, cnf)
-        self.visualizer = visualizer.init(self.visualizerw)
-        visualizer.reshape(self.visualizerw)
-        print("self.visualizerw created")
+        cnf['time'] = 100
+        self.visualizerw.configure(cnf=cnf)
+        #visualizer.draw(self.visualizerw)
+
         paddingx = 5
         paddingy = 5
-        #self.visualizerw.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span, sticky=tk.N)
         self.visualizerw.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span)
-
+        keys = self.visualizerw.keys()
+        print(keys)
 
 
     def createWidgets(self):
