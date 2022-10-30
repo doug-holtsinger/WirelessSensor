@@ -13,6 +13,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
+import Togl
+import visualizer
 
 class ScanDelegate(DefaultDelegate):
     def __init__(self):
@@ -417,6 +419,62 @@ class AHRSConsole(tk.Frame):
         self.dataplot_cnv.draw()
         self.dataplot_cnv.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span, sticky=tk.N)
 
+    def visualizationWidgetInit(self, args):
+        print("init %s %s" % ( args, type(args) ) )
+
+    def visualizationWidgetZap(self, foo):
+        print("zap %s" % ( foo) )
+        visualizer.zap(self.visualizerw)
+
+    def visualizationWidgetIdle(self, foo):
+        #print("idle %s %s" % ( self.visualizerw , type(self.visualizerw) ) )
+        #visualizer.idle(self.visualizerw)
+        visualizer.idle(self.visualizerw)
+
+    def visualizationWidgetDraw(self, foo):
+        #print("draw %s" % ( foo) )
+        visualizer.draw(self.visualizerw)
+
+    def visualizationWidgetReshape(self, foo):
+        print("reshape %s" % ( foo) )
+        #visualizer.reshape(self.visualizerw)
+
+    def render(self, foo):
+        print("render %s" % ( foo) )
+
+    def createVisualizationWidget(self, row_num, col_num, row_span):
+        #DSH4
+        cnf = dict()
+        cnf['rgba'] = True
+        cnf['double'] = True
+        cnf['depth'] = True
+        cnf['privatecmap'] = False
+        #cnf['privatecmap'] = True
+
+        #DSH4
+        #cnf['rgba'] = False
+        #cnf['double'] = False
+        #cnf['depth'] = False
+        #cnf['privatecmap'] = False
+
+        cnf['time'] = 100
+        cnf['width'] = 400
+        cnf['height'] = 400
+        cnf['create'] = self.visualizationWidgetInit
+        cnf['destroy'] = self.visualizationWidgetZap
+        cnf['display'] = self.visualizationWidgetDraw
+        cnf['reshape'] = self.visualizationWidgetReshape
+        cnf['timer'] = self.visualizationWidgetIdle
+        self.visualizerw = Togl.Togl(self, cnf)
+        self.visualizer = visualizer.init(self.visualizerw)
+        visualizer.reshape(self.visualizerw)
+        print("self.visualizerw created")
+        paddingx = 5
+        paddingy = 5
+        #self.visualizerw.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span, sticky=tk.N)
+        self.visualizerw.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span)
+
+
 
     def createWidgets(self):
         row_num = 0
@@ -533,6 +591,8 @@ class AHRSConsole(tk.Frame):
         col_num = col_num + 1
         row_span=2
         self.createWidgetPlot(data_row_num, col_num, row_span)
+        data_row_num = data_row_num + 2
+        self.createVisualizationWidget(data_row_num, col_num, row_span)
 
     def magnetometerStabilityButton(self):
         if not self.connected.get():
