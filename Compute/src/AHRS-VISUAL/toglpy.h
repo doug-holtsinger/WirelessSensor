@@ -12,6 +12,8 @@
  * See the LICENSE file for copyright details.
  */
 
+//DSH4
+// #define DEBUG_CODE
 #include <stdexcept>
 
 static Togl   *
@@ -24,6 +26,10 @@ getToglFromWidget(PyObject *widget)
 
 #ifdef USE_TOGL_STUBS
     static int didOnce = 0;
+#endif
+
+#ifdef DEBUG_CODE
+    printf("getTogl %s %d\n", __FILE__, __LINE__);
 #endif
 
     /* Python: cmdName = widget._w */
@@ -39,6 +45,9 @@ getToglFromWidget(PyObject *widget)
         return NULL;
 #endif
     }
+#ifdef DEBUG_CODE
+    printf("getTogl %s %d\n", __FILE__, __LINE__);
+#endif
 
     interpAddr = PyObject_CallMethod(tk, "interpaddr", "()");
     if (interpAddr == NULL || !PyLong_Check(interpAddr)) {
@@ -51,9 +60,15 @@ getToglFromWidget(PyObject *widget)
         return NULL;
 #endif
     }
+#ifdef DEBUG_CODE
+    printf("getTogl %s %d\n", __FILE__, __LINE__);
+#endif
 
     cmdName = PyUnicode_AsUTF8(cmdNameObj);
     interp = (Tcl_Interp *) PyLong_AsLong(interpAddr);
+#ifdef DEBUG_CODE
+    printf("getTogl %s %d\n", __FILE__, __LINE__);
+#endif
 
 #ifdef USE_TOGL_STUBS
     if (!didOnce) {
@@ -69,15 +84,27 @@ getToglFromWidget(PyObject *widget)
         didOnce = 1;
     }
 #endif
+#ifdef DEBUG_CODE
+    printf("getTogl %s %d cmdName=%s\n", __FILE__, __LINE__, cmdName);
+#endif
 
     if (Togl_GetToglFromName(interp, cmdName, &curTogl) != TCL_OK)
         curTogl = NULL;
+#ifdef DEBUG_CODE
+    printf("getTogl %s %d\n", __FILE__, __LINE__);
+#endif
     Py_DECREF(cmdNameObj);
     Py_DECREF(tk);
     Py_DECREF(interpAddr);
+#ifdef DEBUG_CODE
+    printf("getTogl %s %d\n", __FILE__, __LINE__);
+#endif
 #ifdef __cplusplus
     if (curTogl == NULL)
         throw   std::invalid_argument("not a Togl widget");
+#endif
+#ifdef DEBUG_CODE
+    printf("getTogl %s %d\n", __FILE__, __LINE__);
 #endif
     return curTogl;
 }

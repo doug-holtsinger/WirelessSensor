@@ -23,7 +23,11 @@ class Togl(tkinter.Widget):
         if master is None:
             master = tkinter._default_root
         master.tk.call('package', 'require', 'Togl', '2.0')
+        #DSH4
+        print("Togl.py class Togl __init__ before Widget.__init__")
         tkinter.Widget.__init__(self, master, "togl", cnf, kw)
+        #DSH4
+        print("Togl.py class Togl __init__ after Widget.__init__")
         Togl._instances[self] = True
 
     def _cbsubst(self, *args):
@@ -64,6 +68,10 @@ class Togl(tkinter.Widget):
     def render(self):
         """Call the displaycommand callback immediately."""
         self.tk.call(self._w, 'render')
+
+    def reinit(self):
+        """Call the reinit function ."""
+        self.tk.call(self._w, 'reinit')
 
     def swapbuffers(self):
         """If single-buffred, just flush OpenGL command buffer.  If

@@ -30,7 +30,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-
 /* 
  * 3-D gear wheels.  This program is in the public domain.
  *
@@ -43,13 +42,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
 
-// #define USE_TOGL_STUBS
+//DSH4
+#define USE_TOGL_STUBS
+#define USE_TCL_STUBS
+#define USE_TK_STUBS
 
 #include "togl.h"
 #include "toglpy.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+
+//DSH4
+#define DEBUG_CODE
+
 
 
 #undef TCL_STORAGE_CLASS
@@ -110,6 +116,10 @@ gear(GLfloat inner_radius, GLfloat outer_radius, GLfloat width,
     GLfloat r0, r1, r2;
     GLfloat angle, da;
     GLfloat u, v, len;
+
+#ifdef DEBUG_CODE
+printf("GEAR start %s %d\n", __FILE__, __LINE__);
+#endif
 
     r0 = inner_radius;
     r1 = outer_radius - tooth_depth / 2;
@@ -228,6 +238,9 @@ gear(GLfloat inner_radius, GLfloat outer_radius, GLfloat width,
     glEnd();
 
     check();
+#ifdef DEBUG_CODE
+printf("GEAR done %s %d\n", __FILE__, __LINE__);
+#endif
 }
 
 
@@ -238,6 +251,9 @@ visualizer_idle(PyObject *self, PyObject *args)
     WHIRLYGIZMO *Wg;
     Togl   *togl;
     PyObject *widget;
+#ifdef DEBUG_CODE
+//printf("IDLE %d\n", 1);
+#endif
 
     if (!PyArg_ParseTuple(args, "O", &widget))
         return NULL;
@@ -249,6 +265,9 @@ visualizer_idle(PyObject *self, PyObject *args)
     Togl_PostRedisplay(togl);
     check();
 
+#ifdef DEBUG_CODE
+//printf("IDLE DONE %d\n", 1);
+#endif
     return PyLong_FromLong(0);
 }
 
@@ -262,6 +281,10 @@ visualizer_init(PyObject *self, PyObject *args)
     static GLfloat pos[4] = { 5, 5, 10, 0 };
     Togl   *togl;
     PyObject *widget;
+
+#ifdef DEBUG_CODE
+printf("visualizer_init start %s %d\n", __FILE__, __LINE__);
+#endif
 
 #if 0
     //printf("SELF INIT = %p ARGS = %p\n", self, args);
@@ -278,7 +301,13 @@ visualizer_init(PyObject *self, PyObject *args)
     printf("WIDGET INIT= %s\n", PyUnicode_AsUTF8(foo));
 #endif
 
+#ifdef DEBUG_CODE
+printf("visualizer_init before getTogl %s %d\n", __FILE__, __LINE__);
+#endif
     togl = getToglFromWidget(widget);
+#ifdef DEBUG_CODE
+printf("visualizer_init after getTogl %s %d\n", __FILE__, __LINE__);
+#endif
 
     glLightfv(GL_LIGHT0, GL_POSITION, pos);
     glEnable(GL_CULL_FACE);
@@ -299,6 +328,7 @@ visualizer_init(PyObject *self, PyObject *args)
     gear(0.5f, 2, 2, 10, 0.7f);
     glEndList();
 
+
     Wg->Gear3 = glGenLists(1);
     glNewList(Wg->Gear3, GL_COMPILE);
     glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, blue);
@@ -317,11 +347,16 @@ visualizer_init(PyObject *self, PyObject *args)
     Wg->Rotx = 0;
     Wg->Roty = 0;
     Wg->Rotz = 0;
+    //DSH4
+    glFlush();
     Togl_SetClientData(togl, (ClientData) Wg);
     check();
 
     //printf("WIDGET INIT DONE= %s\n", PyUnicode_AsUTF8(foo));
 
+#ifdef DEBUG_CODE
+printf("visualizer_init done %s %d\n", __FILE__, __LINE__);
+#endif
     return PyLong_FromLong(0);
 }
 
@@ -339,6 +374,9 @@ visualizer_draw(PyObject *self, PyObject *args)
     WHIRLYGIZMO *Wg;
     Togl   *togl;
     PyObject *widget;
+#ifdef DEBUG_CODE
+//printf("visualizer_draw start %s %d\n", __FILE__, __LINE__);
+#endif
 
 #if 0
     if (objc != 2) {
@@ -393,9 +431,13 @@ visualizer_draw(PyObject *self, PyObject *args)
     glPopMatrix();
 
     Togl_SwapBuffers(togl);
+    //DSH4
+    glFlush();
     check();
 
-    //printf("WIDGET DRAW DONE= %s\n", PyUnicode_AsUTF8(foo));
+#ifdef DEBUG_CODE
+//printf("visualizer_draw done %s %d\n", __FILE__, __LINE__);
+#endif
     return PyLong_FromLong(0);
 }
 
@@ -414,7 +456,13 @@ visualizer_reshape(PyObject *self, PyObject *args)
     int     width, height;
     Togl   *togl;
     PyObject *widget;
+#if 1
+    // INIT code
+#endif
 
+#ifdef DEBUG_CODE
+printf("visualizer_reshape start %s %d\n", __FILE__, __LINE__);
+#endif
 #if 0
     if (objc != 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "pathName");
@@ -430,6 +478,11 @@ visualizer_reshape(PyObject *self, PyObject *args)
         return NULL;
 
     togl = getToglFromWidget(widget);
+
+#if 1
+    // INIT code
+
+#endif
 
     width = Togl_Width(togl);
     height = Togl_Height(togl);
@@ -450,7 +503,12 @@ visualizer_reshape(PyObject *self, PyObject *args)
     glLoadIdentity();
     glTranslatef(0, 0, -40);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //DSH4
+    glFlush();
     check();
+#ifdef DEBUG_CODE
+printf("visualizer_reshape done %s %d\n", __FILE__, __LINE__);
+#endif
 
     return PyLong_FromLong(0);
 }
@@ -554,6 +612,9 @@ static struct PyModuleDef visualizermodule = {
 PyMODINIT_FUNC
 PyInit_visualizer(void)
 {
+#ifdef DEBUG_CODE
+printf("Py_Init start %s %d\n", __FILE__, __LINE__);
+#endif
     return PyModule_Create(&visualizermodule);
 }
 

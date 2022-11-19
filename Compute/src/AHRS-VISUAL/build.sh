@@ -4,7 +4,7 @@ set -x
 
 sudo rm -rf build
 
-if [[ ! -z $1 ]] ; then
+if [[ ! -z $1 && $1 -eq 1 ]] ; then
     python3 setup.py  build
     rc=$?
     if [[ $rc -ne 0 ]] ; then
@@ -14,6 +14,20 @@ if [[ ! -z $1 ]] ; then
     ldd build/lib.linux-armv7l-3.9/visualizer.cpython-39-arm-linux-gnueabihf.so | sort
     exit $?
 fi
+
+# Rather than compile with user-permission libraries, compile with libs at /usr/lib and
+# do a 'make install' from the DEBUG or non-debug directories.
+
+#if [[ ! -z $1 && $1 -eq 2 ]] ; then
+#    python3 setup-debug.py  build
+#    rc=$?
+#    if [[ $rc -ne 0 ]] ; then
+#	     exit $rc
+#    fi
+#    sudo python3 setup-debug.py  install
+#    ldd build/lib.linux-armv7l-3.9/visualizer.cpython-39-arm-linux-gnueabihf.so | sort
+#    exit $?
+#fi
 
 
 mkdir -p build/temp.linux-armv7l-3.9/
