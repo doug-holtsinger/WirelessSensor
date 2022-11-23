@@ -3,7 +3,6 @@
 """ Provide control of the Wireless Sensor device using a GUI.
 """
 
-#DSH4
 from __future__ import print_function, division
 
 import sys
@@ -16,156 +15,174 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
-#DSH4
-#import Togl
-#print("IMPORT visualizer")
-#import visualizer
-#print("IMPORT visualizer DONE")
 
-from OpenGL import GL, GLUT
+from OpenGL import GL
 import OpenGL.GL.shaders
-import ctypes
-import types
-import numpy
 import pyopengltk
 import time
 
-#DSH4
 # Avoiding glitches in pyopengl-3.0.x and python3.4
 def bytestr(s):
     return s.encode("utf-8") + b"\000"
 
-
-# Avoiding glitches in pyopengl-3.0.x and python3.4
-def compileShader(source, shaderType):
-    """
-    Compile shader source of given type
-        source -- GLSL source-code for the shader
-    shaderType -- GLenum GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, etc,
-        returns GLuint compiled shader reference
-    raises RuntimeError when a compilation failure occurs
-    """
-    if isinstance(source, str):
-        source = [source]
-    elif isinstance(source, bytes):
-        source = [source.decode('utf-8')]
-
-    shader = GL.glCreateShader(shaderType)
-    GL.glShaderSource(shader, source)
-    GL.glCompileShader(shader)
-    result = GL.glGetShaderiv(shader, GL.GL_COMPILE_STATUS)
-    if not(result):
-        # TODO: this will be wrong if the user has
-        # disabled traditional unpacking array support.
-        raise RuntimeError(
-            """Shader compile failure (%s): %s""" % (
-                result,
-                GL.glGetShaderInfoLog(shader),
-            ),
-            source,
-            shaderType,
-        )
-    return shader
-
-
-vertex_shader = """#version 130 
-in vec3 position;
-varying vec3 vertex_color;
-uniform mat3 proj;
-void main()
-{
-   gl_Position = vec4( proj*position, 1.0);
-   gl_PointSize = 4./(0.5 + length( position ));
-   vertex_color = vec3( position.x/2+.5, position.y/2+.5, position.z/2+.5);
+vshader_source = """
+#version 140
+attribute vec4 a_position;
+attribute vec4 a_color;
+uniform mat4 u_mvp_matrix;
+varying vec4 g_color;
+void main(void) {
+  gl_Position = u_mvp_matrix * a_position;
+  g_color = a_color;
 }
 """
 
-fragment_shader = """#version 130
-varying vec3 vertex_color;
-void main()
-{
-   gl_FragColor = vec4(vertex_color,0.25f);
+fshader_source = """
+varying vec4 g_color;
+void main(void) {
+  gl_FragColor = g_color;
 }
 """
-NPTS = 100000
-
-vertices = (numpy.random.random(NPTS * 3).astype(numpy.float32)-.5) * 1.5
-vertices.shape = NPTS, 3
-
-
-def create_object(shader):
-    # Create a new VAO (Vertex Array Object) and bind it
-    vertex_array_object = GL.glGenVertexArrays(1)
-    GL.glBindVertexArray(vertex_array_object)
-    # Generate buffers to hold our vertices
-    vertex_buffer = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vertex_buffer)
-    # Get the position of the 'position' in parameter of our shader
-    # and bind it.
-    position = GL.glGetAttribLocation(shader, bytestr('position'))
-    GL.glEnableVertexAttribArray(position)
-    # Describe the position data layout in the buffer
-    GL.glVertexAttribPointer(position, 3, GL.GL_FLOAT, False,
-                             0, ctypes.c_void_p(0))
-    # Send the data over to the buffer (bytes)
-    vs = vertices.tostring()
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, len(vs), vs, GL.GL_STATIC_DRAW)
-    # Unbind the VAO first (Important)
-    GL.glBindVertexArray(0)
-    # Unbind other stuff
-    GL.glDisableVertexAttribArray(position)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object
 
 
 def rot(a, b, c):
-    s = numpy.sin(a)
-    c = numpy.cos(a)
-    am = numpy.array(((c, s, 0), (-s, c, 0), (0, 0, 1)), numpy.float32)
-    s = numpy.sin(b)
-    c = numpy.cos(b)
-    bm = numpy.array(((c, 0, s), (0, 1, 0), (-s, 0, c)), numpy.float32)
-    s = numpy.sin(c)
-    c = numpy.cos(c)
-    cm = numpy.array(((1, 0, 0), (0, c, s), (0, -s, c)), numpy.float32)
-    return numpy.dot(numpy.dot(am, bm), cm)
+    s = np.sin(a)
+    c = np.cos(a)
+    am = np.array(((c, s, 0, 0), (-s, c, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)), np.float32)
+    s = np.sin(b)
+    c = np.cos(b)
+    bm = np.array(((c, 0, s, 0), (0, 1, 0, 0), (-s, 0, c, 0), (0, 0, 0, 1)), np.float32)
+    s = np.sin(c)
+    c = np.cos(c)
+    cm = np.array(((1, 0, 0, 0), (0, c, s, 0), (0, -s, c, 0), (0, 0, 0, 1)), np.float32)
+    return np.dot(np.dot(am, bm), cm)
 
 
 class ShaderFrame(pyopengltk.OpenGLFrame):
 
     def initgl(self):
-        # GLUT.glutInit(sys.argv)
-        GL.glClearColor(0.15, 0.15, 0.15, 1.0)
-        GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glEnable(GL.GL_PROGRAM_POINT_SIZE)
+
+        #print("visualizer.init")
+        vertex_data_attribute_size = 3
+        self.vertex_data = np.array(
+             [-0.5, -0.5,  0.5,   # front side lower left
+              0.5, -0.5,  0.5,    # front side lower right
+              0.5,  0.5,  0.5,    # front side upper right
+             -0.5,  0.5,  0.5,    # front side upper left
+
+             -0.5, -0.5, -0.5,    # rear side 
+             -0.5,  0.5, -0.5,    # rear side 
+              0.5,  0.5, -0.5,    # rear side 
+              0.5, -0.5, -0.5,    # rear side 
+
+             -0.5, -0.5,  0.5,    # left side 
+             -0.5,  0.5,  0.5,    # left side 
+             -0.5,  0.5, -0.5,    # left side 
+             -0.5, -0.5, -0.5,    # left side 
+
+              0.5, -0.5,  0.5,    # right side
+              0.5, -0.5, -0.5,    # right side
+              0.5,  0.5, -0.5,    # right side
+              0.5,  0.5,  0.5,    # right side
+
+             -0.5,  0.5,  0.5,    # top side
+              0.5,  0.5,  0.5,    # top side
+              0.5,  0.5, -0.5,    # top side
+             -0.5,  0.5, -0.5,    # top side
+
+             -0.5, -0.5,  0.5,    # bottom side
+             -0.5, -0.5, -0.5,    # bottom side
+              0.5, -0.5, -0.5,    # bottom side
+              0.5, -0.5,  0.5],    # bottom side
+              dtype=np.float32)
+
+
+        self.color_data = np.array(
+             [0.5,  0.5,  0.1,
+              0.5,  0.5,  0.1,
+              0.5,  0.5,  0.1,
+              0.5,  0.5,  0.1,
+
+              0.5,  0.1,  0.8,
+              0.5,  0.1,  0.8,
+              0.5,  0.1,  0.8,
+              0.5,  0.1,  0.8,
+
+              0.1,  0.5,  0.8,
+              0.1,  0.5,  0.8,
+              0.1,  0.5,  0.8,
+              0.1,  0.5,  0.8,
+
+              0.1,  0.7,  0.8,
+              0.1,  0.7,  0.8,
+              0.1,  0.7,  0.8,
+              0.1,  0.7,  0.8,
+
+              0.7,  0.1,  0.8,
+              0.7,  0.1,  0.8,
+              0.7,  0.1,  0.8,
+              0.7,  0.1,  0.8,
+
+              0.5,  0.9,  0.1,
+              0.5,  0.9,  0.1,
+              0.5,  0.9,  0.1,
+              0.5,  0.9,  0.1],
+              dtype=np.float32)
         if not hasattr(self, "shader"):
             self.shader = OpenGL.GL.shaders.compileProgram(
-                compileShader(vertex_shader, GL.GL_VERTEX_SHADER),
-                compileShader(fragment_shader, GL.GL_FRAGMENT_SHADER)
+                OpenGL.GL.shaders.compileShader(vshader_source, GL.GL_VERTEX_SHADER),
+                OpenGL.GL.shaders.compileShader(fshader_source, GL.GL_FRAGMENT_SHADER)
                 )
-            self.vertex_array_object = create_object(self.shader)
-            self.proj = GL.glGetUniformLocation(self.shader, bytestr('proj'))
-        self.nframes = 0
+            self.attr_position = GL.glGetAttribLocation(self.shader, bytestr('a_position'))
+            self.attr_color = GL.glGetAttribLocation(self.shader, bytestr('a_color'))
+            self.unif_mvp = GL.glGetUniformLocation(self.shader, bytestr('u_mvp_matrix'))
+        # clear color buffer
+        GL.glClearColor( 1.0, 1.0, 1.0, 1.0 )
+        GL.glClear( GL.GL_COLOR_BUFFER_BIT )
+        # Prepare a framebuffer for rendering
+        self.buffers = GL.glGenBuffers(2)
+        # Prepare viewport
+        GL.glViewport(0, 0, 384, 384)
+
+        # Upload vertex data to a buffer
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.buffers[0])
+        vd = self.vertex_data.tobytes()
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, len(vd), vd, GL.GL_STATIC_DRAW)
+        GL.glVertexAttribPointer(self.attr_position, vertex_data_attribute_size, GL.GL_FLOAT, GL.GL_FALSE, 0, None);
+        GL.glEnableVertexAttribArray(self.attr_position);
+
+        # Upoad color data to a buffer
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.buffers[1])
+        cd = self.color_data.tobytes()
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, len(cd), cd, GL.GL_STATIC_DRAW)
+        GL.glVertexAttribPointer(self.attr_color, vertex_data_attribute_size, GL.GL_FLOAT, GL.GL_FALSE, 0, None)
+        GL.glEnableVertexAttribArray(self.attr_color);
+
         self.start = time.time()
 
+
     def redraw(self):
+        """Render a single frame"""
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-        GL.glUseProgram(self.shader)
+        GL.glUseProgram (self.shader)
+        tm = time.time() - self.start
+        self.mvp = np.eye(4, dtype=np.float32)
+
         t = time.time()-self.start
         s = 2.
-        p = rot(t*s/5., t*s/6., t*s/7.)
-        GL.glUniformMatrix3fv(self.proj, 1, GL.GL_FALSE, p)
-        GL.glBindVertexArray(self.vertex_array_object)
-        GL.glDrawArrays(GL.GL_POINTS, 0, NPTS)
-        GL.glBindVertexArray(0)
-        GL.glUseProgram(0)
-        GL.glRasterPos2f(-0.99, -0.99)
-        if self.nframes > 1:
-            t = time.time()-self.start
-            fps = "fps: %5.2f frames: %d" % (self.nframes / t, self.nframes)
-            # for c in fps:
-            #     GLUT.glutBitmapCharacter(GLUT.GLUT_BITMAP_HELVETICA_18, ord(c));
-        self.nframes += 1
+        self.mvp = rot(t*s/5., t*s/6., t*s/7.)
+
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.buffers[0])
+        GL.glUniformMatrix4fv(self.unif_mvp, 1, GL.GL_FALSE, self.mvp)
+
+        GL.glFrontFace(GL.GL_CCW)
+        GL.glCullFace(GL.GL_BACK)
+        GL.glEnable(GL.GL_CULL_FACE)
+
+        start_pos = 0
+        for i in range(6):
+            GL.glDrawArrays( GL.GL_TRIANGLE_FAN, start_pos, 4)
+            start_pos = start_pos + 4
 
 
 class ScanDelegate(DefaultDelegate):
@@ -600,7 +617,6 @@ class AHRSConsole(tk.Frame):
     def render(self, foo):
         print("render %s" % ( foo) )
 
-#DSH4
     def createVisualizationWidget(self, row_num, col_num, row_span):
         app = ShaderFrame(self, width=384, height=384)
         paddingx = 5
@@ -608,69 +624,6 @@ class AHRSConsole(tk.Frame):
         app.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span)
         app.after(100, app.printContext)
         app.animate = 1000 // 60
-        app.animate = 1
-
-    #DSH4
-    def createVisualizationWidgetOld(self, row_num, col_num, row_span):
-        cnf = dict()
-        cnf['rgba'] = True
-        cnf['double'] = True
-        cnf['depth'] = True
-        cnf['privatecmap'] = False
-
-
-        #cnf['rgba'] = False
-        #cnf['double'] = False
-        #cnf['depth'] = False
-        #cnf['privatecmap'] = True
-
-        cnf['width'] = 400
-        cnf['height'] = 400
-        #allinit = False
-        allinit = True
-        self.visualizerw_doinit = False
-        self.visualizerw_doreshape = False
-        if allinit:
-            cnf['create'] = self.visualizationWidgetInit
-            cnf['reshape'] = self.visualizationWidgetReshape
-            cnf['display'] = self.visualizationWidgetDraw
-            cnf['destroy'] = self.visualizationWidgetZap
-            cnf['timer'] = self.visualizationWidgetIdle
-            cnf['time'] = 100
-            cnf['name'] = 'toglW'
-        print("Call Togl.Togl %s" % ( 'ahrs-console.py') )
-        self.visualizerw = None
-        self.visualizerw = Togl.Togl(master=self, cnf=cnf)
-        print("Call Togl.Togl DONE %s %s" % ( 'ahrs-console.py', self.visualizerw ) )
-
-        paddingx = 5
-        paddingy = 5
-        self.visualizerw.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span)
-
-        if not allinit:
-            cnf = dict()
-            cnf['create'] = self.visualizationWidgetInit
-            self.visualizerw.configure(cnf=cnf)
-            visualizer.init(self.visualizerw)
-
-        if not allinit and False:
-            cnf = dict()
-            cnf['reshape'] = self.visualizationWidgetReshape
-            self.visualizerw.configure(cnf=cnf)
-            visualizer.reshape(self.visualizerw)
-
-        if not allinit:
-            cnf = dict()
-            cnf['display'] = self.visualizationWidgetDraw
-            cnf['destroy'] = self.visualizationWidgetZap
-            cnf['timer'] = self.visualizationWidgetIdle
-            cnf['time'] = 100
-            self.visualizerw.configure(cnf=cnf)
-
-        if self.visualizerw_doinit: 
-            visualizer.init(self.visualizerw)
-        if self.visualizerw_doreshape:
-            visualizer.reshape(self.visualizerw)
 
 
     def createWidgets(self):
