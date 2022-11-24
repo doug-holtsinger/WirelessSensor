@@ -21,12 +21,16 @@ import OpenGL.GL.shaders
 import pyopengltk
 import time
 
-# Roll, Pitch, Yaw
+# Roll, Pitch, Yaw in float format
 euler_angles = [ 0.0, 0.0, 0.0]
 
 # Avoiding glitches in pyopengl-3.0.x and python3.4
 def bytestr(s):
     return s.encode("utf-8") + b"\000"
+
+def sign_extend(value, bits):
+    sign_bit = 1 << (bits - 1)
+    return (value & (sign_bit - 1)) - (value & sign_bit)
 
 vshader_source = """
 #version 140
@@ -66,6 +70,7 @@ class ShaderFrame(pyopengltk.OpenGLFrame):
 
     def initgl(self):
 
+        self.degrees_per_radian = 180.0 / np.pi ## 57.2957795
         vertex_data_attribute_size = 3
         self.vertex_data = np.array(
              [-0.5, -0.5,  0.5,   # front side lower left
@@ -163,13 +168,13 @@ class ShaderFrame(pyopengltk.OpenGLFrame):
 
     def redraw(self):
         """Render a single frame"""
+        # print("redraw")
         global euler_angles
-        degrees_per_radian = 57.2957795
 
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glUseProgram (self.shader)
 
-        self.mvp = rotational_matrix(float(euler_angles[0]) / degrees_per_radian, float(euler_angles[1]) / degrees_per_radian, float(euler_angles[2]) / degrees_per_radian) 
+        self.mvp = rotational_matrix(float(euler_angles[0]) / self.degrees_per_radian, float(euler_angles[1]) / self.degrees_per_radian, float(euler_angles[2]) / self.degrees_per_radian) 
 
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.buffers[0])
         GL.glUniformMatrix4fv(self.unif_mvp, 1, GL.GL_FALSE, self.mvp)
@@ -184,7 +189,7 @@ class ShaderFrame(pyopengltk.OpenGLFrame):
             start_pos = start_pos + 4
 
 
-class ScanDelegate(DefaultDelegate):
+class ScanDelegateFindAHRS(DefaultDelegate):
     def __init__(self):
         DefaultDelegate.__init__(self)
         self.dev_addr = None
@@ -202,6 +207,23 @@ class ScanDelegate(DefaultDelegate):
 
     def getAHRSAddr(self):
         return self.dev_addr
+
+
+class ScanDelegatePassive(DefaultDelegate):
+    def __init__(self):
+        DefaultDelegate.__init__(self)
+    def handleDiscovery(self, dev, isNewDev, isNewData):
+        try:
+            manufacturer_data = dev.getValue(255)
+        except BTLEException as e:
+            print(e)
+            sys.exit(1) 
+        if manufacturer_data is not None and len(manufacturer_data) == 8 and manufacturer_data[0:2] == b'\xff\xff': 
+            #print("dev.addr %s data %s type %s len %d" % ( dev.addr , manufacturer_data.hex() , type(manufacturer_data), len(manufacturer_data)))
+            euler_angles[0] = float(sign_extend(manufacturer_data[3] << 8 | manufacturer_data[2], 16))
+            euler_angles[1] = float(sign_extend(manufacturer_data[5] << 8 | manufacturer_data[4], 16))
+            euler_angles[2] = float(sign_extend(manufacturer_data[7] << 8 | manufacturer_data[6], 16))
+            #print(euler_angles)
 
 class AHRSDataFrame():
     def __init__(self, master, data_group_name, data_names, data_label_width, check_button_names, row, column, data_hold=False, sticky=None):
@@ -405,6 +427,22 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_SETTINGS_DISPLAY_TOGGLE'] = 33
         self.commandDict['IMU_SELECT_ODR'] = 34 
 
+        self.scanner_process = None
+        self.scanner = Scanner().withDelegate(ScanDelegatePassive())
+        self.scanner.clear()
+        self.scanner.start(passive=True)
+        #self.after_idle(self.scannerProcess)
+        self.after(500, self.scannerProcess)
+
+    def scannerProcess(self):
+        #print("scannerProcess")
+        if not self.connected.get() and (not self.scanner_process or not self.scanner_process.is_alive()):
+            #print("start")
+            self.scanner_process = threading.Thread(target=self.scanner.process, args=(5,))
+            self.scanner_process.start()
+            #print("end")
+        self.after(500, self.scannerProcess)
+
     def resetAHRSSettings(self):
         self.twoKp.set(0.0)
         self.twoKpClient = 0.0
@@ -596,7 +634,7 @@ class AHRSConsole(tk.Frame):
         paddingx = 5
         paddingy = 5
         app.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span)
-        app.after(100, app.printContext)
+        # app.after(100, app.printContext)
         # callback delay in ms to redraw procedure
         app.animate = 1000 // 60
 
@@ -841,6 +879,7 @@ class AHRSConsole(tk.Frame):
 
     def connectButton(self):
         if self.connected.get():
+            #self.scanner.clear()
             self.connect_thread = threading.Thread(target=self.connectPeripheral)
             self.connect_thread.start()
         else:
@@ -859,7 +898,7 @@ class AHRSConsole(tk.Frame):
         return
 
     def scanForAHRS(self):
-        scan_delegate = ScanDelegate()
+        scan_delegate = ScanDelegateFindAHRS()
         scanner = Scanner().withDelegate(scan_delegate)
         scanner.clear()
         scanner.start(passive=False)
@@ -965,5 +1004,4 @@ class NotifyDelegate(DefaultDelegate):
 console = AHRSConsole()
 console.master.title('AHRS Console')
 console.mainloop()
-
 
