@@ -21,6 +21,9 @@ import OpenGL.GL.shaders
 import pyopengltk
 import time
 
+# Roll, Pitch, Yaw
+euler_angles = [ 0.0, 0.0, 0.0]
+
 # Avoiding glitches in pyopengl-3.0.x and python3.4
 def bytestr(s):
     return s.encode("utf-8") + b"\000"
@@ -45,24 +48,24 @@ void main(void) {
 """
 
 
-def rot(a, b, c):
-    s = np.sin(a)
-    c = np.cos(a)
+def rotational_matrix(roll, pitch, yaw):
+    s = np.sin(roll)
+    c = np.cos(roll)
     am = np.array(((c, s, 0, 0), (-s, c, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)), np.float32)
-    s = np.sin(b)
-    c = np.cos(b)
+    s = np.sin(yaw)
+    c = np.cos(yaw)
     bm = np.array(((c, 0, s, 0), (0, 1, 0, 0), (-s, 0, c, 0), (0, 0, 0, 1)), np.float32)
-    s = np.sin(c)
-    c = np.cos(c)
+    s = np.sin(pitch)
+    c = np.cos(pitch)
     cm = np.array(((1, 0, 0, 0), (0, c, s, 0), (0, -s, c, 0), (0, 0, 0, 1)), np.float32)
-    return np.dot(np.dot(am, bm), cm)
+    return np.dot(np.dot(cm, bm), am)
+    #return np.dot(np.dot(am, bm), cm)
 
 
 class ShaderFrame(pyopengltk.OpenGLFrame):
 
     def initgl(self):
 
-        #print("visualizer.init")
         vertex_data_attribute_size = 3
         self.vertex_data = np.array(
              [-0.5, -0.5,  0.5,   # front side lower left
@@ -158,19 +161,15 @@ class ShaderFrame(pyopengltk.OpenGLFrame):
         GL.glVertexAttribPointer(self.attr_color, vertex_data_attribute_size, GL.GL_FLOAT, GL.GL_FALSE, 0, None)
         GL.glEnableVertexAttribArray(self.attr_color);
 
-        self.start = time.time()
-
-
     def redraw(self):
         """Render a single frame"""
+        global euler_angles
+        degrees_per_radian = 57.2957795
+
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glUseProgram (self.shader)
-        tm = time.time() - self.start
-        self.mvp = np.eye(4, dtype=np.float32)
 
-        t = time.time()-self.start
-        s = 2.
-        self.mvp = rot(t*s/5., t*s/6., t*s/7.)
+        self.mvp = rotational_matrix(float(euler_angles[0]) / degrees_per_radian, float(euler_angles[1]) / degrees_per_radian, float(euler_angles[2]) / degrees_per_radian) 
 
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.buffers[0])
         GL.glUniformMatrix4fv(self.unif_mvp, 1, GL.GL_FALSE, self.mvp)
@@ -269,6 +268,9 @@ class AHRSDataFrame():
 
     def setData(self, idx, data):
         self.dataItems[idx].setData(data)
+
+    def getData(self, idx):
+        return self.dataItems[idx].getData()
 
     def setupPlot(self, ax):
         # setup data plot
@@ -425,12 +427,14 @@ class AHRSConsole(tk.Frame):
         self.dataplot_cnv.draw_idle()
 
     def setAHRSData(self, idx, data):
-        # print("NOTIF %d" % ( idx ))
+        global euler_angles
         if idx == 0:
             # AHRS
             gidx = 'Euler Angles'
             for gi in range(3):
                 self.data_group[gidx].setData(gi, data[gi])
+            # Roll, Pitch, Yaw
+            euler_angles = data 
         elif idx <= 4:
             # Accelerometer
             # gidx 1 to 3
@@ -462,7 +466,6 @@ class AHRSConsole(tk.Frame):
         elif idx == 20:
             # bit flags 
             bit_flags = int(data[0])
-            # print("BIT FLAGS %s" % ( hex(bit_flags)))
             if bit_flags & 0x1:
                 self.magnetometerStability.set(1)
             else:
@@ -588,43 +591,14 @@ class AHRSConsole(tk.Frame):
         self.dataplot_cnv.draw()
         self.dataplot_cnv.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span, sticky=tk.N)
 
-    def visualizationWidgetInit(self, args):
-        print("init %s %s %s" % ( 'ahrs-console.py', args, type(args) ) )
-        if self.visualizerw: 
-            visualizer.init(self.visualizerw)
-        else:
-            self.visualizerw_doinit = True
-
-    def visualizationWidgetReshape(self, foo):
-        print("reshape %s %s" % ( 'ahrs-console.py' , foo) )
-        if self.visualizerw: 
-            visualizer.reshape(self.visualizerw)
-        else:
-            self.visualizerw_doreshape = True
-
-    def visualizationWidgetZap(self, foo):
-        print("zap %s" % ( foo) )
-        visualizer.zap(self.visualizerw)
-
-    def visualizationWidgetIdle(self, foo):
-        #print("idle %s %s" % ( self.visualizerw , type(self.visualizerw) ) )
-        visualizer.idle(self.visualizerw)
-
-    def visualizationWidgetDraw(self, foo):
-        #print("draw %s" % ( foo) )
-        visualizer.draw(self.visualizerw)
-
-    def render(self, foo):
-        print("render %s" % ( foo) )
-
     def createVisualizationWidget(self, row_num, col_num, row_span):
         app = ShaderFrame(self, width=384, height=384)
         paddingx = 5
         paddingy = 5
         app.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span)
         app.after(100, app.printContext)
+        # callback delay in ms to redraw procedure
         app.animate = 1000 // 60
-
 
     def createWidgets(self):
         row_num = 0
