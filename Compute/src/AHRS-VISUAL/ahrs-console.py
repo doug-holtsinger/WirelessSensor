@@ -352,6 +352,9 @@ class AHRSConsole(tk.Frame):
         self.connect_thread = None
         self.connect_button = None
 
+        self.scanner_thread = None
+        self.scanner = None
+
         self.calibrate = tk.IntVar()
         self.calibrate.set(0)
 
@@ -427,21 +430,32 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_SETTINGS_DISPLAY_TOGGLE'] = 33
         self.commandDict['IMU_SELECT_ODR'] = 34 
 
-        self.scanner_process = None
-        self.scanner = Scanner().withDelegate(ScanDelegatePassive())
+        self.startScanPassive()
+
+    def scannerThreadPassive(self):
+        if not self.connected.get() and (not self.scanner_thread or not self.scanner_thread.is_alive()):
+            self.scanner_thread = threading.Thread(target=self.scanner.process, args=(5,))
+            self.scanner_thread.start()
+        if not self.connected.get(): 
+            self.after(500, self.scannerThreadPassive)
+
+    def startScanPassive(self):
+        if not self.scanner:
+            self.scanner = Scanner().withDelegate(ScanDelegatePassive())
+        else:
+            try:
+                self.scanner.stop()
+            except BTLEException as e:
+                self.connected.set(False)
+                print(e)
         self.scanner.clear()
         self.scanner.start(passive=True)
-        #self.after_idle(self.scannerProcess)
-        self.after(500, self.scannerProcess)
+        self.after(500, self.scannerThreadPassive)
 
-    def scannerProcess(self):
-        #print("scannerProcess")
-        if not self.connected.get() and (not self.scanner_process or not self.scanner_process.is_alive()):
-            #print("start")
-            self.scanner_process = threading.Thread(target=self.scanner.process, args=(5,))
-            self.scanner_process.start()
-            #print("end")
-        self.after(500, self.scannerProcess)
+    def stopScanPassive(self):
+        if (self.scanner_thread and self.scanner_thread.is_alive()):
+            self.scanner_thread.join(timeout=20)
+            self.scanner_thread = None
 
     def resetAHRSSettings(self):
         self.twoKp.set(0.0)
@@ -879,11 +893,12 @@ class AHRSConsole(tk.Frame):
 
     def connectButton(self):
         if self.connected.get():
-            #self.scanner.clear()
+            self.stopScanPassive()
             self.connect_thread = threading.Thread(target=self.connectPeripheral)
             self.connect_thread.start()
         else:
             self.disconnect()
+            self.startScanPassive()
 
     def getBLEState(self):
         if self.peripheral:
@@ -927,6 +942,7 @@ class AHRSConsole(tk.Frame):
         except BTLEException as e:
             self.connected.set(False)
             print(e)
+            self.startScanPassive()
             return
 
         print("Connected to %s" % ( dev_addr ))
