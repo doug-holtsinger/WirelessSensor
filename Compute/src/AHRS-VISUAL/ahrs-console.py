@@ -58,7 +58,7 @@ def rotational_matrix(roll, pitch, yaw):
     am = np.array(((c, s, 0, 0), (-s, c, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)), np.float32)
     s = np.sin(yaw)
     c = np.cos(yaw)
-    bm = np.array(((c, 0, s, 0), (0, 1, 0, 0), (-s, 0, c, 0), (0, 0, 0, 1)), np.float32)
+    bm = np.array(((c, 0, -s, 0), (0, 1, 0, 0), (s, 0, c, 0), (0, 0, 0, 1)), np.float32)
     s = np.sin(pitch)
     c = np.cos(pitch)
     cm = np.array(((1, 0, 0, 0), (0, c, s, 0), (0, -s, c, 0), (0, 0, 0, 1)), np.float32)
