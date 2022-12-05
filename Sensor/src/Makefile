@@ -6,6 +6,8 @@ SDK_ROOT := C:/NordicSDK/nRF5SDK160098a08e2
 
 PROJ_DIR := ./
 PROJ_INC_DIR := .
+I2C_SRC_DIR := ./I2C
+I2C_INC_DIR := ./I2C
 IMU_SRC_DIR := ./IMU
 IMU_INC_DIR := ./IMU
 LSM6DS3_SRC_DIR := ./LSM6DS3
@@ -27,7 +29,7 @@ $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
 # Source files common to all targets
 SRC_FILES += \
   $(PROJ_DIR)/main.cpp \
-  $(PROJ_DIR)/TwoWire.cpp \
+  $(I2C_SRC_DIR)/TwoWire.cpp \
   $(AHRS_SRC_DIR)/AHRS.cpp \
   $(AHRS_SRC_DIR)/MahonyAHRS.cpp \
   $(AHRS_SRC_DIR)/MadgwickAHRS.cpp \
@@ -153,6 +155,7 @@ SRC_FILES += \
 INC_FOLDERS += \
   $(CONFIG_DIR) \
   $(PROJ_INC_DIR) \
+  $(I2C_INC_DIR) \
   $(IMU_INC_DIR) \
   $(BLE_INC_DIR) \
   $(FLASH_INC_DIR) \
