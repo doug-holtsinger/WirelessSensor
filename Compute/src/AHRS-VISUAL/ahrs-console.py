@@ -33,7 +33,7 @@ def sign_extend(value, bits):
     return (value & (sign_bit - 1)) - (value & sign_bit)
 
 vshader_source = """
-#version 140
+#version 120
 attribute vec4 a_position;
 attribute vec4 a_color;
 uniform mat4 u_mvp_matrix;
