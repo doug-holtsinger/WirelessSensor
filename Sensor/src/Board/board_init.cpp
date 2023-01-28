@@ -329,8 +329,6 @@ static void timers_init(void)
     // Initialize timer module.
     err_code = app_timer_init();
     APP_ERROR_CHECK(err_code);
-
-    ble_svcs_timers_init();
 }
 
 
@@ -351,7 +349,6 @@ void board_init(void)
 void board_post_init(void)
 {
     // Start BLE Advertising
-    ble_svcs_application_timers_start();
     ble_svcs_advertising_start();
 }
 
