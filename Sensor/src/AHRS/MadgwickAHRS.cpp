@@ -232,10 +232,10 @@ void MadgwickAHRS::cmd(const IMU_CMD_t cmd)
 
     switch (cmd)
     {
-        case IMU_AHRS_BETA_GAIN_UP:
+        case IMU_CMD_t::AHRS_BETA_GAIN_UP:
             beta += 0.05f;
             break;
-        case IMU_AHRS_BETA_GAIN_DOWN:
+	case IMU_CMD_t::AHRS_BETA_GAIN_DOWN:
             beta -= 0.05f;
             break;
 	default: break;

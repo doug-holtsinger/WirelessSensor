@@ -63,19 +63,18 @@
 #include "ble_nus.h"
 #endif
 
-#include "ble_svcs_cmd.h"
-
 #include "nrf_sdh.h"
 
 #include "bsp.h"
 
 #include "app_timer.h"
 
+#include "ble_svcs.h"
+
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
-extern void exec_app_cmd(const uint8_t cmd);
 
 #define DEVICE_NAME                         "AHRS"                            /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
@@ -109,6 +108,8 @@ NRF_BLE_GATT_DEF(m_gatt);            /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);              /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising);  /**< Advertising module instance. */
 
+static void (*nus_data_handler_cb)(const APP_CMD_t data) = NULL;
+
 static ble_uuid_t m_adv_uuids[] =                 /**< Universally unique service identifiers. */
 {
 #ifdef DEVICE_INFORMATION_SERVICE_AVAILABLE
@@ -126,6 +127,14 @@ static uint16_t m_conn_handle         = BLE_CONN_HANDLE_INVALID;    /**< Handle 
 static bool show_manuf_data = false; 
 static uint16_t print_cnt = 0;
 #endif
+
+/**@brief register callback function for NUS data handler function
+ */
+void ble_svcs_register(void (*data_handler_fn)(const APP_CMD_t data))
+/// void ble_svcs_register( std::function<void(const APP_CMD_t data)> data_handler_fn)
+{
+    nus_data_handler_cb = data_handler_fn;
+}
 
 /**@brief Function for interpreting commands
  */
@@ -431,8 +440,11 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 
     if (p_evt->type == BLE_NUS_EVT_RX_DATA && p_evt->params.rx_data.length > 0)
     {
-        NRF_LOG_INFO("nus_data_handler exec_app_cmd %d data = 0x%hhx", p_evt->type, p_evt->params.rx_data.p_data[0]);
-        exec_app_cmd(p_evt->params.rx_data.p_data[0]);
+        // exec_app_cmd(p_evt->params.rx_data.p_data[0]);
+	if (nus_data_handler_cb)
+	{
+            nus_data_handler_cb(p_evt->params.rx_data.p_data[0]);
+	}
     }
     if (p_evt->type == BLE_NUS_EVT_COMM_STARTED)
     {

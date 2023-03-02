@@ -4,7 +4,7 @@
 
 void board_init(void);
 void board_post_init(void);
-void exec_app_cmd(const uint8_t cmd);
+//void exec_app_cmd(const uint8_t cmd);
 
 #endif
 

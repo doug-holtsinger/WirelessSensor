@@ -247,16 +247,16 @@ void MahonyAHRS::cmd(const IMU_CMD_t cmd)
 
     switch (cmd)
     {
-        case IMU_AHRS_PROP_GAIN_UP:
+        case IMU_CMD_t::AHRS_PROP_GAIN_UP:
             twoKp += 0.1f;
             break;
-        case IMU_AHRS_PROP_GAIN_DOWN:
+	case IMU_CMD_t::AHRS_PROP_GAIN_DOWN:
             twoKp -= 0.1f;
             break;
-        case IMU_AHRS_INTEG_GAIN_UP:
+	case IMU_CMD_t::AHRS_INTEG_GAIN_UP:
             twoKi += 0.1f;
             break;
-        case IMU_AHRS_INTEG_GAIN_DOWN:
+	case IMU_CMD_t::AHRS_INTEG_GAIN_DOWN:
             twoKi -= 0.1f;
             break;
 	default: break;

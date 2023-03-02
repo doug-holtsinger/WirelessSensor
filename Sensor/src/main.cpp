@@ -71,8 +71,9 @@
 #include "ble_svcs_cmd.h"
 #include "ble_svcs.h"
 #include "board_init.h"
+#include "AppDemux.h"
 
-IMU imu;
+using namespace std::placeholders;
 
 /**@brief Function for application main entry.
  */
@@ -80,13 +81,19 @@ int main(void)
 {
     float roll, pitch, yaw;
     uint32_t cmd_get_cnt = 0;
+    IMU imu = IMU();
 
     // Initialize.
     board_init();
 
     // Start IMU
-    imu = IMU();
     imu.init();
+
+    appDemuxAddHandler( 
+        std::bind( &IMU::cmd2, std::ref(imu), _1),
+        appDemuxCmdType(IMU_CMD_t::CMD_MAX) );
+
+    ble_svcs_register(&appDemuxExecHandler);
 
     board_post_init();
 

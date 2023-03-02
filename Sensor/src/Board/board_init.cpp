@@ -70,9 +70,6 @@
 #include "ble_svcs_cmd.h"
 #include "ble_svcs.h"
 
-#include "imu.h"
-extern IMU imu;
-
 /* UART defines */
 #define UART_TX_BUF_SIZE 256                         /**< UART TX buffer size. */
 #define UART_RX_BUF_SIZE 256                         /**< UART RX buffer size. */
@@ -275,35 +272,6 @@ static void power_management_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-
-static void interpret_app_cmd(const uint8_t cmd, IMU_CMD_t& imu_cmd, BLE_CMD_t& ble_cmd)
-{
-    imu_cmd = IMU_NOCMD;
-    ble_cmd = BLE_NOCMD;
-    if (cmd >= IMU_CMD_MIN && cmd <= IMU_CMD_MAX)
-    {
-        imu_cmd = static_cast<IMU_CMD_t>(cmd);
-    } else {
-        ble_cmd = static_cast<BLE_CMD_t>(cmd);
-    }
-}
-
-void exec_app_cmd(const uint8_t cmd)
-{
-    IMU_CMD_t imu_cmd = IMU_NOCMD;
-    BLE_CMD_t ble_cmd = BLE_NOCMD;
-
-    interpret_app_cmd(cmd, imu_cmd, ble_cmd);
-    if (imu_cmd != IMU_NOCMD)
-    {
-        imu.cmd(imu_cmd);
-    }
-    if (ble_cmd != BLE_NOCMD)
-    {
-        ble_svcs_cmd(ble_cmd, 0);
-    }
-}
-
 #ifdef SERIAL_CONSOLE_AVAILABLE
 static void check_app_cmd(void)
 {
@@ -312,6 +280,7 @@ static void check_app_cmd(void)
 
     err_code = app_uart_get(&cmd);
     if (err_code == NRF_SUCCESS) {
+	    // DSH-FIXME
         exec_app_cmd(cmd);
     }
 }
