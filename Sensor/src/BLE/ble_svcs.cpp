@@ -63,19 +63,18 @@
 #include "ble_nus.h"
 #endif
 
-#include "ble_svcs_cmd.h"
-
 #include "nrf_sdh.h"
 
 #include "bsp.h"
 
 #include "app_timer.h"
 
+#include "ble_svcs.h"
+
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
-extern void exec_app_cmd(const uint8_t cmd);
 
 #define DEVICE_NAME                         "AHRS"                            /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
@@ -86,12 +85,6 @@ extern void exec_app_cmd(const uint8_t cmd);
 #define APP_BLE_CONN_CFG_TAG                1                                       /**< A tag identifying the SoftDevice BLE configuration. */
 #define APP_BLE_OBSERVER_PRIO               3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 
-#define HEART_RATE_MEAS_INTERVAL            APP_TIMER_TICKS(1000)                   /**< Heart rate measurement interval (ticks). */
-
-//DSH4
-// #define MIN_CONN_INTERVAL                   MSEC_TO_UNITS(400, UNIT_1_25_MS)        /**< Minimum acceptable connection interval (0.4 seconds). */
-// #define MAX_CONN_INTERVAL                   MSEC_TO_UNITS(650, UNIT_1_25_MS)        /**< Maximum acceptable connection interval (0.65 second). */
-// DSH4
 #define MIN_CONN_INTERVAL                   MSEC_TO_UNITS(8, UNIT_1_25_MS)        /**< Minimum acceptable connection interval  */
 #define MAX_CONN_INTERVAL                   MSEC_TO_UNITS(650, UNIT_1_25_MS)        /**< Maximum acceptable connection interval  */
 #define SLAVE_LATENCY                       0                                       /**< Slave latency. */
@@ -111,42 +104,36 @@ extern void exec_app_cmd(const uint8_t cmd);
 #define SEC_PARAM_MAX_KEY_SIZE              16                                      /**< Maximum encryption key size. */
 
 BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);        /**< BLE NUS service instance. */
-BLE_HRS_DEF(m_hrs);                  /**< Heart rate service instance. */
 NRF_BLE_GATT_DEF(m_gatt);            /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);              /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising);  /**< Advertising module instance. */
 
-APP_TIMER_DEF(m_heart_rate_timer_id);                               /**< Heart rate measurement timer. */
+static void (*nus_data_handler_cb)(const APP_CMD_t data) = NULL;
 
-ble_uuid_t m_adv_uuids[] =                 /**< Universally unique service identifiers. */
+static ble_uuid_t m_adv_uuids[] =                 /**< Universally unique service identifiers. */
 {
 #ifdef DEVICE_INFORMATION_SERVICE_AVAILABLE
     {BLE_UUID_DEVICE_INFORMATION_SERVICE,   BLE_UUID_TYPE_BLE},
 #endif
 #ifdef BLE_CONSOLE_AVAILABLE
-    // {BLE_UUID_NUS_SERVICE,                  NUS_SERVICE_UUID_TYPE}
     {BLE_UUID_CYCLING_SPEED_AND_CADENCE,                  BLE_UUID_TYPE_BLE}
 #endif
 };
 
 
-uint16_t m_conn_handle         = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
-bool     m_rr_interval_enabled = false;   /**< Flag for enabling and disabling the registration of new RR interval measurements (the purpose of disabling this is just to test sending HRM without RR interval data. */
+static uint16_t m_conn_handle         = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 
 #ifdef SERIAL_CONSOLE_AVAILABLE
-bool show_manuf_data = false; 
-uint16_t print_cnt = 0;
+static bool show_manuf_data = false; 
+static uint16_t print_cnt = 0;
 #endif
 
-/**@brief Function for converting float to int16
- *  Roll -- -180 to +180
- *  Yaw -- 0 to 360 => 360 *100 exceeds signed limits
- *  Pitch -- -90 to +90
+/**@brief register callback function for NUS data handler function
  */
-int16_t convert_float_to_int16(float anglef)
+void ble_svcs_register(void (*data_handler_fn)(const APP_CMD_t data))
+/// void ble_svcs_register( std::function<void(const APP_CMD_t data)> data_handler_fn)
 {
-    int16_t anglei = int(anglef * 10.0); 
-    return anglei;
+    nus_data_handler_cb = data_handler_fn;
 }
 
 /**@brief Function for interpreting commands
@@ -260,21 +247,6 @@ void ble_svcs_advertising_start(void)
     APP_ERROR_CHECK(err_code);
 }
 
-/**@brief Function for the Timer initialization.
- *
- * @details This creates and starts BLE application timers.
- */
-void ble_svcs_timers_init(void)
-{
-}
-
-/**@brief Function for starting application timers.
- */
-void ble_svcs_application_timers_start(void)
-{
-}
-
-
 /**@brief Function for handling Peer Manager events.
  *
  * @param[in] p_evt  Peer Manager event.
@@ -305,8 +277,6 @@ void gatt_evt_handler(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const * p_evt)
                      p_evt->conn_handle,
                      p_evt->params.att_mtu_effective);
     }
-
-    ble_hrs_on_gatt_evt(&m_hrs, p_evt);
 }
 
 /**@brief Function for handling BLE events.
@@ -470,8 +440,11 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 
     if (p_evt->type == BLE_NUS_EVT_RX_DATA && p_evt->params.rx_data.length > 0)
     {
-        NRF_LOG_INFO("nus_data_handler exec_app_cmd %d data = 0x%hhx", p_evt->type, p_evt->params.rx_data.p_data[0]);
-        exec_app_cmd(p_evt->params.rx_data.p_data[0]);
+        // exec_app_cmd(p_evt->params.rx_data.p_data[0]);
+	if (nus_data_handler_cb)
+	{
+            nus_data_handler_cb(p_evt->params.rx_data.p_data[0]);
+	}
     }
     if (p_evt->type == BLE_NUS_EVT_COMM_STARTED)
     {
@@ -571,7 +544,6 @@ void conn_params_init(void)
     cp_init.next_conn_params_update_delay  = NEXT_CONN_PARAMS_UPDATE_DELAY;
     cp_init.max_conn_params_update_count   = MAX_CONN_PARAMS_UPDATE_COUNT;
     cp_init.disconnect_on_fail             = false;
-    cp_init.start_on_notify_cccd_handle    = m_hrs.hrm_handles.cccd_handle;
     cp_init.evt_handler                    = on_conn_params_evt;
     cp_init.error_handler                  = conn_params_error_handler;
 

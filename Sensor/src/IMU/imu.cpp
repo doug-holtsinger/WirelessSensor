@@ -37,19 +37,8 @@ extern void fds_evt_handler_C(fds_evt_t const * p_evt);
 
 IMU::IMU()
 {
-}
-
-IMU::~IMU()
-{
-}
-
-void IMU::init(void)
-{
-    imu_calibration_params_t imu_cal_params;
     dev_i2c = new TwoWire();
-    sensor_init();
-    reset_calibration();
-    // Initialize AHRS algorithm
+    AccGyr = new LSM6DS3Sensor(dev_i2c, TWI_ADDRESS_LSM6DS3);
     if (AHRSalgorithm == AHRS_MAHONY)
     {
         AHRSptr = new MahonyAHRS();
@@ -57,6 +46,15 @@ void IMU::init(void)
     {
         AHRSptr = new MadgwickAHRS();
     }
+    Magneto = new LIS3MDLSensor(dev_i2c, TWI_ADDRESS_LIS3MDL);
+}
+
+void IMU::init(void)
+{
+    imu_calibration_params_t imu_cal_params;
+    sensor_init();
+    reset_calibration();
+    // Initialize AHRS algorithm
     // Initialize param storage device
     param_store.init(&cp);
     // Read parameters from storage and initialize local copy
@@ -149,6 +147,7 @@ void IMU::get_params(imu_calibration_params_t& params)
     }
 }
 
+// FIXME -- pull this into BLE library?
 void IMU::send_client_data(char *p)
 {
 #ifdef BLE_CONSOLE_AVAILABLE
@@ -721,7 +720,6 @@ void IMU::update()
  */
 void IMU::sensor_init(void)
 {
-    AccGyr = new LSM6DS3Sensor(dev_i2c, TWI_ADDRESS_LSM6DS3);
     AccGyr->Enable_X();
     AccGyr->Enable_G();
     AccGyr->Reset_Timestamp();
@@ -730,95 +728,99 @@ void IMU::sensor_init(void)
     // AccGyr->Enable_G_Filter(LSM6DS3_ACC_GYRO_HPCF_G_16Hz32);
     // AccGyr->Enable_6D_Orientation();
 
-    Magneto = new LIS3MDLSensor(dev_i2c, TWI_ADDRESS_LIS3MDL);
     Magneto->Enable();
 }
 
-void IMU::cmd(const IMU_CMD_t cmd)
+void IMU::cmd(const uint8_t i_cmd)
 {
-    switch (cmd)
+    cmd_internal(static_cast<IMU_CMD_t>(i_cmd));
+}
+
+void IMU::cmd_internal(const IMU_CMD_t i_cmd)
+{
+    switch (i_cmd)
     {
-        case IMU_SELECT_MAGNETOMETER:
+        case IMU_CMD_t::SELECT_MAGNETOMETER:
             // magnetometer
             sensor_select = IMU_MAGNETOMETER;
             break;
-        case IMU_SELECT_GYROSCOPE:
+	case IMU_CMD_t::SELECT_GYROSCOPE:
             // gyro
             sensor_select = IMU_GYROSCOPE;
             break;
-        case IMU_SELECT_ACCELEROMETER:
+	case IMU_CMD_t::SELECT_ACCELEROMETER:
             // accelerometer
             sensor_select = IMU_ACCELEROMETER;
             break;
-        case IMU_SELECT_AHRS:
+	case IMU_CMD_t::SELECT_AHRS:
             sensor_select = IMU_AHRS;
             break;
-        case IMU_SELECT_ODR:
+	case IMU_CMD_t::SELECT_ODR:
             sensor_select = IMU_ODR;
             break;
-        case IMU_AHRS_INPUT_TOGGLE:
+	case IMU_CMD_t::AHRS_INPUT_TOGGLE:
             show_input_ahrs = ( show_input_ahrs + 1 ) % 4;
             break;
-        case IMU_SENSOR_CALIBRATE_NORMALIZED:
+	case IMU_CMD_t::SENSOR_CALIBRATE_NORMALIZED:
             calibrate_enable = IMU_CALIBRATE_DISABLED; 
             break;
-        case IMU_SENSOR_CALIBRATE_ZERO_OFFSET:
+	case IMU_CMD_t::SENSOR_CALIBRATE_ZERO_OFFSET:
             calibrate_enable = IMU_CALIBRATE_ZERO_OFFSET; 
             break;
-        case IMU_SENSOR_CALIBRATE_MAGNETOMETER:
+	case IMU_CMD_t::SENSOR_CALIBRATE_MAGNETOMETER:
             calibrate_enable = IMU_CALIBRATE_MAGNETOMETER; 
             break;
-        case IMU_SENSOR_CALIBRATE_GYROSCOPE:
+	case IMU_CMD_t::SENSOR_CALIBRATE_GYROSCOPE:
             calibrate_enable = IMU_CALIBRATE_GYROSCOPE; 
             break;
-        case IMU_SENSOR_CALIBRATE_RESET:
+	case IMU_CMD_t::SENSOR_CALIBRATE_RESET:
             // reset calibration values
             calibrate_reset = true;
             calibrate_enable = IMU_CALIBRATE_DISABLED;
             break;
-        case IMU_SENSOR_CALIBRATE_SAVE:
+	case IMU_CMD_t::SENSOR_CALIBRATE_SAVE:
             params_save();
             break;
-        case IMU_AHRS_YAW_TOGGLE:
+	case IMU_CMD_t::AHRS_YAW_TOGGLE:
             show_yaw = !show_yaw;
             break;
-        case IMU_AHRS_PITCH_TOGGLE:
+	case IMU_CMD_t::AHRS_PITCH_TOGGLE:
             show_pitch = !show_pitch;
             break;
-        case IMU_AHRS_ROLL_TOGGLE:
+	case IMU_CMD_t::AHRS_ROLL_TOGGLE:
             show_roll = !show_roll;
             break;
-        case IMU_SENSOR_DATA_HOLD_TOGGLE:
+	case IMU_CMD_t::SENSOR_DATA_HOLD_TOGGLE:
 	    if (sensor_select >= IMU_SENSOR_MIN && sensor_select <= IMU_SENSOR_MAX)
 	    {
                 data_hold[sensor_select] = !data_hold[sensor_select];
 	    }
             break;
-        case IMU_SENSOR_DATA_IDEAL_TOGGLE:
+	case IMU_CMD_t::SENSOR_DATA_IDEAL_TOGGLE:
 	    if (sensor_select >= IMU_SENSOR_MIN && sensor_select <= IMU_SENSOR_MAX)
 	    {
                 ideal_data[sensor_select] = !ideal_data[sensor_select];
 	    }
             break;
-        case IMU_SENSOR_DATA_DISPLAY_TOGGLE:
+	case IMU_CMD_t::SENSOR_DATA_DISPLAY_TOGGLE:
 	    if (sensor_select >= IMU_SENSOR_MIN && sensor_select <= IMU_SENSOR_MAX)
 	    {
                 display_data[sensor_select] = !display_data[sensor_select];
 	    }
             break;
-        case IMU_SENSOR_DATA_FIXED_TOGGLE:
+	case IMU_CMD_t::SENSOR_DATA_FIXED_TOGGLE:
             fixed_data = !fixed_data;
             break;
-        case IMU_GYROSCOPE_CORRECTION_UP:
+	case IMU_CMD_t::GYROSCOPE_CORRECTION_UP:
             cp.gyroscope_correction *= 10.0f;
             break;
-        case IMU_GYROSCOPE_CORRECTION_DOWN:
+	case IMU_CMD_t::GYROSCOPE_CORRECTION_DOWN:
             cp.gyroscope_correction /= 10.0f;
             break;
-        case IMU_MAGNETOMETER_STABILITY_TOGGLE:
+	case IMU_CMD_t::MAGNETOMETER_STABILITY_TOGGLE:
             cp.magnetometer_stability = !cp.magnetometer_stability; 
             break;
-        case IMU_AHRS_ALGORITHM_TOGGLE:
+	case IMU_CMD_t::AHRS_ALGORITHM_TOGGLE:
             if (AHRSalgorithm == AHRS_MAHONY)
             {
                 AHRSptr->~AHRS();
@@ -831,27 +833,29 @@ void IMU::cmd(const IMU_CMD_t cmd)
                 AHRSalgorithm = AHRS_MAHONY;
             }
             break;
-	case IMU_GYROSCOPE_ENABLE_TOGGLE:
+	case IMU_CMD_t::GYROSCOPE_ENABLE_TOGGLE:
             cp.gyroscope_enabled = !cp.gyroscope_enabled; 
             break;
-	case IMU_UNCALIBRATED_DISPLAY_TOGGLE:
+	case IMU_CMD_t::UNCALIBRATED_DISPLAY_TOGGLE:
             uncalibrated_display = !uncalibrated_display; 
             break;
-	case IMU_SETTINGS_DISPLAY_TOGGLE:
+	case IMU_CMD_t::SETTINGS_DISPLAY_TOGGLE:
             settings_display = !settings_display; 
             break;
-        case IMU_AHRS_PROP_GAIN_UP:
-        case IMU_AHRS_PROP_GAIN_DOWN:
-        case IMU_AHRS_INTEG_GAIN_UP:
-        case IMU_AHRS_INTEG_GAIN_DOWN:
-        case IMU_AHRS_SAMPLE_FREQ_UP:
-        case IMU_AHRS_SAMPLE_FREQ_DOWN:
-        case IMU_AHRS_BETA_GAIN_UP:
-        case IMU_AHRS_BETA_GAIN_DOWN:
+	case IMU_CMD_t::AHRS_PROP_GAIN_UP:
+	case IMU_CMD_t::AHRS_PROP_GAIN_DOWN:
+	case IMU_CMD_t::AHRS_INTEG_GAIN_UP:
+	case IMU_CMD_t::AHRS_INTEG_GAIN_DOWN:
+	case IMU_CMD_t::AHRS_SAMPLE_FREQ_UP:
+	case IMU_CMD_t::AHRS_SAMPLE_FREQ_DOWN:
+	case IMU_CMD_t::AHRS_BETA_GAIN_UP:
+	case IMU_CMD_t::AHRS_BETA_GAIN_DOWN:
             // Fall through
-            AHRSptr->cmd(cmd);
+            AHRSptr->cmd(i_cmd);
             break;
-        default: break;
+        default: 
+            NRF_LOG_INFO("Invalid IMU cmd %d", i_cmd);
+	    break;
     }
 }
 

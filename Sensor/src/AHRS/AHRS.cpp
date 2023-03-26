@@ -181,10 +181,10 @@ void AHRS::cmd(const IMU_CMD_t cmd)
 {
     switch (cmd)
     {
-        case IMU_AHRS_SAMPLE_FREQ_UP:
+	    case IMU_CMD_t::AHRS_SAMPLE_FREQ_UP:
             sampleFreq += 32.0f;
             break;
-        case IMU_AHRS_SAMPLE_FREQ_DOWN:
+	    case IMU_CMD_t::AHRS_SAMPLE_FREQ_DOWN:
             sampleFreq -= 32.0f;
             break;
 	default: break;

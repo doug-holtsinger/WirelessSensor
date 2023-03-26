@@ -20,6 +20,10 @@ BLE_SRC_DIR := ./BLE
 BLE_INC_DIR := ./BLE
 FLASH_SRC_DIR := ./Flash
 FLASH_INC_DIR := ./Flash
+BOARD_SRC_DIR := ./Board
+BOARD_INC_DIR := ./Board
+APPDEMUX_INC_DIR := ./AppDemux
+APPDEMUX_SRC_DIR := ./AppDemux
 CONFIG_DIR := ../config
 VERBOSE := 1
 
@@ -36,6 +40,8 @@ SRC_FILES += \
   $(IMU_SRC_DIR)/imu.cpp \
   $(BLE_SRC_DIR)/ble_svcs.cpp \
   $(FLASH_SRC_DIR)/param_store.cpp \
+  $(BOARD_SRC_DIR)/board_init.cpp \
+  $(APPDEMUX_SRC_DIR)/AppDemux.cpp \
   $(LSM6DS3_SRC_DIR)/LSM6DS3_ACC_GYRO_Driver.c \
   $(LSM6DS3_SRC_DIR)/LSM6DS3Sensor.cpp \
   $(LIS3MDL_SRC_DIR)/LIS3MDL_MAG_Driver.c \
@@ -162,6 +168,8 @@ INC_FOLDERS += \
   $(LSM6DS3_INC_DIR) \
   $(LIS3MDL_INC_DIR) \
   $(AHRS_INC_DIR) \
+  $(BOARD_INC_DIR) \
+  $(APPDEMUX_INC_DIR) \
   $(SDK_ROOT)/components/libraries/uart \
   $(SDK_ROOT)/components/nfc/ndef/generic/message \
   $(SDK_ROOT)/components/nfc/t2t_lib \
