@@ -43,6 +43,11 @@ typedef enum
     ODR_HZ_GYRO,
     ODR_HZ_MAGNETOMETER,
 
+    // FIXME
+    PID_KP,
+    PID_KI,
+    PID_KD,
+
 } DATA_NOTIFY_t;
 
 

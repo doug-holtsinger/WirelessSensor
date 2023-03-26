@@ -17,12 +17,7 @@ struct AppHandler {
 };
 
 void appDemuxExecHandler(const APP_CMD_t cmd);
-#if 0
-template <typename T>
-void appDemuxAddHandler(std::function<void(const T cmd)> handler, const T cmd_max);
-#else
 void appDemuxAddHandler(const std::function<void(const APP_CMD_t cmd)>& handler, const APP_CMD_t cmd_max);
-#endif
 
 template <typename T>
 constexpr APP_CMD_t appDemuxCmdType(T e) noexcept

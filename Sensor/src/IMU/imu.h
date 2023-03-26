@@ -49,9 +49,9 @@ class IMU {
         void update(void);
         void init(void);
         void get_params(imu_calibration_params_t& params);
-        void cmd(const IMU_CMD_t i_cmd);
+        void cmd_internal(const IMU_CMD_t i_cmd);
 	// FIXME -- use template
-        void cmd2(const uint8_t i_cmd);
+        void cmd(const uint8_t i_cmd);
         void send_all_client_data();
         void send_client_data(char*);
         void get_angles(float& roll, float& pitch, float& yaw);

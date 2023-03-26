@@ -147,6 +147,7 @@ void IMU::get_params(imu_calibration_params_t& params)
     }
 }
 
+// FIXME -- pull this into BLE library?
 void IMU::send_client_data(char *p)
 {
 #ifdef BLE_CONSOLE_AVAILABLE
@@ -730,12 +731,12 @@ void IMU::sensor_init(void)
     Magneto->Enable();
 }
 
-void IMU::cmd2(const uint8_t i_cmd)
+void IMU::cmd(const uint8_t i_cmd)
 {
-    cmd(static_cast<IMU_CMD_t>(i_cmd));
+    cmd_internal(static_cast<IMU_CMD_t>(i_cmd));
 }
 
-void IMU::cmd(const IMU_CMD_t i_cmd)
+void IMU::cmd_internal(const IMU_CMD_t i_cmd)
 {
     switch (i_cmd)
     {
