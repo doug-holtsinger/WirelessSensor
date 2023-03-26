@@ -370,6 +370,11 @@ class AHRSConsole(tk.Frame):
         self.uncalibratedDisplay = tk.IntVar()
         self.settingsDisplay = tk.IntVar()
 
+        # PID variables
+        self.pidKP = tk.DoubleVar()
+        self.pidKI = tk.DoubleVar()
+        self.pidKD = tk.DoubleVar()
+
         self.resetAHRSSettings()
         self.xpoints = 500
 
@@ -430,6 +435,15 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_SETTINGS_DISPLAY_TOGGLE'] = 33
         self.commandDict['IMU_SELECT_ODR'] = 34 
 
+        # PID settings 
+        self.commandDict['PID_NOCMD'] = 36
+        self.commandDict['PID_KP_UP'] = 37
+        self.commandDict['PID_KP_DOWN'] = 38
+        self.commandDict['PID_KI_UP'] = 32
+        self.commandDict['PID_KI_DOWN'] = 40
+        self.commandDict['PID_KD_UP'] = 41
+        self.commandDict['PID_KD_DOWN'] = 42
+
         self.startScanPassive()
 
     def scannerThreadPassive(self):
@@ -472,6 +486,14 @@ class AHRSConsole(tk.Frame):
         self.betaGainClient = 0.0
         self.dataRateHz.set(0.0)
         self.dataRateHzClient = 0.0
+
+        # PID variables
+        self.pidKP.set(0.0)
+        self.pidKPClient = 0.0
+        self.pidKI.set(0.0)
+        self.pidKIClient = 0.0
+        self.pidKD.set(0.0)
+        self.pidKDClient = 0.0
 
     def scalePlot(self):
         self.ax.relim()
@@ -579,14 +601,15 @@ class AHRSConsole(tk.Frame):
                 self.settingsDisplay.set(1)
             else:
                 self.settingsDisplay.set(0)
-            if bit_flags & 0x4000:
-                self.data_group['ODR'].setButtonData('Ideal', 1)
-            else:
-                self.data_group['ODR'].setButtonData('Ideal', 0)
-            if bit_flags & 0x8000:
-                self.data_group['ODR'].setButtonData('Display', 1)
-            else:
-                self.data_group['ODR'].setButtonData('Display', 0)
+            #FIXME
+            #if bit_flags & 0x4000:
+            #    self.data_group['ODR'].setButtonData('Ideal', 1)
+            #else:
+            #    self.data_group['ODR'].setButtonData('Ideal', 0)
+            #if bit_flags & 0x8000:
+            #    self.data_group['ODR'].setButtonData('Display', 1)
+            #else:
+            #    self.data_group['ODR'].setButtonData('Display', 0)
 
         elif idx == 21:
             # prop gain 
@@ -608,11 +631,24 @@ class AHRSConsole(tk.Frame):
             # Beta gain 
             self.betaGain.set(data[0]) 
             self.betaGainClient = float(data[0])
-        elif idx <= 28: 
+        elif idx <= 28:
             # ODR Hz 
             gidx = 'ODR'
             gi = idx - 26
-            self.data_group[gidx].setData(gi, data)
+            #FIXME  self.data_group[gidx].setData(gi, data)
+        elif idx == 29:
+            # PID KP 
+            self.pidKP.set(data[0])
+            self.pidKPClient = float(data[0])
+        elif idx == 30:
+            # PID KI 
+            self.pidKI.set(data[0])
+            self.pidKIClient = float(data[0])
+        elif idx == 31:
+            # PID KD 
+            self.pidKD.set(data[0])
+            self.pidKDClient = float(data[0])
+
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
             # It can cause a large backlog of notifications, causing the display to be unresponsive
@@ -660,7 +696,10 @@ class AHRSConsole(tk.Frame):
         paddingy = 5
         data_label_width = 9
         data_label_width_sensors = 17
-        spinbox_width = 10
+        self.spinbox_width = 10
+
+        self.scale_width = 10
+        self.scale_length = 150
 
         # 0,0
         # Menu
@@ -731,16 +770,16 @@ class AHRSConsole(tk.Frame):
         self.ahrsSettingsFrame = tk.Frame(lf)
         self.ahrsSettingsFrame.grid(column=0, row=1, padx=paddingx, pady=paddingy)
         tk.Label(self.ahrsSettingsFrame, text="Proportional Gain").grid(column=0, row=0, padx=paddingx, pady=paddingy, sticky=tk.W)
-        tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.proportionalGainSelect, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp, width=spinbox_width).grid(column=1, row=0, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.proportionalGainSelect, from_=0.0 , to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKp, width=self.spinbox_width).grid(column=1, row=0, padx=paddingx, pady=paddingy)
 
         tk.Label(self.ahrsSettingsFrame, text="Integral Gain").grid(column=0, row=1, padx=paddingx, pady=paddingy, sticky=tk.W)
-        tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.integralGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi, width=spinbox_width).grid(column=1, row=1, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.integralGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi, width=self.spinbox_width).grid(column=1, row=1, padx=paddingx, pady=paddingy)
 
         tk.Label(self.ahrsSettingsFrame, text="Sample Frequency").grid(column=0, row=2, padx=paddingx, pady=paddingy, sticky=tk.W)
-        tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.sampleFrequencySelect, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq, width=spinbox_width).grid(column=1, row=2, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.sampleFrequencySelect, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq, width=self.spinbox_width).grid(column=1, row=2, padx=paddingx, pady=paddingy)
 
         tk.Label(self.ahrsSettingsFrame, text="Beta Gain").grid(column=0, row=3, padx=paddingx, pady=paddingy, sticky=tk.W)
-        tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.betaGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.betaGain, width=spinbox_width).grid(column=1, row=3, padx=paddingx, pady=paddingy)
+        tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.betaGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.betaGain, width=self.spinbox_width).grid(column=1, row=3, padx=paddingx, pady=paddingy)
 
         col_num = 0
         row_num = row_num + 1
@@ -758,10 +797,13 @@ class AHRSConsole(tk.Frame):
         col_num = 0
         self.data_group['Gyroscope'] = AHRSDataFrame(self, "Gyroscope", ["Normalized X", "Normalized Y", "Normalized Z", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width_sensors, ['Hold', 'Ideal', 'Display'], row_num, col_num)
 
-
         # Measured Output Data Rate
+        #col_num = col_num + 1
+        #self.data_group['ODR'] = AHRSDataFrame(self, "ODR", ["Accelerometer", "Gyroscope", "Magnetometer"], 8, ['Ideal', 'Display'], row_num, col_num, sticky=tk.NW)
+
+        # PID Motor Control
         col_num = col_num + 1
-        self.data_group['ODR'] = AHRSDataFrame(self, "ODR", ["Accelerometer", "Gyroscope", "Magnetometer"], 8, ['Ideal', 'Display'], row_num, col_num, sticky=tk.NW)
+        self.createWidgetPIDMotorControl(row_num, col_num, paddingx, paddingy)
 
         # Data Plot
         col_num = col_num + 1
@@ -769,6 +811,31 @@ class AHRSConsole(tk.Frame):
         self.createWidgetPlot(data_row_num, col_num, row_span)
         data_row_num = data_row_num + 2
         self.createVisualizationWidget(data_row_num, col_num, row_span)
+
+    def createWidgetPIDMotorControl(self, row_num, col_num, paddingx, paddingy):
+        lf = tk.LabelFrame(self, text="PID Motor")
+        lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
+
+        self.pidMotorSettingsFrame = tk.Frame(lf)
+        self.pidMotorSettingsFrame.grid(column=0, row=0, padx=paddingx, pady=paddingy)
+
+        tk.Label(self.pidMotorSettingsFrame, text="Proportional").grid(column=0, row=0, padx=paddingx, pady=paddingy, sticky=tk.W)
+        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKPSelect, from_=0.0 , to_=100.0, resolution=1.0, variable=self.pidKP, width=self.scale_width, length=self.scale_length).grid(column=1, row=0, padx=paddingx, pady=paddingy)
+
+        tk.Label(self.pidMotorSettingsFrame, text="Integral").grid(column=0, row=1, padx=paddingx, pady=paddingy, sticky=tk.W)
+        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKISelect, from_=0.0 , to_=50.0, resolution=1.0, variable=self.pidKI, width=self.scale_width, length=self.scale_length).grid(column=1, row=1, padx=paddingx, pady=paddingy)
+
+        tk.Label(self.pidMotorSettingsFrame, text="Derivative").grid(column=0, row=2, padx=paddingx, pady=paddingy, sticky=tk.W)
+        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKDSelect, from_=0.0 , to_=5.0, resolution=0.1, variable=self.pidKD, width=self.scale_width, length=self.scale_length).grid(column=1, row=2, padx=paddingx, pady=paddingy)
+
+
+
+        #tk.Label(self.pidMotorSettingsFrame, text="Integral Gain").grid(column=0, row=1, padx=paddingx, pady=paddingy, sticky=tk.W)
+        #tk.Spinbox(self.pidMotorSettingsFrame, text="Spinbox", command=self.integralGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi, width=self.spinbox_width).grid(column=1, row=1, padx=paddingx, pady=paddingy)
+
+        #tk.Label(self.pidMotorSettingsFrame, text="Sample Frequency").grid(column=0, row=2, padx=paddingx, pady=paddingy, sticky=tk.W)
+        #tk.Spinbox(self.pidMotorSettingsFrame, text="Spinbox", command=self.sampleFrequencySelect, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq, width=self.spinbox_width).grid(column=1, row=2, padx=paddingx, pady=paddingy)
+
 
     def magnetometerStabilityButton(self):
         if not self.connected.get():
@@ -878,6 +945,50 @@ class AHRSConsole(tk.Frame):
     def calibrateSaveButton(self):
         print("Calibrate Save")
         self.writeCmdStr("IMU_SENSOR_CALIBRATE_SAVE")
+
+    # Motor PID Control
+    def pidKPSelect(self, value):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            while self.pidKPClient != self.pidKP.get():
+                if self.pidKPClient < self.pidKP.get():
+                    # Send up
+                    print("PID KP Up from %f" % ( self.pidKPClient) )
+                    self.writeCmdStr('PID_KP_UP')
+                elif self.pidKPClient > self.pidKP.get():
+                    # Send down
+                    print("PID KP Down from %f" % ( self.pidKPClient) )
+                    self.writeCmdStr('PID_KP_DOWN')
+
+    def pidKISelect(self, value):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            while self.pidKIClient != self.pidKI.get():
+                if self.pidKIClient < self.pidKI.get():
+                    # Send up
+                    print("PID KI Up from %f" % ( self.pidKIClient) )
+                    self.writeCmdStr('PID_KI_UP')
+                elif self.pidKIClient > self.pidKI.get():
+                    # Send down
+                    print("PID KI Down from %f" % ( self.pidKIClient) )
+                    self.writeCmdStr('PID_KI_DOWN')
+
+    def pidKDSelect(self, value):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            while self.pidKDClient != self.pidKD.get():
+                if self.pidKDClient < self.pidKD.get():
+                    # Send up
+                    print("PID KD Up from %f" % ( self.pidKDClient) )
+                    self.writeCmdStr('PID_KD_UP')
+                elif self.pidKDClient > self.pidKD.get():
+                    # Send down
+                    print("PID KD Down from %f" % ( self.pidKDClient) )
+                    self.writeCmdStr('PID_KD_DOWN')
+
 
     def calibrateButton(self):
         if self.connected.get():
