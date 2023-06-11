@@ -168,7 +168,6 @@ class ShaderFrame(pyopengltk.OpenGLFrame):
 
     def redraw(self):
         """Render a single frame"""
-        # print("redraw")
         global euler_angles
 
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
@@ -223,7 +222,6 @@ class ScanDelegatePassive(DefaultDelegate):
             euler_angles[0] = float(sign_extend(manufacturer_data[3] << 8 | manufacturer_data[2], 16))
             euler_angles[1] = float(sign_extend(manufacturer_data[5] << 8 | manufacturer_data[4], 16))
             euler_angles[2] = float(sign_extend(manufacturer_data[7] << 8 | manufacturer_data[6], 16))
-            #print(euler_angles)
 
 class AHRSDataFrame():
     def __init__(self, master, data_group_name, data_names, data_label_width, check_button_names, row, column, data_hold=False, sticky=None):
@@ -231,36 +229,40 @@ class AHRSDataFrame():
         self.master = master
         paddingx = 2
         paddingy = 2
-        lf = tk.LabelFrame(master, text=data_group_name)
+        self.label_frame = tk.LabelFrame(master, text=data_group_name)
         if sticky:
-            lf.grid(column=column, row=row, padx=paddingx, pady=paddingy, sticky=sticky)
+            self.label_frame.grid(column=column, row=row, padx=paddingx, pady=paddingy, sticky=sticky)
         else:
-            lf.grid(column=column, row=row, padx=paddingx, pady=paddingy)
+            self.label_frame.grid(column=column, row=row, padx=paddingx, pady=paddingy)
+
+        def handler(event, self=self):
+            return self._dataFrameHandler(event)
+        self.label_frame.bind('<Button-1>', handler)
 
         self.dataItems = []
         self.data_group_name = data_group_name
         if data_names:
             if check_button_names:
                 # create separate frames for data and check buttons
-                self.dataFrame = tk.Frame(lf)
+                self.dataFrame = tk.Frame(self.label_frame)
                 self.dataFrame.grid(column=column, row=row, padx=paddingx, pady=paddingy)
             else:
-                self.dataFrame = lf
+                self.dataFrame = self.label_frame
 
             row_first = row
             for data_name in data_names:
                 if isinstance(data_name, (list)):
                     for dat in data_name:
                         row = row + 1
-                        self.dataItems.append(AHRSDataItem(self.dataFrame, dat, data_label_width, row, column))
+                        self.dataItems.append(AHRSDataItem(self.dataFrame, data_group_name, dat, data_label_width, row, column))
                     row = row_first
                     column = column + 2
                 else:
                     row = row + 1
-                    self.dataItems.append(AHRSDataItem(self.dataFrame, data_name, data_label_width, row, column))
+                    self.dataItems.append(AHRSDataItem(self.dataFrame, data_group_name, data_name, data_label_width, row, column))
 
         if check_button_names:
-            self.checkButtonFrame = tk.Frame(lf)
+            self.checkButtonFrame = tk.Frame(self.label_frame)
             self.checkButtonFrame.grid(column=column, row=row+1, padx=paddingx, pady=paddingy)
             self.checkButtonData = dict()
             brow = bcolumn = 0
@@ -278,6 +280,14 @@ class AHRSDataFrame():
                     brow = brow + 1
                     bcolumn = bcolumn_start
 
+    def _dataFrameHandler(self, event):
+        self.ax.cla()
+        self.setupPlot(self.ax)
+        self.ax.set_xlabel('Time')
+        self.ax.set_ylabel('Value');
+        self.ax.legend()
+        self.clearPlot()
+
     def _buttonHandler(self, button_name):
         if not self.master.connected.get():
             print("Not connected to AHRS")
@@ -294,20 +304,32 @@ class AHRSDataFrame():
     def getData(self, idx):
         return self.dataItems[idx].getData()
 
-    def setupPlot(self, ax):
+    def setPlotAxes(self, ax):
+        self.ax = ax
+        for dItem in self.dataItems:
+            dItem.setPlotAxes(ax)
+
+    def setupPlot(self, ax, plot_name=None):
         # setup data plot
         for dItem in self.dataItems:
-            dItem.setupPlot(ax)
+            dItem.setupPlot(plot_name)
+
+    def clearPlot(self):
+        # setup data plot
+        for dItem in self.dataItems:
+            dItem.clearPlot()
 
 class AHRSDataItem():
-    def __init__(self, master, data_name, data_label_width, row, column):
+    def __init__(self, master, data_group_name, data_name, data_label_width, row, column):
         self.data_name = data_name
+        self.data_group_name = data_group_name
+        self.plot_name = data_group_name + ' ' + data_name 
         self.data = tk.StringVar()
         self.data.set(0)
+        self.dataFrame = master
         paddingx = 5
         paddingy = 5
         self.xpoints = 500
-        self.dataFrame = master
         col_start=column
         row_start=row
         tk.Label(self.dataFrame, text=data_name, justify=tk.LEFT).grid(column=col_start, row=row_start, padx=paddingx, pady=paddingy, sticky=tk.W)
@@ -317,30 +339,71 @@ class AHRSDataItem():
             return self._labelHandler(event)
         self.data_label.bind('<Button-1>', handler)
         self.data_label.bind('<Button-3>', handler)
-        self.dataplot = np.zeros(self.xpoints)
+        # Initially no data available
+        self.dataListLen = 0
+
+        # account for a maximum of 3 data sub-items within a single data item.
+        self.max_data_subitems = 3
+        self.dataplot = np.zeros((self.max_data_subitems,self.xpoints))
+        self.line = [None,None,None]
         self.dataplotidx = 0
-        self.line = None
+        self.ax = None
 
     def _labelHandler(self, event):
-        print("Label button ", self.data_name)
-        print(event.type)
-        print("event num %d" % ( event.num) )
+        self.ax.cla()
+        self.setupPlot()
+        self.ax.set_xlabel('Time')
+        self.ax.set_ylabel('Value');
+        self.ax.legend()
+        self.clearPlot()
 
     def setData(self, data):
         self.data.set(data)
-        #print("DataItem %s data = %s" % ( self.data_name, self.data.get() ))
-        if self.line:
+        if isinstance(data, (list)):
+            self.dataListLen = len(data)
+        else:
+            self.dataListLen = 1
+        if self.line[0]: 
             if isinstance(data, (list)):
-                self.dataplot[self.dataplotidx] = float(data[0])
-                self.line.set_data(np.arange(self.xpoints), self.dataplot)
+                # go through the data sub-items.
+                for idx in range(self.dataListLen):
+                    self.dataplot[idx][self.dataplotidx] = float(data[idx])
+                    if self.line[idx]:
+                        self.line[idx].set_data(np.arange(self.xpoints), self.dataplot[idx])
             else:
-                self.dataplot[self.dataplotidx] = float(data)
-                self.line.set_data(np.arange(self.xpoints), self.dataplot)
+                self.dataplot[0][self.dataplotidx] = float(data)
+                self.line[0].set_data(np.arange(self.xpoints), self.dataplot[0])
             self.dataplotidx = ( self.dataplotidx + 1 ) % self.xpoints
+
     def getData(self):
         return self.data
-    def setupPlot(self, ax):
-        self.line, = ax.plot(np.arange(self.xpoints), self.dataplot, label=self.data_name)
+
+    def setPlotAxes(self, ax):
+        self.ax = ax
+
+    def clearPlot(self):
+        if self.line[0]: 
+            self.dataplot = np.zeros((self.max_data_subitems,self.xpoints))
+            # go through the data sub-items.
+            for idx in range(self.dataListLen):
+                self.line[idx].set_xdata(np.arange(self.xpoints))
+                self.line[idx].set_ydata(self.dataplot[idx])
+        self.ax.relim()
+        self.dataplotidx = 0
+        self.ax.autoscale_view()
+
+    def setupPlot(self, plot_name=None):
+        if plot_name is None or self.plot_name == plot_name:
+            for idx in range(self.dataListLen):
+                subDataItemLabel = self.plot_name
+                if self.dataListLen == 3:
+                    if idx == 0:
+                        subDataItemLabel = subDataItemLabel + ' X'
+                    elif idx == 1:
+                        subDataItemLabel = subDataItemLabel + ' Y'
+                    elif idx == 2:
+                        subDataItemLabel = subDataItemLabel + ' Z'
+                self.line[idx], = self.ax.plot(np.arange(self.xpoints), self.dataplot[idx], label=subDataItemLabel)
 
 class AHRSConsole(tk.Frame):
     def __init__(self, master=None):
@@ -500,11 +563,17 @@ class AHRSConsole(tk.Frame):
         self.ax.autoscale_view(tight=False, scaley=True, scalex=False)
         self.dataplot_cnv.draw_idle()
 
+    def clearPlot(self):
+        for v in self.data_group.values():
+            v.clearPlot()
+        self.dataplot_cnv.draw_idle()
+
     def setAHRSData(self, idx, data):
         global euler_angles
         if idx == 0:
-            # AHRS
             gidx = 'Euler Angles'
+            # Euler Angles data arrives together as a list of length 3 (roll, pitch yaw)
+            # gi ranges from 0 to 2
             for gi in range(3):
                 self.data_group[gidx].setData(gi, data[gi])
             # Roll, Pitch, Yaw
@@ -527,6 +596,8 @@ class AHRSConsole(tk.Frame):
             gidx = 'Quaternion' 
             # gi 0 to 3
             gi = idx - 9
+            # Quaternion data arrives separate as individual items
+            # gi ranges from 0 to 3
             self.data_group[gidx].setData(gi, data)
         elif idx <= 18:
             # Gyroscope
@@ -657,24 +728,18 @@ class AHRSConsole(tk.Frame):
             self.dataplot_cnv.draw_idle()
         self.dataplotcnt = self.dataplotcnt + 1
 
+
     def createWidgetPlot(self, row_num, col_num, row_span):
         # Canvas
         mpl.use("TkAgg")
 
-        paddingx = 5
-        paddingy = 5
         self.fig, self.ax = plt.subplots(figsize=(6, 4.0), constrained_layout=True)
 
-        # setup initial data plot
-        self.data_group['Euler Angles'].setupPlot(self.ax)
-        #self.data_group['Quaternion'].setupPlot(self.ax)
-        self.ax.set_xlabel('Time')
-        self.ax.set_ylabel('Value');
-        self.ax.legend()
+        for v in self.data_group.values():
+            v.setPlotAxes(self.ax)
 
-        self.ax.relim()
-        self.ax.autoscale_view(tight=False, scaley=True, scalex=False)
-
+        paddingx = 5
+        paddingy = 5
         self.dataplot_cnv = FigureCanvasTkAgg(self.fig, master=self)
         self.dataplot_cnv.draw()
         self.dataplot_cnv.get_tk_widget().grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, rowspan=row_span, sticky=tk.N)
@@ -708,7 +773,8 @@ class AHRSConsole(tk.Frame):
         self.connect_button = tk.Checkbutton(self.menuFrame, text="Connect", command=self.connectButton, variable=self.connected, onvalue=True, offvalue=False)
         self.connect_button.grid(column=0, row=0)
         tk.Button(self.menuFrame, text="Quit", command=self.appExit).grid(column=1, row=0)
-        tk.Button(self.menuFrame, text="Scale", command=self.scalePlot).grid(column=2, row=0)
+        tk.Button(self.menuFrame, text="Scale Plot", command=self.scalePlot).grid(column=2, row=0)
+        tk.Button(self.menuFrame, text="Clear Plot", command=self.clearPlot).grid(column=3, row=0)
 
         # 1,0
         # Calibration
@@ -820,13 +886,13 @@ class AHRSConsole(tk.Frame):
         self.pidMotorSettingsFrame.grid(column=0, row=0, padx=paddingx, pady=paddingy)
 
         tk.Label(self.pidMotorSettingsFrame, text="Proportional").grid(column=0, row=0, padx=paddingx, pady=paddingy, sticky=tk.W)
-        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKPSelect, from_=0.0 , to_=100.0, resolution=1.0, variable=self.pidKP, width=self.scale_width, length=self.scale_length).grid(column=1, row=0, padx=paddingx, pady=paddingy)
+        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKPSelect, from_=0.0 , to_=1000.0, resolution=10.0, variable=self.pidKP, width=self.scale_width, length=self.scale_length).grid(column=1, row=0, padx=paddingx, pady=paddingy)
 
         tk.Label(self.pidMotorSettingsFrame, text="Integral").grid(column=0, row=1, padx=paddingx, pady=paddingy, sticky=tk.W)
         tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKISelect, from_=0.0 , to_=50.0, resolution=1.0, variable=self.pidKI, width=self.scale_width, length=self.scale_length).grid(column=1, row=1, padx=paddingx, pady=paddingy)
 
         tk.Label(self.pidMotorSettingsFrame, text="Derivative").grid(column=0, row=2, padx=paddingx, pady=paddingy, sticky=tk.W)
-        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKDSelect, from_=0.0 , to_=5.0, resolution=0.1, variable=self.pidKD, width=self.scale_width, length=self.scale_length).grid(column=1, row=2, padx=paddingx, pady=paddingy)
+        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKDSelect, from_=0.0 , to_=25.0, resolution=0.1, variable=self.pidKD, width=self.scale_width, length=self.scale_length).grid(column=1, row=2, padx=paddingx, pady=paddingy)
 
 
 
