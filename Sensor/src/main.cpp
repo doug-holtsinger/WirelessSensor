@@ -88,7 +88,7 @@ int main(void)
     imu.init();
 
     appDemuxAddHandler( 
-        std::bind( &IMU::cmd2, std::ref(imu), std::placeholders::_1),
+        std::bind( &IMU::cmd, std::ref(imu), std::placeholders::_1),
         appDemuxCmdType(IMU_CMD_t::CMD_MAX) );
 
     ble_svcs_register(&appDemuxExecHandler);
