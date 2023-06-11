@@ -125,7 +125,8 @@ void AHRS::ComputeAngles(float& roll, float& pitch, float& yaw)
     // calculate yaw in degrees
     y = q1 * q2 + q0 * q3;
     x = 0.5f - q2 * q2 - q3 * q3;
-    yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
+    // FIXME: When either x or y is close to 0, then the yaw has a tendency
+    // to become unstable, changing 90 degrees very quickly.
     if (y != 0.0f && x != 0.0f)
     {
         yaw = atan2f(y, x);
