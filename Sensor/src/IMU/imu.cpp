@@ -574,6 +574,7 @@ void IMU::send_all_client_data()
     bit_flags |= (settings_display                ? 1 << SETTINGS_DISPLAY : 0); 
     bit_flags |= (ideal_data[IMU_ODR]             ? 1 << IDEAL_DATA_ODR : 0); 
     bit_flags |= (display_data[IMU_ODR]           ? 1 << DISPLAY_DATA_ODR : 0); 
+    bit_flags |= (display_data[IMU_ATAN2F]        ? 1 << DISPLAY_DATA_IMU_ATAN2F : 0); 
 
     snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %lu",
             BIT_FLAGS, bit_flags

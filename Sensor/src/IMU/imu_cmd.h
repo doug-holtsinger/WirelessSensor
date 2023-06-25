@@ -54,7 +54,8 @@ typedef enum
     IMU_GYROSCOPE,
     IMU_MAGNETOMETER,
     IMU_ODR,
-    IMU_SENSOR_MAX = IMU_ODR
+    IMU_ATAN2F,
+    IMU_SENSOR_MAX = IMU_ATAN2F
 } IMU_SENSOR_t;
 
 #endif

@@ -48,6 +48,11 @@ typedef enum
     PID_KI,
     PID_KD,
 
+    ROLL_ATAN2F_Y,
+    ROLL_ATAN2F_X,
+    YAW_ATAN2F_Y,
+    YAW_ATAN2F_X,
+
 } DATA_NOTIFY_t;
 
 
@@ -69,6 +74,7 @@ typedef enum
     SETTINGS_DISPLAY,
     IDEAL_DATA_ODR, 
     DISPLAY_DATA_ODR, 
+    DISPLAY_DATA_IMU_ATAN2F, 
 } DATA_NOTIFY_BIT_FLAGS_t;
 
 #endif

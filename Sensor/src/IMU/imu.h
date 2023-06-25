@@ -80,7 +80,7 @@ class IMU {
         bool show_roll  = false;
         bool ideal_data[IMU_SENSOR_MAX+1] = { { false } };
         bool data_hold[IMU_SENSOR_MAX+1] = { { false } };
-        bool display_data[IMU_SENSOR_MAX+1] = { true, true, true, true, true };
+        bool display_data[IMU_SENSOR_MAX+1] = { { true } };
 	bool fixed_data = false;
 	bool uncalibrated_display = false;
 	bool settings_display = true;
