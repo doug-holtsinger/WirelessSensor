@@ -37,6 +37,7 @@ extern void fds_evt_handler_C(fds_evt_t const * p_evt);
 
 IMU::IMU()
 {
+    std::fill(display_data, display_data + IMU_SENSOR_MAX, true);
     dev_i2c = new TwoWire();
     AccGyr = new LSM6DS3Sensor(dev_i2c, TWI_ADDRESS_LSM6DS3);
     if (AHRSalgorithm == AHRS_MAHONY)
@@ -435,7 +436,7 @@ void IMU::send_all_client_data()
 
 
     // Euler Angles
-    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT PRINTF_FLOAT_FORMAT , EULER_ANGLES, PRINTF_FLOAT_VALUE(roll), PRINTF_FLOAT_VALUE(pitch), PRINTF_FLOAT_VALUE(yaw));
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMATI PRINTF_FLOAT_FORMATI PRINTF_FLOAT_FORMATI , EULER_ANGLES, PRINTF_FLOAT_VALUEI(roll), PRINTF_FLOAT_VALUEI(pitch), PRINTF_FLOAT_VALUEI(yaw));
     send_client_data(s);
 
     // Accelerometer
@@ -574,7 +575,6 @@ void IMU::send_all_client_data()
     bit_flags |= (settings_display                ? 1 << SETTINGS_DISPLAY : 0); 
     bit_flags |= (ideal_data[IMU_ODR]             ? 1 << IDEAL_DATA_ODR : 0); 
     bit_flags |= (display_data[IMU_ODR]           ? 1 << DISPLAY_DATA_ODR : 0); 
-    bit_flags |= (display_data[IMU_ATAN2F]        ? 1 << DISPLAY_DATA_IMU_ATAN2F : 0); 
 
     snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %lu",
             BIT_FLAGS, bit_flags

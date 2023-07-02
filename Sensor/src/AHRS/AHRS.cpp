@@ -92,35 +92,17 @@ void AHRS::send_all_client_data(const bool *display_data, const bool settings_di
         send_client_data(s);
     }
 
-    // ATAN2F
-    if (display_data[IMU_ATAN2F])
-    {
-        snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT4 , ROLL_ATAN2F_Y, PRINTF_FLOAT_VALUE4(l_roll_atan2f[0]) );
-        send_client_data(s);
-
-        snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT4 , ROLL_ATAN2F_X, PRINTF_FLOAT_VALUE4(l_roll_atan2f[1]) );
-        send_client_data(s);
-
-        snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT4 , YAW_ATAN2F_Y, PRINTF_FLOAT_VALUE4(l_yaw_atan2f[0]) );
-        send_client_data(s);
-
-        snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT4 , YAW_ATAN2F_X, PRINTF_FLOAT_VALUE4(l_yaw_atan2f[1]) );
-        send_client_data(s);
-    }
-
-
 }
 #endif
 
 void AHRS::ComputeAngles(float& roll, float& pitch, float& yaw) 
 {
     // calculate roll in degrees
-    float y = l_roll_atan2f[0] = q0 * q1 + q2 * q3;
-    float x = l_roll_atan2f[1] = 0.5f - q1 * q1 - q2 * q2;
+    float y = q0 * q1 + q2 * q3;
+    float x = 0.5f - q1 * q1 - q2 * q2;
     if (y != 0.0f && x != 0.0f)
     {
-        roll = atan2f(y, x);
-        roll = l_roll = roll * 57.29578f;
+        roll = l_roll = atan2f(y, x) * 57.29578f;
     } else 
     {
         roll = l_roll;
@@ -140,14 +122,12 @@ void AHRS::ComputeAngles(float& roll, float& pitch, float& yaw)
     pitch = l_pitch = pitch * 57.29578f;
 
     // calculate yaw in degrees
-    y = l_yaw_atan2f[0] = q1 * q2 + q0 * q3;
-    x = l_yaw_atan2f[1] = 0.5f - q2 * q2 - q3 * q3;
-    // FIXME: When either x or y is close to 0, then the yaw has a tendency
-    // to become unstable, changing 90 degrees very quickly.
+    y = q1 * q2 + q0 * q3;
+    x = 0.5f - q2 * q2 - q3 * q3;
     if (y != 0.0f && x != 0.0f)
     {
-        yaw = atan2f(y, x);
-        yaw = l_yaw = yaw * 57.29578f + 180.0f;
+        // FIXME: Are there any issues in this calculation when x and/or y get close to 0? 
+        yaw = l_yaw = atan2f(y, x) * 57.29578f + 180.0f;
     } else 
     {
         yaw = l_yaw;

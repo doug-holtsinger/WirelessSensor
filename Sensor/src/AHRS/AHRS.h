@@ -49,8 +49,6 @@ protected:
     float l_roll = 0.0;
     float l_pitch = 0.0;
     float l_yaw = 0.0;
-    float l_roll_atan2f[2] = { 0.0, 0.0 };
-    float l_yaw_atan2f[2] = { 0.0, 0.0 };
 
     float sampleFreq = sampleFreqDef;
 
