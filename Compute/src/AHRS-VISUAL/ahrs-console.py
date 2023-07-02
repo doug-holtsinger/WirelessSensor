@@ -235,9 +235,15 @@ class AHRSDataFrame():
         else:
             self.label_frame.grid(column=column, row=row, padx=paddingx, pady=paddingy)
 
-        def handler(event, self=self):
-            return self._dataFrameHandler(event)
+        clearAxes = True
+        def handler(event, self=self, clearAxes=clearAxes):
+            return self._dataFrameHandler(event, clearAxes)
         self.label_frame.bind('<Button-1>', handler)
+
+        clearAxes = False
+        def handler(event, self=self, clearAxes=clearAxes):
+            return self._dataFrameHandler(event, clearAxes)
+        self.label_frame.bind('<Button-3>', handler)
 
         self.dataItems = []
         self.data_group_name = data_group_name
@@ -280,8 +286,9 @@ class AHRSDataFrame():
                     brow = brow + 1
                     bcolumn = bcolumn_start
 
-    def _dataFrameHandler(self, event):
-        self.ax.cla()
+    def _dataFrameHandler(self, event, clearAxes):
+        if clearAxes:
+            self.ax.cla()
         self.setupPlot(self.ax)
         self.ax.set_xlabel('Time')
         self.ax.set_ylabel('Value');
@@ -335,22 +342,30 @@ class AHRSDataItem():
         tk.Label(self.dataFrame, text=data_name, justify=tk.LEFT).grid(column=col_start, row=row_start, padx=paddingx, pady=paddingy, sticky=tk.W)
         self.data_label = tk.Label(self.dataFrame, relief=tk.SUNKEN, textvariable=self.data, width=data_label_width)
         self.data_label.grid(column=col_start+1, row=row_start, padx=paddingx, pady=paddingy)
-        def handler(event, self=self):
-            return self._labelHandler(event)
+
+        clearAxes = True
+        def handler(event, self=self, clearAxes=clearAxes):
+            return self._labelHandler(event, clearAxes)
         self.data_label.bind('<Button-1>', handler)
+
+        clearAxes = False
+        def handler(event, self=self, clearAxes=clearAxes):
+            return self._labelHandler(event, clearAxes)
         self.data_label.bind('<Button-3>', handler)
+
         # Initially no data available
         self.dataListLen = 0
 
-        # account for a maximum of 3 data sub-items within a single data item.
+        # account for a maximum of 3 data sub-items within a single data label (e.g. X, Y, Z).
         self.max_data_subitems = 3
         self.dataplot = np.zeros((self.max_data_subitems,self.xpoints))
         self.line = [None,None,None]
         self.dataplotidx = 0
         self.ax = None
 
-    def _labelHandler(self, event):
-        self.ax.cla()
+    def _labelHandler(self, event, clearAxes):
+        if clearAxes:
+            self.ax.cla()
         self.setupPlot()
         self.ax.set_xlabel('Time')
         self.ax.set_ylabel('Value');
@@ -366,14 +381,22 @@ class AHRSDataItem():
         if self.line[0]: 
             if isinstance(data, (list)):
                 # go through the data sub-items.
+                if self.dataplotidx == self.xpoints - 1:
+                    for idx in range(self.dataListLen):
+                        self.dataplot[idx] = np.roll(self.dataplot[idx], -1)
+                else:
+                   self.dataplotidx = self.dataplotidx + 1
                 for idx in range(self.dataListLen):
                     self.dataplot[idx][self.dataplotidx] = float(data[idx])
                     if self.line[idx]:
                         self.line[idx].set_data(np.arange(self.xpoints), self.dataplot[idx])
             else:
+                if self.dataplotidx == self.xpoints - 1:
+                    self.dataplot[0] = np.roll(self.dataplot[0], -1)
+                else:
+                   self.dataplotidx = self.dataplotidx + 1
                 self.dataplot[0][self.dataplotidx] = float(data)
                 self.line[0].set_data(np.arange(self.xpoints), self.dataplot[0])
-            self.dataplotidx = ( self.dataplotidx + 1 ) % self.xpoints
 
     def getData(self):
         return self.data
@@ -498,11 +521,14 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_SETTINGS_DISPLAY_TOGGLE'] = 33
         self.commandDict['IMU_SELECT_ODR'] = 34 
 
+        # Motor Driver Settings
+        self.commandDict['MOTOR_DRIVER_NOCMD'] = 35
+
         # PID settings 
         self.commandDict['PID_NOCMD'] = 36
         self.commandDict['PID_KP_UP'] = 37
         self.commandDict['PID_KP_DOWN'] = 38
-        self.commandDict['PID_KI_UP'] = 32
+        self.commandDict['PID_KI_UP'] = 39
         self.commandDict['PID_KI_DOWN'] = 40
         self.commandDict['PID_KD_UP'] = 41
         self.commandDict['PID_KD_DOWN'] = 42
@@ -798,13 +824,14 @@ class AHRSConsole(tk.Frame):
         tk.Button(lf, text="Save", command=self.calibrateSaveButton).pack(anchor="w")
 
         # Euler Angles
-        col_num = col_num + 1
         #self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", [["Roll", "Pitch", "Yaw"], ["Roll-Local", "Pitch-Local", "Yaw-Local"]], 8, None, row_num, col_num)
-        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", ["Roll", "Pitch", "Yaw"], data_label_width, None, row_num, col_num, sticky=tk.W)
+        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", ["Roll", "Pitch", "Yaw"], data_label_width, None, row_num, col_num, sticky=tk.E)
+
+        col_num = col_num + 1
 
         # Quaternion Data
         #col_num = col_num + 1
-        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, ["Display"], row_num, col_num, sticky=tk.E)
+        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, ["Display"], row_num, col_num, sticky=tk.W)
 
         #self.data_group['Euler Angles Local'] = AHRSDataFrame(self, "Euler Angles Local", ["Roll", "Pitch", "Yaw"], 8, None, row_num, col_num)
 
@@ -886,13 +913,13 @@ class AHRSConsole(tk.Frame):
         self.pidMotorSettingsFrame.grid(column=0, row=0, padx=paddingx, pady=paddingy)
 
         tk.Label(self.pidMotorSettingsFrame, text="Proportional").grid(column=0, row=0, padx=paddingx, pady=paddingy, sticky=tk.W)
-        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKPSelect, from_=0.0 , to_=1000.0, resolution=10.0, variable=self.pidKP, width=self.scale_width, length=self.scale_length).grid(column=1, row=0, padx=paddingx, pady=paddingy)
+        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKPSelect, from_=0.0 , to_=2000.0, resolution=100.0, variable=self.pidKP, width=self.scale_width, length=self.scale_length).grid(column=1, row=0, padx=paddingx, pady=paddingy)
 
         tk.Label(self.pidMotorSettingsFrame, text="Integral").grid(column=0, row=1, padx=paddingx, pady=paddingy, sticky=tk.W)
-        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKISelect, from_=0.0 , to_=50.0, resolution=1.0, variable=self.pidKI, width=self.scale_width, length=self.scale_length).grid(column=1, row=1, padx=paddingx, pady=paddingy)
+        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKISelect, from_=0.0 , to_=500.0, resolution=10.0, variable=self.pidKI, width=self.scale_width, length=self.scale_length).grid(column=1, row=1, padx=paddingx, pady=paddingy)
 
         tk.Label(self.pidMotorSettingsFrame, text="Derivative").grid(column=0, row=2, padx=paddingx, pady=paddingy, sticky=tk.W)
-        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKDSelect, from_=0.0 , to_=25.0, resolution=0.1, variable=self.pidKD, width=self.scale_width, length=self.scale_length).grid(column=1, row=2, padx=paddingx, pady=paddingy)
+        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKDSelect, from_=0.0 , to_=250.0, resolution=10.0, variable=self.pidKD, width=self.scale_width, length=self.scale_length).grid(column=1, row=2, padx=paddingx, pady=paddingy)
 
 
 
