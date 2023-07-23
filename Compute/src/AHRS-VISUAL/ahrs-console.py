@@ -224,16 +224,20 @@ class ScanDelegatePassive(DefaultDelegate):
             euler_angles[2] = float(sign_extend(manufacturer_data[7] << 8 | manufacturer_data[6], 16))
 
 class AHRSDataFrame():
-    def __init__(self, master, data_group_name, data_names, data_label_width, check_button_names, row, column, data_hold=False, sticky=None):
+    def __init__(self, master, data_group_name, row, column, data_names=None, data_label_width=9, scales=None, check_button_names=None, check_button_cmds=None, check_button_stack="horizontal", sticky=None):
         # Save master object 
         self.master = master
         paddingx = 2
         paddingy = 2
+
         self.label_frame = tk.LabelFrame(master, text=data_group_name)
         if sticky:
             self.label_frame.grid(column=column, row=row, padx=paddingx, pady=paddingy, sticky=sticky)
         else:
             self.label_frame.grid(column=column, row=row, padx=paddingx, pady=paddingy)
+
+        frame_row = 0
+        frame_col = 0
 
         clearAxes = True
         def handler(event, self=self, clearAxes=clearAxes):
@@ -251,7 +255,8 @@ class AHRSDataFrame():
             if check_button_names:
                 # create separate frames for data and check buttons
                 self.dataFrame = tk.Frame(self.label_frame)
-                self.dataFrame.grid(column=column, row=row, padx=paddingx, pady=paddingy)
+                self.dataFrame.grid(column=frame_col, row=frame_row, padx=paddingx, pady=paddingy)
+                frame_row = frame_row + 1
             else:
                 self.dataFrame = self.label_frame
 
@@ -267,24 +272,43 @@ class AHRSDataFrame():
                     row = row + 1
                     self.dataItems.append(AHRSDataItem(self.dataFrame, data_group_name, data_name, data_label_width, row, column))
 
+        if scales:
+            self.scalesFrame = tk.Frame(self.label_frame)
+            self.scalesFrame.grid(column=frame_col, row=frame_row, padx=paddingx, pady=paddingy)
+            frame_row = frame_row + 1
+            scale_row = 0
+            for scale in scales:
+                scale.create(frame=self.scalesFrame, row=scale_row)
+                scale_row = scale_row + 1
+
         if check_button_names:
             self.checkButtonFrame = tk.Frame(self.label_frame)
-            self.checkButtonFrame.grid(column=column, row=row+1, padx=paddingx, pady=paddingy)
+            self.checkButtonFrame.grid(column=frame_col, row=frame_row, padx=paddingx, pady=paddingy)
+            frame_row = frame_row + 1
             self.checkButtonData = dict()
             brow = bcolumn = 0
             bcolumn_start = bcolumn
             bcolumn_last = bcolumn + 3
             anch = tk.CENTER
+            bidx = 0
             for name in check_button_names:
                 self.checkButtonData[name] = tk.StringVar()
                 self.checkButtonData[name].set(0)
-                def buttonHandler(self=self, button_name=name):
-                    return self._buttonHandler(button_name)
+                if check_button_cmds:
+                   button_cmd = check_button_cmds[bidx]
+                   bidx = bidx + 1
+                else:
+                   button_cmd = None
+                def buttonHandler(self=self, button_name=name, button_cmd=button_cmd):
+                    return self._buttonHandler(button_name, button_cmd)
                 tk.Checkbutton(self.checkButtonFrame, text=name, command=buttonHandler, variable=self.checkButtonData[name], indicatoron=1, anchor=anch).grid(column=bcolumn, row=brow, padx=paddingx, pady=paddingy)
-                bcolumn = bcolumn + 1
-                if bcolumn == bcolumn_last:
+                if check_button_stack == "horizontal":
+                    bcolumn = bcolumn + 1
+                    if bcolumn == bcolumn_last:
+                        brow = brow + 1
+                        bcolumn = bcolumn_start
+                else:
                     brow = brow + 1
-                    bcolumn = bcolumn_start
 
     def _dataFrameHandler(self, event, clearAxes):
         if clearAxes:
@@ -295,9 +319,11 @@ class AHRSDataFrame():
         self.ax.legend()
         self.clearPlot()
 
-    def _buttonHandler(self, button_name):
+    def _buttonHandler(self, button_name, button_cmd):
         if not self.master.connected.get():
             print("Not connected to AHRS")
+        elif button_cmd:
+            self.master.writeCmdStr(button_cmd)
         else:
             self.master.writeCmdStr('IMU_SELECT_' + self.data_group_name.upper() )
             self.master.writeCmdStr('IMU_SENSOR_DATA_' + button_name.upper() + '_TOGGLE')
@@ -325,6 +351,25 @@ class AHRSDataFrame():
         # setup data plot
         for dItem in self.dataItems:
             dItem.clearPlot()
+
+class AHRSScale():
+    def __init__(self, name, command, var, orient, minValue, maxValue, resolution):
+        self.name = name
+        self.command = command
+        self.var = var
+        self.orient = orient
+        self.minValue = minValue 
+        self.maxValue = maxValue 
+        self.resolution = resolution
+        # hard-coded
+        self.paddingx = 2
+        self.paddingy = 2
+        self.scale_width = 10
+        self.scale_length = 150
+
+    def create(self, frame=None, row=0, col=0):
+        tk.Label(frame, text=self.name).grid(column=col, row=row, padx=self.paddingx, pady=self.paddingy)
+        tk.Scale(frame, orient=self.orient, command=self.command, from_=self.minValue , to_=self.maxValue, resolution=self.resolution, variable=self.var, width=self.scale_width, length=self.scale_length).grid(column=col+1, row=row, padx=self.paddingx, pady=self.paddingy)
 
 class AHRSDataItem():
     def __init__(self, master, data_group_name, data_name, data_label_width, row, column):
@@ -523,15 +568,17 @@ class AHRSConsole(tk.Frame):
 
         # Motor Driver Settings
         self.commandDict['MOTOR_DRIVER_NOCMD'] = 35
+        self.commandDict['MOTOR_DRIVER_TOGGLE_POWER'] = 36
+        self.commandDict['MOTOR_DRIVER_TOGGLE_DISPLAY'] = 37
 
         # PID settings 
-        self.commandDict['PID_NOCMD'] = 36
-        self.commandDict['PID_KP_UP'] = 37
-        self.commandDict['PID_KP_DOWN'] = 38
-        self.commandDict['PID_KI_UP'] = 39
-        self.commandDict['PID_KI_DOWN'] = 40
-        self.commandDict['PID_KD_UP'] = 41
-        self.commandDict['PID_KD_DOWN'] = 42
+        self.commandDict['PID_NOCMD'] = 38
+        self.commandDict['PID_KP_UP'] = 39
+        self.commandDict['PID_KP_DOWN'] = 40
+        self.commandDict['PID_KI_UP'] = 41 
+        self.commandDict['PID_KI_DOWN'] = 42
+        self.commandDict['PID_KD_UP'] = 43
+        self.commandDict['PID_KD_DOWN'] = 44
 
         self.startScanPassive()
 
@@ -745,6 +792,17 @@ class AHRSConsole(tk.Frame):
             # PID KD 
             self.pidKD.set(data[0])
             self.pidKDClient = float(data[0])
+        elif idx == 32:
+            # Motor Enabled 
+            self.data_group['Motor'].setButtonData('Enabled', data[0])
+        elif idx == 33:
+            # Motor Driver
+            gidx = 'Motor'
+            gi = 0
+            self.data_group[gidx].setData(gi, data)
+        elif idx == 34:
+            # Motor Display
+            self.data_group['Motor'].setButtonData('Display', data[0])
 
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
@@ -789,9 +847,6 @@ class AHRSConsole(tk.Frame):
         data_label_width_sensors = 17
         self.spinbox_width = 10
 
-        self.scale_width = 10
-        self.scale_length = 150
-
         # 0,0
         # Menu
         self.menuFrame = tk.Frame(self)
@@ -824,16 +879,11 @@ class AHRSConsole(tk.Frame):
         tk.Button(lf, text="Save", command=self.calibrateSaveButton).pack(anchor="w")
 
         # Euler Angles
-        #self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", [["Roll", "Pitch", "Yaw"], ["Roll-Local", "Pitch-Local", "Yaw-Local"]], 8, None, row_num, col_num)
-        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", ["Roll", "Pitch", "Yaw"], data_label_width, None, row_num, col_num, sticky=tk.E)
-
-        col_num = col_num + 1
+        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", row_num, col_num, data_names=["Roll", "Pitch", "Yaw"], sticky=tk.E)
 
         # Quaternion Data
-        #col_num = col_num + 1
-        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", ["Q0", "Q1", "Q2", "Q3"], data_label_width, ["Display"], row_num, col_num, sticky=tk.W)
-
-        #self.data_group['Euler Angles Local'] = AHRSDataFrame(self, "Euler Angles Local", ["Roll", "Pitch", "Yaw"], 8, None, row_num, col_num)
+        col_num = col_num + 1
+        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", row_num, col_num, data_names=["Q0", "Q1", "Q2", "Q3"], check_button_names=["Display"], data_label_width=8, sticky=tk.W)
 
         col_num = 0
         row_num = row_num + 1
@@ -878,17 +928,17 @@ class AHRSConsole(tk.Frame):
         row_num = row_num + 1
 
         # Accelerometer Data
-        self.data_group['Accelerometer'] = AHRSDataFrame(self, "Accelerometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width_sensors, ['Hold', 'Ideal', 'Display'], row_num, col_num)
+        self.data_group['Accelerometer'] = AHRSDataFrame(self, "Accelerometer", row_num, col_num, data_names=["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width=data_label_width_sensors, check_button_names=['Hold', 'Ideal', 'Display'])
 
         # Magnetometer Data
         col_num = col_num + 1
-        self.data_group['Magnetometer'] = AHRSDataFrame(self, "Magnetometer", ["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width_sensors, ['Hold', 'Ideal', 'Display'], row_num, col_num)
+        self.data_group['Magnetometer'] = AHRSDataFrame(self, "Magnetometer", row_num, col_num, data_names=["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width=data_label_width_sensors, check_button_names=['Hold', 'Ideal', 'Display'])
 
         
         # Gyroscope Data
         row_num = row_num + 1
         col_num = 0
-        self.data_group['Gyroscope'] = AHRSDataFrame(self, "Gyroscope", ["Normalized X", "Normalized Y", "Normalized Z", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width_sensors, ['Hold', 'Ideal', 'Display'], row_num, col_num)
+        self.data_group['Gyroscope'] = AHRSDataFrame(self, "Gyroscope", row_num, col_num, data_names=["Normalized X", "Normalized Y", "Normalized Z", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width=data_label_width_sensors, check_button_names=['Hold', 'Ideal', 'Display'])
 
         # Measured Output Data Rate
         #col_num = col_num + 1
@@ -896,7 +946,11 @@ class AHRSConsole(tk.Frame):
 
         # PID Motor Control
         col_num = col_num + 1
-        self.createWidgetPIDMotorControl(row_num, col_num, paddingx, paddingy)
+        scaleMotor = []
+        scaleMotor.append(AHRSScale("Proportional", self.pidKPSelect, self.pidKP, tk.HORIZONTAL, 0.0, 2000.0, 100.0))
+        scaleMotor.append(AHRSScale("Integral", self.pidKISelect, self.pidKI, tk.HORIZONTAL, 0.0, 500.0, 10.0))
+        scaleMotor.append(AHRSScale("Derivative", self.pidKDSelect, self.pidKD, tk.HORIZONTAL, 0.0, 250.0, 10.0))
+        self.data_group['Motor'] = AHRSDataFrame(self, "Motor", row_num, col_num, data_names=["Driver"], scales=scaleMotor, check_button_names=['Enabled', 'Display'], data_label_width=8, check_button_cmds=["MOTOR_DRIVER_TOGGLE_POWER", "MOTOR_DRIVER_TOGGLE_DISPLAY"], check_button_stack="horizontal")
 
         # Data Plot
         col_num = col_num + 1
@@ -904,31 +958,6 @@ class AHRSConsole(tk.Frame):
         self.createWidgetPlot(data_row_num, col_num, row_span)
         data_row_num = data_row_num + 2
         self.createVisualizationWidget(data_row_num, col_num, row_span)
-
-    def createWidgetPIDMotorControl(self, row_num, col_num, paddingx, paddingy):
-        lf = tk.LabelFrame(self, text="PID Motor")
-        lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
-
-        self.pidMotorSettingsFrame = tk.Frame(lf)
-        self.pidMotorSettingsFrame.grid(column=0, row=0, padx=paddingx, pady=paddingy)
-
-        tk.Label(self.pidMotorSettingsFrame, text="Proportional").grid(column=0, row=0, padx=paddingx, pady=paddingy, sticky=tk.W)
-        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKPSelect, from_=0.0 , to_=2000.0, resolution=100.0, variable=self.pidKP, width=self.scale_width, length=self.scale_length).grid(column=1, row=0, padx=paddingx, pady=paddingy)
-
-        tk.Label(self.pidMotorSettingsFrame, text="Integral").grid(column=0, row=1, padx=paddingx, pady=paddingy, sticky=tk.W)
-        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKISelect, from_=0.0 , to_=500.0, resolution=10.0, variable=self.pidKI, width=self.scale_width, length=self.scale_length).grid(column=1, row=1, padx=paddingx, pady=paddingy)
-
-        tk.Label(self.pidMotorSettingsFrame, text="Derivative").grid(column=0, row=2, padx=paddingx, pady=paddingy, sticky=tk.W)
-        tk.Scale(self.pidMotorSettingsFrame, orient=tk.HORIZONTAL, command=self.pidKDSelect, from_=0.0 , to_=250.0, resolution=10.0, variable=self.pidKD, width=self.scale_width, length=self.scale_length).grid(column=1, row=2, padx=paddingx, pady=paddingy)
-
-
-
-        #tk.Label(self.pidMotorSettingsFrame, text="Integral Gain").grid(column=0, row=1, padx=paddingx, pady=paddingy, sticky=tk.W)
-        #tk.Spinbox(self.pidMotorSettingsFrame, text="Spinbox", command=self.integralGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.twoKi, width=self.spinbox_width).grid(column=1, row=1, padx=paddingx, pady=paddingy)
-
-        #tk.Label(self.pidMotorSettingsFrame, text="Sample Frequency").grid(column=0, row=2, padx=paddingx, pady=paddingy, sticky=tk.W)
-        #tk.Spinbox(self.pidMotorSettingsFrame, text="Spinbox", command=self.sampleFrequencySelect, from_=0.0, to_=1600.0, increment=32.0, format="%4.1f", textvariable=self.sampleFreq, width=self.spinbox_width).grid(column=1, row=2, padx=paddingx, pady=paddingy)
-
 
     def magnetometerStabilityButton(self):
         if not self.connected.get():
