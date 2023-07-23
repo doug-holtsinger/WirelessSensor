@@ -43,15 +43,14 @@ typedef enum
     ODR_HZ_GYRO,
     ODR_HZ_MAGNETOMETER,
 
-    // FIXME
+    // FIXME -- these need to be placed in the BalancingRobot directory somehow
     PID_KP,
     PID_KI,
     PID_KD,
 
-    ROLL_ATAN2F_Y,
-    ROLL_ATAN2F_X,
-    YAW_ATAN2F_Y,
-    YAW_ATAN2F_X,
+    MOTOR_ENABLED,
+    MOTOR_DRIVER,
+    MOTOR_DISPLAY,
 
 } DATA_NOTIFY_t;
 
