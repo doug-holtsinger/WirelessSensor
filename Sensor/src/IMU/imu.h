@@ -15,9 +15,12 @@
 #include "param_store.h"
 #include "AHRS.h"
 #include "logdef.h"
+#include "app_config.h"
 
-// FIXME: remove arbitrary constants
-#define NOISE_THRESHOLD_MULTIPLIER 2
+#define NOISE_THRESHOLD_MULTIPLIER 2.0
+#define NOISE_THRESHOLD_MULTIPLIER_MAX 2.0
+#define NOISE_THRESHOLD_MULTIPLIER_MIN 0.0
+#define NOISE_THRESHOLD_MULTIPLIER_INCR 0.2
 
 #define DEGREES_PER_RADIAN 57.2957795
 #define MILLIDEGREES_PER_DEGREE 1000
@@ -26,6 +29,12 @@
 #define TIMER_TICKS_PER_SECOND 40000
 
 #define ODR_UPDATE_INTERVAL 200
+#ifdef BALANCING_ROBOT_CONFIG
+#define AHRS_ALGORITHM_DEFAULT AHRS_SIMPLE
+#define DISABLE_MEASURE_ODR
+#else
+#define AHRS_ALGORITHM_DEFAULT AHRS_MAHONY
+#endif
 
 typedef enum {
         IMU_CALIBRATE_DISABLED = 0,
@@ -38,7 +47,8 @@ typedef enum {
 
 typedef enum {
 	AHRS_MAHONY,
-	AHRS_MADGWICH
+	AHRS_MADGWICH,
+	AHRS_SIMPLE
 } AHRS_ALGORITHM_t;
 
 class IMU {
@@ -62,12 +72,14 @@ class IMU {
         void calibrate_magnetometer(void);
         void calibrate_gyroscope(void);
         void reset_calibration(void);
+        void reset_calibration_threshold(void);
         void calibrate_data(void);
         void AHRSCompute(void);
         void init_params(imu_calibration_params_t params);
         void params_save();
         void params_print(imu_calibration_params_t& params);
 	void MeasureODR();
+        bool read_sensor_values();
 
         LSM6DS3Sensor* AccGyr;
         LIS3MDLSensor* Magneto;
@@ -103,6 +115,8 @@ class IMU {
         int32_t magnetometer_uncal[3];
         int32_t magnetometer_cal[3];
 
+        float noise_threshold_mult[IMU_SENSOR_MAX+1]; // initialized in imu.cpp 
+
 	unsigned int odr_select = 0;
         bool timestamp_valid = false;
         bool timestamp_odr_valid = false;
@@ -110,11 +124,12 @@ class IMU {
         int32_t timestamp_prev = 0;
 	float odr_hz[3];
 	int odr_update_cnt = 0;
+        bool new_data_odr = false;
 
         IMU_SENSOR_t sensor_select = IMU_AHRS;
         uint32_t show_input_ahrs = 0;
         float gx, gy, gz, ax, ay, az, mx, my, mz;
-	AHRS_ALGORITHM_t AHRSalgorithm = AHRS_MAHONY;
+	AHRS_ALGORITHM_t AHRSalgorithm = AHRS_ALGORITHM_DEFAULT;
 };
 
 #endif

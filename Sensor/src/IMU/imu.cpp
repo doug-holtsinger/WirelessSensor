@@ -12,6 +12,7 @@
 #include "AHRS.h"
 #include "MahonyAHRS.h"
 #include "MadgwickAHRS.h"
+#include "SimpleAHRS.h"
 #include "notify.h"
 #ifdef BLE_CONSOLE_AVAILABLE
 #include "ble_svcs_cmd.h"
@@ -38,14 +39,18 @@ extern void fds_evt_handler_C(fds_evt_t const * p_evt);
 IMU::IMU()
 {
     std::fill(display_data, display_data + IMU_SENSOR_MAX, true);
+    std::fill(noise_threshold_mult, noise_threshold_mult + IMU_SENSOR_MAX, NOISE_THRESHOLD_MULTIPLIER);
     dev_i2c = new TwoWire();
     AccGyr = new LSM6DS3Sensor(dev_i2c, TWI_ADDRESS_LSM6DS3);
     if (AHRSalgorithm == AHRS_MAHONY)
     {
         AHRSptr = new MahonyAHRS();
-    } else 
+    } else if (AHRSalgorithm == AHRS_MADGWICH) 
     {
         AHRSptr = new MadgwickAHRS();
+    } else
+    {
+        AHRSptr = new SimpleAHRS();
     }
     Magneto = new LIS3MDLSensor(dev_i2c, TWI_ADDRESS_LIS3MDL);
 }
@@ -197,6 +202,7 @@ void IMU::calibrate_gyroscope(void)
         yaw_last_cal = yaw;
         timestamp_prev = timestamp;
     }
+    timestamp_valid = false;
 
 }
 
@@ -222,7 +228,6 @@ void IMU::calibrate_magnetometer(void)
 void IMU::calibrate_zero_offset(void)
 {
     uint32_t noise_threshold;
-    uint32_t noise_threshold_i;
     int32_t accelerometer_bias;
 
     //
@@ -230,10 +235,10 @@ void IMU::calibrate_zero_offset(void)
     //
     for (int i = 0 ; i < 3 ; i++)
     {
-        noise_threshold_i = NOISE_THRESHOLD_MULTIPLIER * abs( magnetometer_uncal[i] - cp.magnetometer_uncal_last[i]);
-        if (noise_threshold_i > cp.magnetometer_min_threshold[i])
+        noise_threshold = noise_threshold_mult[IMU_MAGNETOMETER] * abs( magnetometer_uncal[i] - cp.magnetometer_uncal_last[i]);
+        if (noise_threshold > cp.magnetometer_min_threshold[i])
         {
-            cp.magnetometer_min_threshold[i] = noise_threshold_i;
+            cp.magnetometer_min_threshold[i] = noise_threshold;
         }
     }
 
@@ -252,10 +257,10 @@ void IMU::calibrate_zero_offset(void)
         {
             cp.gyroscope_max[i] = gyroscope_uncal[i];
         }
-        noise_threshold_i = NOISE_THRESHOLD_MULTIPLIER * abs ( gyroscope_uncal[i] - ((cp.gyroscope_max[i] + cp.gyroscope_min[i]) / 2) ); 
-        if (noise_threshold_i > cp.gyroscope_min_threshold[i])
+        noise_threshold = noise_threshold_mult[IMU_GYROSCOPE] * abs ( gyroscope_uncal[i] - ((cp.gyroscope_max[i] + cp.gyroscope_min[i]) / 2) ); 
+        if (noise_threshold > cp.gyroscope_min_threshold[i])
         {
-            cp.gyroscope_min_threshold[i] = noise_threshold_i;
+            cp.gyroscope_min_threshold[i] = noise_threshold;
         }
     }
 
@@ -281,11 +286,19 @@ void IMU::calibrate_zero_offset(void)
         {
             cp.accelerometer_max[i] = accelerometer_uncal[i] - accelerometer_bias;
         }
-        noise_threshold = NOISE_THRESHOLD_MULTIPLIER * abs( accelerometer_uncal[i] - ((cp.accelerometer_max[i] + cp.accelerometer_min[i]) / 2) - accelerometer_bias);
+        noise_threshold = noise_threshold_mult[IMU_ACCELEROMETER] * abs( accelerometer_uncal[i] - ((cp.accelerometer_max[i] + cp.accelerometer_min[i]) / 2) - accelerometer_bias);
         if (noise_threshold > cp.accelerometer_min_threshold[i])
         {
             cp.accelerometer_min_threshold[i] = noise_threshold;
         }
+    }
+}
+
+void IMU::reset_calibration_threshold(void)
+{
+    for (int i = 0 ; i < 3 ; i++)
+    {
+        cp.accelerometer_min_threshold[i] = cp.magnetometer_min_threshold[i] = cp.gyroscope_min_threshold[i] = 0;
     }
 }
 
@@ -514,6 +527,13 @@ void IMU::send_all_client_data()
         snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d %u", AHRS_ALGORITHM, static_cast<int>(AHRSalgorithm));
         send_client_data(s);
 
+        snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT ,
+            ACCELEROMETER_NOISE_THRESHOLD_MULT,
+            PRINTF_FLOAT_VALUE(noise_threshold_mult[IMU_ACCELEROMETER]));
+        send_client_data(s);
+
+	// FIXME -- send other noise thresholds for gyro and magnetometer
+
     }
 
     if (display_data[IMU_ODR])
@@ -623,14 +643,14 @@ void IMU::MeasureODR()
     }
 }
 
-void IMU::update()
+bool IMU::read_sensor_values()
 {
     LSM6DS3StatusTypeDef lsm_err_code = LSM6DS3_STATUS_OK;
     LIS3MDLStatusTypeDef lis_err_code = LIS3MDL_STATUS_OK;
     uint8_t reg_data = 0;
     bool new_data_avail = false;
-    bool new_data_odr = false;
 
+    new_data_odr = false;
     timestamp_valid = false;
 
     //
@@ -644,20 +664,24 @@ void IMU::update()
     if (!data_hold[IMU_ACCELEROMETER] && (reg_data & LSM6DS3_ACC_GYRO_XLDA_MASK) == LSM6DS3_ACC_GYRO_XLDA_DATA_AVAIL)
     {
         new_data_avail = true;
+#ifndef DISABLE_MEASURE_ODR
 	if (odr_select == 0)
 	{
             new_data_odr = true;
 	}
+#endif
         lsm_err_code = AccGyr->Get_X_Axes(accelerometer_uncal);
         APP_ERROR_CHECK(lsm_err_code);
     }
     if (!data_hold[IMU_GYROSCOPE] && (reg_data & LSM6DS3_ACC_GYRO_GDA_MASK) == LSM6DS3_ACC_GYRO_GDA_DATA_AVAIL)
     {
         new_data_avail = true;
+#ifndef DISABLE_MEASURE_ODR
 	if (odr_select == 1)
 	{
             new_data_odr = true;
 	}
+#endif
         lsm_err_code = AccGyr->Get_G_Axes(gyroscope_uncal);
         APP_ERROR_CHECK(lsm_err_code);
         if (calibrate_enable == IMU_CALIBRATE_GYROSCOPE)
@@ -680,17 +704,24 @@ void IMU::update()
 	{
             lis_err_code = Magneto->GetAxes(magnetometer_uncal);
             APP_ERROR_CHECK(lis_err_code);
+#ifndef DISABLE_MEASURE_ODR
 	    if (odr_select == 2)
 	    {
                 new_data_odr = true;
 	    }
+#endif
 	}
     }
 
+    return new_data_avail;
+}
+
+void IMU::update()
+{
     if (calibrate_reset)
     {
         reset_calibration();
-    } else if (new_data_avail)
+    } else if (read_sensor_values())
     {
         if (calibrate_enable == IMU_CALIBRATE_ZERO_OFFSET)
         {
@@ -704,10 +735,12 @@ void IMU::update()
         {
             calibrate_gyroscope();
         }
+#ifndef DISABLE_MEASURE_ODR
         if (new_data_odr)
 	{
 	   MeasureODR();
 	}	
+#endif
 	if (!ideal_data[IMU_ODR]) 
 	{
             calibrate_data();
@@ -827,11 +860,16 @@ void IMU::cmd_internal(const IMU_CMD_t i_cmd)
                 AHRSptr->~AHRS();
                 AHRSptr = new MadgwickAHRS();
                 AHRSalgorithm = AHRS_MADGWICH;
-            } else 
-            {
+	    } else if (AHRSalgorithm == AHRS_MADGWICH)
+	    {
                 AHRSptr->~AHRS();
                 AHRSptr = new MahonyAHRS();
                 AHRSalgorithm = AHRS_MAHONY;
+            } else 
+            {
+                AHRSptr->~AHRS();
+                AHRSptr = new SimpleAHRS();
+                AHRSalgorithm = AHRS_SIMPLE;
             }
             break;
 	case IMU_CMD_t::GYROSCOPE_ENABLE_TOGGLE:
@@ -842,6 +880,22 @@ void IMU::cmd_internal(const IMU_CMD_t i_cmd)
             break;
 	case IMU_CMD_t::SETTINGS_DISPLAY_TOGGLE:
             settings_display = !settings_display; 
+            break;
+	case IMU_CMD_t::NOISE_THRESHOLD_UP:
+	    noise_threshold_mult[sensor_select] += NOISE_THRESHOLD_MULTIPLIER_INCR;
+	    if ( noise_threshold_mult[sensor_select] > NOISE_THRESHOLD_MULTIPLIER_MAX ) 
+	    {
+	        noise_threshold_mult[sensor_select] = NOISE_THRESHOLD_MULTIPLIER_MAX;
+	    } 
+            reset_calibration_threshold();
+            break;
+	case IMU_CMD_t::NOISE_THRESHOLD_DOWN:
+	    noise_threshold_mult[sensor_select] -= NOISE_THRESHOLD_MULTIPLIER_INCR;
+	    if ( noise_threshold_mult[sensor_select] < NOISE_THRESHOLD_MULTIPLIER_MIN ) 
+	    {
+	        noise_threshold_mult[sensor_select] = NOISE_THRESHOLD_MULTIPLIER_MIN;
+	    } 
+            reset_calibration_threshold();
             break;
 	case IMU_CMD_t::AHRS_PROP_GAIN_UP:
 	case IMU_CMD_t::AHRS_PROP_GAIN_DOWN:

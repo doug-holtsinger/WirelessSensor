@@ -45,6 +45,11 @@ void AHRS::send_all_client_data(const bool *display_data, const bool settings_di
 {
     char s[NOTIFY_PRINT_STR_MAX_LEN];
 
+    // Check if BLE connected, otherwise return.
+    if ( !ble_svcs_connected() ) {
+            return;
+    }
+
     // Accelerometer
     if (display_data[IMU_ACCELEROMETER])
     {

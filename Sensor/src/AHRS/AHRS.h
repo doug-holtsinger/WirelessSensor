@@ -28,7 +28,7 @@ public:
 #ifdef BLE_CONSOLE_AVAILABLE
     virtual void send_all_client_data(const bool *display_data, const bool settings_display);
 #endif
-    void ComputeAngles(float& roll, float& pitch, float& yaw);
+    virtual void ComputeAngles(float& roll, float& pitch, float& yaw);
     void GetNormalizedVectors(const IMU_SENSOR_t sensor, float& o_x, float& o_y, float& o_z) const;
     float GetAngle(const EULER_ANGLE_SELECT_t angle_select) const;
     float GetQuaternion(const QUATERNION_SELECT_t quaternion_select) const;
