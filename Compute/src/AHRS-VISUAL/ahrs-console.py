@@ -506,6 +506,8 @@ class AHRSConsole(tk.Frame):
         self.pidKI = tk.DoubleVar()
         self.pidKD = tk.DoubleVar()
 
+        self.accelNoiseThreshold = tk.DoubleVar()
+
         self.resetAHRSSettings()
         self.xpoints = 500
 
@@ -564,21 +566,23 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_GYROSCOPE_ENABLE_TOGGLE'] = 31
         self.commandDict['IMU_UNCALIBRATED_DISPLAY_TOGGLE'] = 32
         self.commandDict['IMU_SETTINGS_DISPLAY_TOGGLE'] = 33
-        self.commandDict['IMU_SELECT_ODR'] = 34 
+        self.commandDict['IMU_SELECT_ODR'] = 34
+        self.commandDict['NOISE_THRESHOLD_UP'] = 35
+        self.commandDict['NOISE_THRESHOLD_DOWN'] = 36
 
         # Motor Driver Settings
-        self.commandDict['MOTOR_DRIVER_NOCMD'] = 35
-        self.commandDict['MOTOR_DRIVER_TOGGLE_POWER'] = 36
-        self.commandDict['MOTOR_DRIVER_TOGGLE_DISPLAY'] = 37
+        self.commandDict['MOTOR_DRIVER_NOCMD'] = 37
+        self.commandDict['MOTOR_DRIVER_TOGGLE_POWER'] = 38
+        self.commandDict['MOTOR_DRIVER_TOGGLE_DISPLAY'] = 39
 
         # PID settings 
-        self.commandDict['PID_NOCMD'] = 38
-        self.commandDict['PID_KP_UP'] = 39
-        self.commandDict['PID_KP_DOWN'] = 40
-        self.commandDict['PID_KI_UP'] = 41 
-        self.commandDict['PID_KI_DOWN'] = 42
-        self.commandDict['PID_KD_UP'] = 43
-        self.commandDict['PID_KD_DOWN'] = 44
+        self.commandDict['PID_NOCMD'] = 40 
+        self.commandDict['PID_KP_UP'] = 41 
+        self.commandDict['PID_KP_DOWN'] = 42
+        self.commandDict['PID_KI_UP'] = 43
+        self.commandDict['PID_KI_DOWN'] = 44
+        self.commandDict['PID_KD_UP'] = 45
+        self.commandDict['PID_KD_DOWN'] = 46
 
         self.startScanPassive()
 
@@ -630,6 +634,9 @@ class AHRSConsole(tk.Frame):
         self.pidKIClient = 0.0
         self.pidKD.set(0.0)
         self.pidKDClient = 0.0
+
+        self.accelNoiseThreshold.set(0.0)
+        self.accelNoiseThresholdClient = 0.0
 
     def scalePlot(self):
         self.ax.relim()
@@ -803,6 +810,9 @@ class AHRSConsole(tk.Frame):
         elif idx == 34:
             # Motor Display
             self.data_group['Motor'].setButtonData('Display', data[0])
+        elif idx == 35:
+            self.accelNoiseThreshold.set(data[0])
+            self.accelNoiseThresholdClient = float(data[0])
 
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
@@ -909,6 +919,7 @@ class AHRSConsole(tk.Frame):
         tk.Label(self.algorithmFrame, text="Algorithm").grid(column=0, row=0, padx=paddingx, pady=paddingy)
         tk.Radiobutton(self.algorithmFrame, text="Mahony", command=self.AHRSAlgorithmSelect, variable=self.AHRSalgorithm, value=0).grid(column=1, row=0)
         tk.Radiobutton(self.algorithmFrame, text="Madgwick", command=self.AHRSAlgorithmSelect, variable=self.AHRSalgorithm, value=1).grid(column=2, row=0)
+        tk.Radiobutton(self.algorithmFrame, text="Simple", command=self.AHRSAlgorithmSelect, variable=self.AHRSalgorithm, value=2).grid(column=3, row=0)
 
         self.ahrsSettingsFrame = tk.Frame(lf)
         self.ahrsSettingsFrame.grid(column=0, row=1, padx=paddingx, pady=paddingy)
@@ -928,7 +939,9 @@ class AHRSConsole(tk.Frame):
         row_num = row_num + 1
 
         # Accelerometer Data
-        self.data_group['Accelerometer'] = AHRSDataFrame(self, "Accelerometer", row_num, col_num, data_names=["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width=data_label_width_sensors, check_button_names=['Hold', 'Ideal', 'Display'])
+        scaleAccel = []
+        scaleAccel.append(AHRSScale("Noise Threshold", self.accelNoiseThresholdSelect, self.accelNoiseThreshold, tk.HORIZONTAL, 0.0, 2.0, 0.1))
+        self.data_group['Accelerometer'] = AHRSDataFrame(self, "Accelerometer", row_num, col_num, data_names=["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], scales=scaleAccel, data_label_width=data_label_width_sensors, check_button_names=['Hold', 'Ideal', 'Display'])
 
         # Magnetometer Data
         col_num = col_num + 1
@@ -1067,6 +1080,26 @@ class AHRSConsole(tk.Frame):
     def calibrateSaveButton(self):
         print("Calibrate Save")
         self.writeCmdStr("IMU_SENSOR_CALIBRATE_SAVE")
+
+    # Accelerometer Noise Threshold Multiplier
+    def accelNoiseThresholdSelect(self, value):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        elif self.calibrate.get() != 1:
+            print("Not in Zero Offset calibration mode")
+        else:
+            while self.accelNoiseThresholdClient != self.accelNoiseThreshold.get() and self.calibrate.get() == 1:
+                if self.accelNoiseThresholdClient < self.accelNoiseThreshold.get():
+                    # Send up
+                    print("Accel Noise Threshold Up from %f" % ( self.accelNoiseThresholdClient) )
+                    self.writeCmdStr('IMU_SELECT_ACCELEROMETER')
+                    self.writeCmdStr('NOISE_THRESHOLD_UP')
+                elif self.accelNoiseThresholdClient > self.accelNoiseThreshold.get():
+                    # Send down
+                    print("Accel Noise Threshold Down from %f" % ( self.accelNoiseThresholdClient) )
+                    self.writeCmdStr('IMU_SELECT_ACCELEROMETER')
+                    self.writeCmdStr('NOISE_THRESHOLD_DOWN')
+
 
     # Motor PID Control
     def pidKPSelect(self, value):
