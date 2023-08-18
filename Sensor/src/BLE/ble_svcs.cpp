@@ -191,16 +191,16 @@ bool ble_svcs_connected()
 
 /**@brief Function for sending Euler Angles over BLE in the Advertising Channel
  */
-void ble_svcs_send_euler_angles(float& roll, float& pitch, float& yaw)
+void ble_svcs_send_euler_angles(int16_t& roll, int16_t& pitch, int16_t& yaw)
 {
     ret_code_t err_code;
     ble_advdata_t advdata;
     ble_advdata_manuf_data_t manuf_data;
     int16_t euler_angles[3];
 
-    euler_angles[0] = (int16_t)roll; 
-    euler_angles[1] = (int16_t)pitch; 
-    euler_angles[2] = (int16_t)yaw; 
+    euler_angles[0] = roll;
+    euler_angles[1] = pitch; 
+    euler_angles[2] = yaw; 
 
 #ifdef SERIAL_CONSOLE_AVAILABLE
     if (show_manuf_data)

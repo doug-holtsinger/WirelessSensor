@@ -13,7 +13,7 @@ typedef void (*nus_data_handler_t)(const APP_CMD_t data);
 void ble_svcs_init(void);
 void ble_svcs_event_handler(bsp_event_t event);
 void ble_svcs_cmd(BLE_CMD_t ble_cmd, uint16_t data);
-void ble_svcs_send_euler_angles(float& roll, float& pitch, float& yaw);
+void ble_svcs_send_euler_angles(int16_t& roll, int16_t& pitch, int16_t& yaw);
 void ble_svcs_advertising_start(void);
 #ifdef BLE_CONSOLE_AVAILABLE
 void ble_svcs_register(nus_data_handler_t data_handler_fn);
