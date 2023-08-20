@@ -21,8 +21,8 @@ import OpenGL.GL.shaders
 import pyopengltk
 import time
 
-# Roll, Pitch, Yaw in float format
-euler_angles = [ 0.0, 0.0, 0.0]
+# Roll, Pitch, Yaw
+euler_angles = [ 0, 0, 0]
 
 # Avoiding glitches in pyopengl-3.0.x and python3.4
 def bytestr(s):
@@ -219,12 +219,13 @@ class ScanDelegatePassive(DefaultDelegate):
             sys.exit(1) 
         if manufacturer_data is not None and len(manufacturer_data) == 8 and manufacturer_data[0:2] == b'\xff\xff': 
             #print("dev.addr %s data %s type %s len %d" % ( dev.addr , manufacturer_data.hex() , type(manufacturer_data), len(manufacturer_data)))
-            euler_angles[0] = float(sign_extend(manufacturer_data[3] << 8 | manufacturer_data[2], 16))
-            euler_angles[1] = float(sign_extend(manufacturer_data[5] << 8 | manufacturer_data[4], 16))
-            euler_angles[2] = float(sign_extend(manufacturer_data[7] << 8 | manufacturer_data[6], 16))
+            euler_angles[0] = sign_extend(manufacturer_data[3] << 8 | manufacturer_data[2], 16)
+            euler_angles[1] = sign_extend(manufacturer_data[5] << 8 | manufacturer_data[4], 16)
+            euler_angles[2] = sign_extend(manufacturer_data[7] << 8 | manufacturer_data[6], 16)
+            #console.setAHRSData( 0, euler_angles)
 
 class AHRSDataFrame():
-    def __init__(self, master, data_group_name, row, column, data_names=None, data_label_width=9, scales=None, check_button_names=None, check_button_cmds=None, check_button_stack="horizontal", sticky=None):
+    def __init__(self, master, data_group_name, row, column, data_names=None, data_label_width=9, scales=None, spinboxes=None, check_button_names=None, check_button_cmds=None, check_button_stack="horizontal", sticky=None):
         # Save master object 
         self.master = master
         paddingx = 2
@@ -280,6 +281,15 @@ class AHRSDataFrame():
             for scale in scales:
                 scale.create(frame=self.scalesFrame, row=scale_row)
                 scale_row = scale_row + 1
+
+        if spinboxes:
+            self.spinboxesFrame = tk.Frame(self.label_frame)
+            self.spinboxesFrame.grid(column=frame_col, row=frame_row, padx=paddingx, pady=paddingy)
+            frame_row = frame_row + 1
+            spinbox_row = 0
+            for spinbox in spinboxes:
+                spinbox.create(frame=self.spinboxesFrame, row=spinbox_row)
+                spinbox_row = spinbox_row + 1
 
         if check_button_names:
             self.checkButtonFrame = tk.Frame(self.label_frame)
@@ -358,8 +368,8 @@ class AHRSScale():
         self.command = command
         self.var = var
         self.orient = orient
-        self.minValue = minValue 
-        self.maxValue = maxValue 
+        self.minValue = minValue
+        self.maxValue = maxValue
         self.resolution = resolution
         # hard-coded
         self.paddingx = 2
@@ -371,11 +381,29 @@ class AHRSScale():
         tk.Label(frame, text=self.name).grid(column=col, row=row, padx=self.paddingx, pady=self.paddingy)
         tk.Scale(frame, orient=self.orient, command=self.command, from_=self.minValue , to_=self.maxValue, resolution=self.resolution, variable=self.var, width=self.scale_width, length=self.scale_length).grid(column=col+1, row=row, padx=self.paddingx, pady=self.paddingy)
 
+class AHRSSpinbox():
+    def __init__(self, name, command, var, minValue, maxValue, increment, textformat):
+        self.name = name
+        self.command = command
+        self.var = var
+        self.minValue = minValue
+        self.maxValue = maxValue
+        self.increment = increment
+        self.fmt = textformat
+        # hard-coded
+        self.paddingx = 2
+        self.paddingy = 2
+        self.spinbox_width = 10
+
+    def create(self, frame=None, row=0, col=0):
+        tk.Label(frame, text=self.name).grid(column=col, row=row, padx=self.paddingx, pady=self.paddingy)
+        tk.Spinbox(frame, command=self.command, from_=self.minValue , to_=self.maxValue, increment=self.increment, textvariable=self.var, width=self.spinbox_width, format=self.fmt).grid(column=col+1, row=row, padx=self.paddingx, pady=self.paddingy)
+
 class AHRSDataItem():
     def __init__(self, master, data_group_name, data_name, data_label_width, row, column):
         self.data_name = data_name
         self.data_group_name = data_group_name
-        self.plot_name = data_group_name + ' ' + data_name 
+        self.plot_name = data_group_name + ' ' + data_name
         self.data = tk.StringVar()
         self.data.set(0)
         self.dataFrame = master
@@ -506,6 +534,9 @@ class AHRSConsole(tk.Frame):
         self.pidKI = tk.DoubleVar()
         self.pidKD = tk.DoubleVar()
 
+        # Clock Select
+        self.pwmClock = tk.IntVar()
+
         self.accelNoiseThreshold = tk.DoubleVar()
 
         self.resetAHRSSettings()
@@ -574,15 +605,17 @@ class AHRSConsole(tk.Frame):
         self.commandDict['MOTOR_DRIVER_NOCMD'] = 37
         self.commandDict['MOTOR_DRIVER_TOGGLE_POWER'] = 38
         self.commandDict['MOTOR_DRIVER_TOGGLE_DISPLAY'] = 39
+        self.commandDict['PWM_CLOCK_UP'] = 40
+        self.commandDict['PWM_CLOCK_DOWN'] = 41
 
         # PID settings 
-        self.commandDict['PID_NOCMD'] = 40 
-        self.commandDict['PID_KP_UP'] = 41 
-        self.commandDict['PID_KP_DOWN'] = 42
-        self.commandDict['PID_KI_UP'] = 43
-        self.commandDict['PID_KI_DOWN'] = 44
-        self.commandDict['PID_KD_UP'] = 45
-        self.commandDict['PID_KD_DOWN'] = 46
+        self.commandDict['PID_NOCMD'] = 42
+        self.commandDict['PID_KP_UP'] = 43 
+        self.commandDict['PID_KP_DOWN'] = 44
+        self.commandDict['PID_KI_UP'] = 45
+        self.commandDict['PID_KI_DOWN'] = 46
+        self.commandDict['PID_KD_UP'] = 47
+        self.commandDict['PID_KD_DOWN'] = 48
 
         self.startScanPassive()
 
@@ -634,6 +667,8 @@ class AHRSConsole(tk.Frame):
         self.pidKIClient = 0.0
         self.pidKD.set(0.0)
         self.pidKDClient = 0.0
+        self.pwmClock.set(0)
+        self.pwmClockClient = 0
 
         self.accelNoiseThreshold.set(0.0)
         self.accelNoiseThresholdClient = 0.0
@@ -813,6 +848,10 @@ class AHRSConsole(tk.Frame):
         elif idx == 35:
             self.accelNoiseThreshold.set(data[0])
             self.accelNoiseThresholdClient = float(data[0])
+        # magnetometer (36), gyro threshold(37) not currently used.
+        elif idx == 38:
+            self.pwmClock.set(data[0])
+            self.pwmClockClient = int(data[0])
 
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
@@ -960,10 +999,12 @@ class AHRSConsole(tk.Frame):
         # PID Motor Control
         col_num = col_num + 1
         scaleMotor = []
-        scaleMotor.append(AHRSScale("Proportional", self.pidKPSelect, self.pidKP, tk.HORIZONTAL, 0.0, 2000.0, 100.0))
-        scaleMotor.append(AHRSScale("Integral", self.pidKISelect, self.pidKI, tk.HORIZONTAL, 0.0, 500.0, 10.0))
-        scaleMotor.append(AHRSScale("Derivative", self.pidKDSelect, self.pidKD, tk.HORIZONTAL, 0.0, 250.0, 10.0))
-        self.data_group['Motor'] = AHRSDataFrame(self, "Motor", row_num, col_num, data_names=["Driver"], scales=scaleMotor, check_button_names=['Enabled', 'Display'], data_label_width=8, check_button_cmds=["MOTOR_DRIVER_TOGGLE_POWER", "MOTOR_DRIVER_TOGGLE_DISPLAY"], check_button_stack="horizontal")
+        spinboxMotor = []
+        scaleMotor.append(AHRSScale("Proportional", self.pidKPSelect, self.pidKP, tk.HORIZONTAL, 0.0, 1200.0, 20.0))
+        scaleMotor.append(AHRSScale("Integral", self.pidKISelect, self.pidKI, tk.HORIZONTAL, 0.0, 700.0, 20.0))
+        scaleMotor.append(AHRSScale("Derivative", self.pidKDSelect, self.pidKD, tk.HORIZONTAL, 0.0, 250.0, 20.0))
+        spinboxMotor.append(AHRSSpinbox("PWM Clock Scale", self.pwmClockSelect, self.pwmClock, 0, 7, 1, '%1.1f'))
+        self.data_group['Motor'] = AHRSDataFrame(self, "Motor", row_num, col_num, data_names=["Driver"], scales=scaleMotor, spinboxes=spinboxMotor, check_button_names=['Enabled', 'Display'], data_label_width=8, check_button_cmds=["MOTOR_DRIVER_TOGGLE_POWER", "MOTOR_DRIVER_TOGGLE_DISPLAY"], check_button_stack="horizontal")
 
         # Data Plot
         col_num = col_num + 1
@@ -1144,6 +1185,20 @@ class AHRSConsole(tk.Frame):
                     print("PID KD Down from %f" % ( self.pidKDClient) )
                     self.writeCmdStr('PID_KD_DOWN')
 
+    # Motor PWM Clock Control
+    def pwmClockSelect(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            while self.pwmClockClient != self.pwmClock.get():
+                if self.pwmClockClient < self.pwmClock.get():
+                    # Send up
+                    print("PWM Clock Up from %d" % ( self.pwmClockClient) )
+                    self.writeCmdStr('PWM_CLOCK_UP')
+                elif self.pwmClockClient > self.pwmClock.get():
+                    # Send down
+                    print("PWM Clock Down from %d" % ( self.pwmClockClient) )
+                    self.writeCmdStr('PWM_CLOCK_DOWN')
 
     def calibrateButton(self):
         if self.connected.get():
