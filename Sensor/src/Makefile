@@ -37,6 +37,7 @@ SRC_FILES += \
   $(AHRS_SRC_DIR)/AHRS.cpp \
   $(AHRS_SRC_DIR)/MahonyAHRS.cpp \
   $(AHRS_SRC_DIR)/MadgwickAHRS.cpp \
+  $(AHRS_SRC_DIR)/SimpleAHRS.cpp \
   $(IMU_SRC_DIR)/imu.cpp \
   $(BLE_SRC_DIR)/ble_svcs.cpp \
   $(FLASH_SRC_DIR)/param_store.cpp \

@@ -863,13 +863,13 @@ void IMU::cmd_internal(const IMU_CMD_t i_cmd)
 	    } else if (AHRSalgorithm == AHRS_MADGWICH)
 	    {
                 AHRSptr->~AHRS();
-                AHRSptr = new MahonyAHRS();
-                AHRSalgorithm = AHRS_MAHONY;
+                AHRSptr = new SimpleAHRS();
+                AHRSalgorithm = AHRS_SIMPLE;
             } else 
             {
                 AHRSptr->~AHRS();
-                AHRSptr = new SimpleAHRS();
-                AHRSalgorithm = AHRS_SIMPLE;
+                AHRSptr = new MahonyAHRS();
+                AHRSalgorithm = AHRS_MAHONY;
             }
             break;
 	case IMU_CMD_t::GYROSCOPE_ENABLE_TOGGLE:

@@ -78,6 +78,7 @@
 int main(void)
 {
     float roll, pitch, yaw;
+    int16_t roll_i, pitch_i, yaw_i;
     uint32_t cmd_get_cnt = 0;
     IMU imu = IMU();
 
@@ -111,7 +112,10 @@ int main(void)
         imu.update();
 
         imu.get_angles(roll, pitch, yaw);
-        ble_svcs_send_euler_angles(roll, pitch, yaw);
+	roll_i = (int16_t)roll;
+	pitch_i = (int16_t)pitch;
+	yaw_i = (int16_t)yaw;
+        ble_svcs_send_euler_angles(roll_i, pitch_i, yaw_i);
 
 #ifdef SERIAL_CONSOLE_AVAILABLE
         if ((cmd_get_cnt & 0x0F) == 0)
