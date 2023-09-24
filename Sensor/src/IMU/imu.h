@@ -32,9 +32,10 @@
 
 #define AHRS_ALGORITHM_DEFAULT AHRS_MAHONY
 #ifdef BALANCING_ROBOT_CONFIG
-//#define AHRS_ALGORITHM_DEFAULT AHRS_SIMPLE
 #define DISABLE_MEASURE_ODR
 #endif
+
+#define IMU_RECORD_KEY 0x7010
 
 typedef enum {
         IMU_CALIBRATE_DISABLED = 0,
@@ -81,6 +82,8 @@ class IMU {
 	void MeasureODR();
         bool read_sensor_values();
 
+        ParamStore<imu_calibration_params_t> param_store;	// parameter storage object
+
         LSM6DS3Sensor* AccGyr;
         LIS3MDLSensor* Magneto;
 	AHRS* AHRSptr;
@@ -101,8 +104,6 @@ class IMU {
         float yaw_last_cal;
 
 	imu_calibration_params_t cp;				// local copy of calibration params
-
-        ParamStore<imu_calibration_params_t> param_store;	// parameter storage object
 
         int32_t accelerometer_uncal[3];
         int32_t accelerometer_cal[3];

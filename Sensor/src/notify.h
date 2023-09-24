@@ -47,6 +47,7 @@ typedef enum
     PID_KP,
     PID_KI,
     PID_KD,
+    PID_SP,
 
     MOTOR_ENABLED,
     MOTOR_DRIVER,

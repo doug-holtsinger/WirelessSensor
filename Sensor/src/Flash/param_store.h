@@ -56,7 +56,7 @@
 /* File ID and Key used for the configuration record. */
 
 #define CONFIG_FILE     (0x8010)
-#define CONFIG_REC_KEY  (0x7010)
+// #define CONFIG_REC_KEY  (0x7010)
 #define FDS_POLL_MAX    10000000
 
 extern bool fds_op_busy;
@@ -73,7 +73,8 @@ void fds_evt_handler_C(fds_evt_t const * p_evt);
 template <typename T>
 class ParamStore {
 public:
-    ParamStore()
+    ParamStore(const uint16_t cfg_rec_key) :
+        config_rec_key(cfg_rec_key)
     {
     }
 
@@ -85,14 +86,14 @@ public:
         fds_record_desc_t desc = {0};
         fds_find_token_t  tok  = {0};
 
-        rc = fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &tok);
+        rc = fds_record_find(CONFIG_FILE, config_rec_key, &desc, &tok);
 
         if (rc == NRF_SUCCESS)
         {
             NRF_LOG_INFO("Updating Flash");
 
             param_store_record.file_id           = CONFIG_FILE;
-            param_store_record.key               = CONFIG_REC_KEY;
+            param_store_record.key               = config_rec_key;
             param_store_record.data.p_data       = param_store_data_ptr;
             /* The length of a record is always expressed in 4-byte units (words). */
             param_store_record.data.length_words = (sizeof(*param_store_data_ptr) + 3) / sizeof(uint32_t);
@@ -139,7 +140,7 @@ public:
         rc = fds_init();
         APP_ERROR_CHECK(rc);
 
-        rc = fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &tok);
+        rc = fds_record_find(CONFIG_FILE, config_rec_key, &desc, &tok);
         if (rc == NRF_SUCCESS)
         {
             NRF_LOG_INFO("Flash Record Found");
@@ -165,7 +166,7 @@ public:
             NRF_LOG_INFO("Writing Flash Record");
 
             param_store_record.file_id           = CONFIG_FILE;
-            param_store_record.key               = CONFIG_REC_KEY;
+            param_store_record.key               = config_rec_key;
             param_store_record.data.p_data       = param_store_data_ptr;
             /* The length of a record is always expressed in 4-byte units (words). */
             param_store_record.data.length_words = (sizeof(*param_store_data_ptr) + 3) / sizeof(uint32_t);
@@ -183,11 +184,14 @@ public:
                 APP_ERROR_CHECK(rc);
             }
 
+	    param_data = *param_store_data_ptr; 
+
         }
     }
 
 protected:
     /* parameter data. */
+    uint16_t config_rec_key;
     fds_record_t param_store_record;
     T param_data;
 
@@ -227,7 +231,7 @@ protected:
         ret_code_t rc = NRF_SUCCESS;
 	if (fds_op_busy)
 	{
-	    rc = NRF_ERROR_TIMEOUT;
+	    rc = wait_for_fds_op_complete();
 	} else {
             // indicates flash operation will be underway
 	    fds_op_busy = true;

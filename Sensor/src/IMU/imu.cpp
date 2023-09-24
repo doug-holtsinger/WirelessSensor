@@ -36,7 +36,8 @@ extern void fds_evt_handler_C(fds_evt_t const * p_evt);
 #endif
 
 
-IMU::IMU()
+IMU::IMU() :
+    param_store(IMU_RECORD_KEY)
 {
     std::fill(display_data, display_data + IMU_SENSOR_MAX, true);
     std::fill(noise_threshold_mult, noise_threshold_mult + IMU_SENSOR_MAX, NOISE_THRESHOLD_MULTIPLIER);
