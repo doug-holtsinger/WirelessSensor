@@ -43,21 +43,11 @@ typedef enum
     ODR_HZ_GYRO,
     ODR_HZ_MAGNETOMETER,
 
-    // FIXME -- these need to be placed in the BalancingRobot directory somehow
-    PID_KP,
-    PID_KI,
-    PID_KD,
-    PID_SP,
-
-    MOTOR_ENABLED,
-    MOTOR_DRIVER,
-    MOTOR_DISPLAY,
-
     ACCELEROMETER_NOISE_THRESHOLD_MULT,
     MAGNETOMETER_NOISE_THRESHOLD_MULT,
     GYROSCOPE_NOISE_THRESHOLD_MULT,
 
-    PWM_CLOCK
+    NOTIFY_BASE_MAX = GYROSCOPE_NOISE_THRESHOLD_MULT
 
 } DATA_NOTIFY_t;
 
