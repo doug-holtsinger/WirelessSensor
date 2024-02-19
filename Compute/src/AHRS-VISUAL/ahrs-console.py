@@ -569,6 +569,10 @@ class AHRSConsole(tk.Frame):
         self.pidKI = tk.DoubleVar()
         self.pidKD = tk.DoubleVar()
         self.pidSP = tk.DoubleVar()
+        self.pidKP2 = tk.DoubleVar()
+        self.pidKI2 = tk.DoubleVar()
+        self.pidKD2 = tk.DoubleVar()
+        self.pidSP2 = tk.DoubleVar()
 
         # Clock Select
         self.pwmClock = tk.IntVar()
@@ -656,6 +660,18 @@ class AHRSConsole(tk.Frame):
         self.commandDict['PID_SP_DOWN'] = 50 
         self.commandDict['PID_PARAM_SAVE'] = 51
 
+        # PID settings 
+        self.commandDict['PID2_NOCMD'] = 52
+        self.commandDict['PID2_KP_UP'] = 53 
+        self.commandDict['PID2_KP_DOWN'] = 54
+        self.commandDict['PID2_KI_UP'] = 55
+        self.commandDict['PID2_KI_DOWN'] = 56
+        self.commandDict['PID2_KD_UP'] = 57
+        self.commandDict['PID2_KD_DOWN'] = 58
+        self.commandDict['PID2_SP_UP'] = 59
+        self.commandDict['PID2_SP_DOWN'] = 60 
+        self.commandDict['PID2_PARAM_SAVE'] = 61
+
         self.startScanPassive()
 
     def scannerThreadPassive(self):
@@ -710,6 +726,14 @@ class AHRSConsole(tk.Frame):
         self.pidSPClient = 0.0
         self.pwmClock.set(0)
         self.pwmClockClient = 0
+        self.pidKP2.set(0.0)
+        self.pidKP2Client = 0.0
+        self.pidKI2.set(0.0)
+        self.pidKI2Client = 0.0
+        self.pidKD2.set(0.0)
+        self.pidKD2Client = 0.0
+        self.pidSP2.set(0.0)
+        self.pidSP2Client = 0.0
 
         self.accelNoiseThreshold.set(0.0)
         self.accelNoiseThresholdClient = 0.0
@@ -725,7 +749,11 @@ class AHRSConsole(tk.Frame):
         self.dataplot_cnv.draw_idle()
 
     def setAHRSData(self, idx, data):
+        """ 
+        Receive notifications and process them
+        """
         global euler_angles
+        # FIXME -- change hard-coded constants comparing to idx, over to not hard-coded
         if idx == 0:
             gidx = 'Euler Angles'
             # Euler Angles data arrives together as a list of length 3 (roll, pitch yaw)
@@ -864,21 +892,14 @@ class AHRSConsole(tk.Frame):
             gi = idx - 26
             #FIXME  self.data_group[gidx].setData(gi, data)
         elif idx == 29:
-            # PID KP 
-            self.pidKP.set(data[0])
-            self.pidKPClient = float(data[0])
-        elif idx == 30:
-            # PID KI 
-            self.pidKI.set(data[0])
-            self.pidKIClient = float(data[0])
-        elif idx == 31:
-            # PID KD 
-            self.pidKD.set(data[0])
-            self.pidKDClient = float(data[0])
+            # accelerotometer noise threshold
+            # magnetometer (30), gyro threshold(31) not currently used.
+            self.accelNoiseThreshold.set(data[0])
+            self.accelNoiseThresholdClient = float(data[0])
+
         elif idx == 32:
-            # PID SP
-            self.pidSP.set(data[0])
-            self.pidSPClient = float(data[0])
+            self.pwmClock.set(data[0])
+            self.pwmClockClient = int(data[0])
         elif idx == 33:
             # Motor Enabled 
             self.data_group['Motor'].setButtonData('Enabled', data[0])
@@ -890,13 +911,41 @@ class AHRSConsole(tk.Frame):
         elif idx == 35:
             # Motor Display
             self.data_group['Motor'].setButtonData('Display', data[0])
+
         elif idx == 36:
-            self.accelNoiseThreshold.set(data[0])
-            self.accelNoiseThresholdClient = float(data[0])
-        # magnetometer (37), gyro threshold(38) not currently used.
+            # PID KP 
+            self.pidKP.set(data[0])
+            self.pidKPClient = float(data[0])
+        elif idx == 37:
+            # PID KI 
+            self.pidKI.set(data[0])
+            self.pidKIClient = float(data[0])
+        elif idx == 38:
+            # PID KD 
+            self.pidKD.set(data[0])
+            self.pidKDClient = float(data[0])
         elif idx == 39:
-            self.pwmClock.set(data[0])
-            self.pwmClockClient = int(data[0])
+            # PID SP
+            self.pidSP.set(data[0])
+            self.pidSPClient = float(data[0])
+
+        elif idx == 40:
+            # PID KP 
+            self.pidKP2.set(data[0])
+            self.pidKP2Client = float(data[0])
+        elif idx == 41:
+            # PID KI 
+            self.pidKI2.set(data[0])
+            self.pidKI2Client = float(data[0])
+        elif idx == 42:
+            # PID KD 
+            self.pidKD2.set(data[0])
+            self.pidKD2Client = float(data[0])
+        elif idx == 43:
+            # PID SP
+            self.pidSP2.set(data[0])
+            self.pidSP2Client = float(data[0])
+
 
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
@@ -1325,15 +1374,25 @@ class AHRSConsole(tk.Frame):
             print("Could not find AHRS")
             return
 
-        try:
-            self.peripheral = Peripheral(deviceAddr = dev_addr, addrType = 'random').withDelegate(NotifyDelegate())
-        except BTLEException as e:
-            self.connected.set(False)
-            print(e)
-            self.startScanPassive()
-            return
+        connected = False
+        connectCount = 0
+        connectCountLimit = 35
+        # FIXME: temporary workaround for intermittent connection failures
+        while not connected:
+            try:
+                print(f"Trying connectCount {connectCount}")
+                self.peripheral = Peripheral(deviceAddr = dev_addr, addrType = 'random').withDelegate(NotifyDelegate())
+                connected = True
+            except BTLEException as e:
+                print(f"Failed connectCount {connectCount}")
+                connectCount += 1
+                if connectCount >= connectCountLimit:
+                    print(e)
+                    self.connected.set(False)
+                    self.startScanPassive()
+                    return
 
-        print("Connected to %s" % ( dev_addr ))
+        print("Connected to %s after %d failures" % ( dev_addr, connectCount ))
         # Nordic UART Service UUID.  Vendor-specific. 
         # Value is defined Inside ble_nus_c.h as NUS_BASE_UUID
         srv = self.peripheral.getServiceByUUID('6e400001-b5a3-f393-e0a9-e50e24dcca9e')
@@ -1388,6 +1447,8 @@ class AHRSConsole(tk.Frame):
         if self.connected.get():
             self.connect_button.invoke()
         if self.peripheral is None:
+            self.stopScanPassive()
+            self.scanner.stop()
             self.quit()
             sys.exit(0)
 
