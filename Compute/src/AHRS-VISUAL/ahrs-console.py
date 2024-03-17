@@ -237,6 +237,9 @@ class AHRSDataFrame():
         else:
             self.label_frame.grid(column=column, row=row, padx=paddingx, pady=paddingy)
 
+        #print(f"{data_group_name} Row {row} Col {column}")
+        #print(self.label_frame.grid_info())
+
         frame_row = 0
         frame_col = 0
 
@@ -569,10 +572,15 @@ class AHRSConsole(tk.Frame):
         self.pidKI = tk.DoubleVar()
         self.pidKD = tk.DoubleVar()
         self.pidSP = tk.DoubleVar()
+        self.pidPV = tk.DoubleVar()
+        self.pidOutput = tk.DoubleVar()
+
         self.pidKP2 = tk.DoubleVar()
         self.pidKI2 = tk.DoubleVar()
         self.pidKD2 = tk.DoubleVar()
         self.pidSP2 = tk.DoubleVar()
+        self.pidPV2 = tk.DoubleVar()
+        self.pidOutput2 = tk.DoubleVar()
 
         # Clock Select
         self.pwmClock = tk.IntVar()
@@ -661,7 +669,7 @@ class AHRSConsole(tk.Frame):
         self.commandDict['PID_PARAM_SAVE'] = 51
 
         # PID settings 
-        self.commandDict['PID2_NOCMD'] = 52
+        self.commandDict['PID_NOCMD'] = 52
         self.commandDict['PID2_KP_UP'] = 53 
         self.commandDict['PID2_KP_DOWN'] = 54
         self.commandDict['PID2_KI_UP'] = 55
@@ -912,10 +920,12 @@ class AHRSConsole(tk.Frame):
             # Motor Display
             self.data_group['Motor'].setButtonData('Display', data[0])
 
+        # Motor Control PID
         elif idx == 36:
-            # PID KP 
-            self.pidKP.set(data[0])
+            # PID KP
+            #DSH4
             self.pidKPClient = float(data[0])
+            self.pidKP.set(data[0])
         elif idx == 37:
             # PID KI 
             self.pidKI.set(data[0])
@@ -928,24 +938,47 @@ class AHRSConsole(tk.Frame):
             # PID SP
             self.pidSP.set(data[0])
             self.pidSPClient = float(data[0])
-
         elif idx == 40:
+            # PID PV
+            self.pidPV.set(data[0])
+            self.pidPVClient = float(data[0])
+        elif idx == 41:
+            # PID Output
+            self.pidOutput.set(data[0])
+            self.pidOutputClient = float(data[0])
+
+        # Speed Control PID
+        elif idx == 42:
             # PID KP 
+            #print(f"PID KP2 {data[0]} {float(data[0])}")
             self.pidKP2.set(data[0])
             self.pidKP2Client = float(data[0])
-        elif idx == 41:
+        elif idx == 43:
             # PID KI 
+            #print(f"PID KI2 {data[0]} {float(data[0])}")
             self.pidKI2.set(data[0])
             self.pidKI2Client = float(data[0])
-        elif idx == 42:
+        elif idx == 44:
             # PID KD 
+            #print(f"PID KD2 {data[0]} {float(data[0])}")
             self.pidKD2.set(data[0])
             self.pidKD2Client = float(data[0])
-        elif idx == 43:
+        elif idx == 45:
             # PID SP
             self.pidSP2.set(data[0])
             self.pidSP2Client = float(data[0])
-
+        elif idx == 46:
+            # PID PV
+            self.pidPV2.set(data[0])
+            self.pidPV2Client = float(data[0])
+            if self.pidPV2Client != 0.0:
+                print(f"PV2 {self.pidPV2Client}")
+        elif idx == 47:
+            # PID Output
+            self.pidOutput2.set(data[0])
+            self.pidOutput2Client = float(data[0])
+            if self.pidOutput2Client != 0.0:
+                print(f"Out2 {self.pidOutput2Client}")
 
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
@@ -984,6 +1017,8 @@ class AHRSConsole(tk.Frame):
         row_num = 0
         col_num = 0
 
+        #self.columnconfigure(1, minsize=340)
+
         paddingx = 5
         paddingy = 5
         data_label_width = 9
@@ -1000,10 +1035,9 @@ class AHRSConsole(tk.Frame):
         tk.Button(self.menuFrame, text="Scale Plot", command=self.scalePlot).grid(column=2, row=0)
         tk.Button(self.menuFrame, text="Clear Plot", command=self.clearPlot).grid(column=3, row=0)
 
-        # 1,0
-        # Calibration
+        # IMU Calibration
         col_num = 0
-        row_num = row_num + 1
+        row_num += 1
         data_row_num = row_num
 
         lf = tk.LabelFrame(self, text="IMU Calibration")
@@ -1021,18 +1055,8 @@ class AHRSConsole(tk.Frame):
         tk.Button(lf, text="Reset", command=self.calibrateResetButton).pack(anchor="w")
         tk.Button(lf, text="Save", command=self.calibrateSaveButton).pack(anchor="w")
 
-        # Euler Angles
-        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", row_num, col_num, data_names=["Roll", "Pitch", "Yaw"], sticky=tk.E)
-
-        # Quaternion Data
-        col_num = col_num + 1
-        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", row_num, col_num, data_names=["Q0", "Q1", "Q2", "Q3"], check_button_names=["Display"], data_label_width=8, sticky=tk.W)
-
-        col_num = 0
-        row_num = row_num + 1
-
         lf = tk.LabelFrame(self, text="IMU Settings")
-        lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
+        lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy, sticky=tk.E)
         #tk.Label(lf, text="Gyroscope Correction").grid(column=0, row=row_num, padx=paddingx, pady=paddingy)
         #tk.Spinbox(lf, text="Spinbox", command=self.gyroCorrectionSelect, from_=1, to_=9999, increment=1, textvariable=self.gyroCorrection, width=spinbox_width).grid(column=1, row=row_num, padx=paddingx, pady=paddingy)
         tk.Checkbutton(lf, text="Magnetometer Stability", command=self.magnetometerStabilityButton, variable=self.magnetometerStability).grid(column=0, row=row_num, padx=paddingx, pady=paddingy, sticky=tk.W)
@@ -1040,10 +1064,18 @@ class AHRSConsole(tk.Frame):
         tk.Checkbutton(lf, text="Uncalibrated Display", command=self.uncalibratedDisplayButton, variable=self.uncalibratedDisplay).grid(column=0, row=row_num+2, padx=paddingx, pady=paddingy, sticky=tk.W)
         tk.Checkbutton(lf, text="Settings Display", command=self.settingsDisplayButton, variable=self.settingsDisplay).grid(column=0, row=row_num+3, padx=paddingx, pady=paddingy, sticky=tk.W)
 
-        col_num = col_num + 1
+        # Quaternion Data
+        col_num += 1
+        self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", row_num, col_num, data_names=["Q0", "Q1", "Q2", "Q3"], check_button_names=["Display"], data_label_width=8, sticky=tk.W)
 
-        # 2,0
+        # Euler Angles
+        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", row_num, col_num, data_names=["Roll", "Pitch", "Yaw"], sticky=tk.E)
+
+
         # Controls
+        col_num = 0
+        row_num += 1
+
         lf = tk.LabelFrame(self, text="AHRS Settings")
         lf.grid(column=col_num, row=row_num, padx=paddingx, pady=paddingy)
 
@@ -1068,22 +1100,20 @@ class AHRSConsole(tk.Frame):
         tk.Label(self.ahrsSettingsFrame, text="Beta Gain").grid(column=0, row=3, padx=paddingx, pady=paddingy, sticky=tk.W)
         tk.Spinbox(self.ahrsSettingsFrame, text="Spinbox", command=self.betaGainSelect, from_=0.0, to_=5.0, increment=0.1, format="%1.2f", textvariable=self.betaGain, width=self.spinbox_width).grid(column=1, row=3, padx=paddingx, pady=paddingy)
 
-        col_num = 0
-        row_num = row_num + 1
 
         # Accelerometer Data
+        col_num += 1
         scaleAccel = []
         scaleAccel.append(AHRSScale("Noise Threshold", self.accelNoiseThresholdSelect, self.accelNoiseThreshold, tk.HORIZONTAL, 0.0, 2.0, 0.1))
         self.data_group['Accelerometer'] = AHRSDataFrame(self, "Accelerometer", row_num, col_num, data_names=["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], scales=scaleAccel, data_label_width=data_label_width_sensors, check_button_names=['Hold', 'Ideal', 'Display'])
 
         # Magnetometer Data
-        col_num = col_num + 1
+        col_num = 0
+        row_num += 1
         self.data_group['Magnetometer'] = AHRSDataFrame(self, "Magnetometer", row_num, col_num, data_names=["Normalized", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width=data_label_width_sensors, check_button_names=['Hold', 'Ideal', 'Display'])
 
-        
         # Gyroscope Data
-        row_num = row_num + 1
-        col_num = 0
+        col_num += 1
         self.data_group['Gyroscope'] = AHRSDataFrame(self, "Gyroscope", row_num, col_num, data_names=["Normalized X", "Normalized Y", "Normalized Z", "Calibrated", "Uncalibrated", "Min Threshold"], data_label_width=data_label_width_sensors, check_button_names=['Hold', 'Ideal', 'Display'])
 
         # Measured Output Data Rate
@@ -1091,21 +1121,35 @@ class AHRSConsole(tk.Frame):
         #self.data_group['ODR'] = AHRSDataFrame(self, "ODR", ["Accelerometer", "Gyroscope", "Magnetometer"], 8, ['Ideal', 'Display'], row_num, col_num, sticky=tk.NW)
 
         # PID Motor Control
-        col_num = col_num + 1
+        col_num = 0
+        row_num += 1
         scaleMotor = []
         spinboxMotor = []
         buttonMotor = []
-        scaleMotor.append(AHRSScale("Proportional", self.pidKPSelect, self.pidKP, tk.HORIZONTAL, 0.0, 1200.0, 20.0))
-        scaleMotor.append(AHRSScale("Integral", self.pidKISelect, self.pidKI, tk.HORIZONTAL, 0.0, 700.0, 20.0))
-        scaleMotor.append(AHRSScale("Derivative", self.pidKDSelect, self.pidKD, tk.HORIZONTAL, 0.0, 250.0, 20.0))
-        spinboxMotor.append(AHRSSpinbox("SetPoint", self.pidSPSelect, self.pidSP, -2.0, 2.0, 0.05, '%1.2f'))
+        scaleMotor.append(AHRSScale("Proportional", self.pidKPSelect, self.pidKP, tk.HORIZONTAL, 200.0, 600.0, 2.0))
+        scaleMotor.append(AHRSScale("Integral", self.pidKISelect, self.pidKI, tk.HORIZONTAL, 0.0, 400.0, 2.0))
+        scaleMotor.append(AHRSScale("Derivative", self.pidKDSelect, self.pidKD, tk.HORIZONTAL, 0.0, 200.0, 2.0))
+        spinboxMotor.append(AHRSSpinbox("SetPoint", self.pidSPSelect, self.pidSP, -2.0, 2.0, 0.05, '%1.3f'))
         spinboxMotor.append(AHRSSpinbox("PWM Clock Scale", self.pwmClockSelect, self.pwmClock, 0, 7, 1, '%1.1f'))
         buttonMotor.append(AHRSButton(self, "Save", command="PID_PARAM_SAVE"))
         self.data_group['Motor'] = AHRSDataFrame(self, "Motor", row_num, col_num, data_names=["Driver"], scales=scaleMotor, spinboxes=spinboxMotor, check_button_names=['Enabled', 'Display'], check_button_cmds=["MOTOR_DRIVER_TOGGLE_POWER", "MOTOR_DRIVER_TOGGLE_DISPLAY"], button_stack="horizontal", buttons=buttonMotor, data_label_width=8)
 
+        # Speed Control PID
+        col_num += 1
+        scaleSpeed = []
+        spinboxSpeed = []
+        buttonSpeed = []
+        scaleSpeed.append(AHRSScale("Proportional", self.pidKP2Select, self.pidKP2, tk.HORIZONTAL, 0.0, 0.5, 0.005))
+        scaleSpeed.append(AHRSScale("Integral", self.pidKI2Select, self.pidKI2, tk.HORIZONTAL, 0.0, 0.5, 0.005))
+        scaleSpeed.append(AHRSScale("Derivative", self.pidKD2Select, self.pidKD2, tk.HORIZONTAL, 0.0, 0.5, 0.005))
+        spinboxSpeed.append(AHRSSpinbox("SetPoint", self.pidSP2Select, self.pidSP2, -1.0, 1.0, 0.05, '%1.2f'))
+        buttonSpeed.append(AHRSButton(self, "Save", command="PID2_PARAM_SAVE"))
+        self.data_group['Speed'] = AHRSDataFrame(self, "Speed", row_num, col_num, data_names=None, scales=scaleSpeed, spinboxes=spinboxSpeed, check_button_names=None, check_button_cmds=None, button_stack="horizontal", buttons=buttonSpeed, data_label_width=8)
+
         # Data Plot
-        col_num = col_num + 1
-        row_span=2
+        col_num += 1
+        row_num = 1 
+        row_span = 2
         self.createWidgetPlot(data_row_num, col_num, row_span)
         data_row_num = data_row_num + 2
         self.createVisualizationWidget(data_row_num, col_num, row_span)
@@ -1248,73 +1292,120 @@ class AHRSConsole(tk.Frame):
         if not self.connected.get():
             print("Not connected to AHRS")
         else:
-            while self.pidKPClient != self.pidKP.get():
-                if self.pidKPClient < self.pidKP.get():
-                    # Send up
-                    print("PID KP Up from %f" % ( self.pidKPClient) )
-                    self.writeCmdStr('PID_KP_UP')
-                elif self.pidKPClient > self.pidKP.get():
-                    # Send down
-                    print("PID KP Down from %f" % ( self.pidKPClient) )
-                    self.writeCmdStr('PID_KP_DOWN')
+            if self.pidKPClient < self.pidKP.get():
+                # Send up
+                print("PID KP Up %f from Client %f" % ( self.pidKP.get(), self.pidKPClient) )
+                self.writeCmdStr('PID_KP_UP')
+            elif self.pidKPClient > self.pidKP.get():
+                # Send down
+                print("PID KP Down %f from Client %f" % ( self.pidKP.get(), self.pidKPClient) )
+                self.writeCmdStr('PID_KP_DOWN')
 
     def pidKISelect(self, value):
         if not self.connected.get():
             print("Not connected to AHRS")
         else:
-            while self.pidKIClient != self.pidKI.get():
-                if self.pidKIClient < self.pidKI.get():
-                    # Send up
-                    print("PID KI Up from %f" % ( self.pidKIClient) )
-                    self.writeCmdStr('PID_KI_UP')
-                elif self.pidKIClient > self.pidKI.get():
-                    # Send down
-                    print("PID KI Down from %f" % ( self.pidKIClient) )
-                    self.writeCmdStr('PID_KI_DOWN')
+            if self.pidKIClient < self.pidKI.get():
+                # Send up
+                print("PID KI Up from %f" % ( self.pidKIClient) )
+                self.writeCmdStr('PID_KI_UP')
+            elif self.pidKIClient > self.pidKI.get():
+                # Send down
+                print("PID KI Down from %f" % ( self.pidKIClient) )
+                self.writeCmdStr('PID_KI_DOWN')
 
     def pidKDSelect(self, value):
         if not self.connected.get():
             print("Not connected to AHRS")
         else:
-            while self.pidKDClient != self.pidKD.get():
-                if self.pidKDClient < self.pidKD.get():
-                    # Send up
-                    print("PID KD Up from %f" % ( self.pidKDClient) )
-                    self.writeCmdStr('PID_KD_UP')
-                elif self.pidKDClient > self.pidKD.get():
-                    # Send down
-                    print("PID KD Down from %f" % ( self.pidKDClient) )
-                    self.writeCmdStr('PID_KD_DOWN')
+            if self.pidKDClient < self.pidKD.get():
+                # Send up
+                print("PID KD Up from %f" % ( self.pidKDClient) )
+                self.writeCmdStr('PID_KD_UP')
+            elif self.pidKDClient > self.pidKD.get():
+                # Send down
+                print("PID KD Down from %f" % ( self.pidKDClient) )
+                self.writeCmdStr('PID_KD_DOWN')
  
     def pidSPSelect(self):
         if not self.connected.get():
             print("Not connected to AHRS")
         else:
-            while self.pidSPClient != self.pidSP.get():
-                if self.pidSPClient < self.pidSP.get():
-                    # Send up
-                    print("PID SP Up from %f" % ( self.pidSPClient) )
-                    self.writeCmdStr('PID_SP_UP')
-                elif self.pidSPClient > self.pidSP.get():
-                    # Send down
-                    print("PID SP Down from %f" % ( self.pidSPClient) )
-                    self.writeCmdStr('PID_SP_DOWN')
-
+            if self.pidSPClient < self.pidSP.get():
+                # Send up
+                print("PID SP Up from %f" % ( self.pidSPClient) )
+                self.writeCmdStr('PID_SP_UP')
+            elif self.pidSPClient > self.pidSP.get():
+                # Send down
+                print("PID SP Down from %f" % ( self.pidSPClient) )
+                self.writeCmdStr('PID_SP_DOWN')
 
     # Motor PWM Clock Control
     def pwmClockSelect(self):
         if not self.connected.get():
             print("Not connected to AHRS")
         else:
-            while self.pwmClockClient != self.pwmClock.get():
-                if self.pwmClockClient < self.pwmClock.get():
-                    # Send up
-                    print("PWM Clock Up from %d" % ( self.pwmClockClient) )
-                    self.writeCmdStr('PWM_CLOCK_UP')
-                elif self.pwmClockClient > self.pwmClock.get():
-                    # Send down
-                    print("PWM Clock Down from %d" % ( self.pwmClockClient) )
-                    self.writeCmdStr('PWM_CLOCK_DOWN')
+            if self.pwmClockClient < self.pwmClock.get():
+                # Send up
+                print("PWM Clock Up from %d" % ( self.pwmClockClient) )
+                self.writeCmdStr('PWM_CLOCK_UP')
+            elif self.pwmClockClient > self.pwmClock.get():
+                # Send down
+                print("PWM Clock Down from %d" % ( self.pwmClockClient) )
+                self.writeCmdStr('PWM_CLOCK_DOWN')
+
+    # Speed PID Control
+    def pidKP2Select(self, value):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            if self.pidKP2Client < self.pidKP2.get():
+                # Send up
+                #print("PID KP2 Up from %f" % ( self.pidKP2Client) )
+                self.writeCmdStr('PID2_KP_UP')
+            elif self.pidKP2Client > self.pidKP2.get():
+                # Send down
+                #print("PID KP2 Down from %f" % ( self.pidKP2Client) )
+                self.writeCmdStr('PID2_KP_DOWN')
+
+    def pidKI2Select(self, value):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            if self.pidKI2Client < self.pidKI2.get():
+                # Send up
+                #print("PID2 KI Up from %f" % ( self.pidKI2Client) )
+                self.writeCmdStr('PID2_KI_UP')
+            elif self.pidKI2Client > self.pidKI2.get():
+                # Send down
+                #print("PID2 KI Down from %f" % ( self.pidKI2Client) )
+                self.writeCmdStr('PID2_KI_DOWN')
+
+    def pidKD2Select(self, value):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            if self.pidKD2Client < self.pidKD2.get():
+                # Send up
+                #print("PID2 KD Up from %f" % ( self.pidKD2Client) )
+                self.writeCmdStr('PID2_KD_UP')
+            elif self.pidKD2Client > self.pidKD2.get():
+                # Send down
+                #print("PID2 KD Down from %f" % ( self.pidKD2Client) )
+                self.writeCmdStr('PID2_KD_DOWN')
+ 
+    def pidSP2Select(self):
+        if not self.connected.get():
+            print("Not connected to AHRS")
+        else:
+            if self.pidSP2Client < self.pidSP2.get():
+                # Send up
+                print("PID2 SP Up from %f" % ( self.pidSP2Client) )
+                self.writeCmdStr('PID2_SP_UP')
+            elif self.pidSP2Client > self.pidSP2.get():
+                # Send down
+                print("PID2 SP Down from %f" % ( self.pidSP2Client) )
+                self.writeCmdStr('PID2_SP_DOWN')
 
     def calibrateButton(self):
         if self.connected.get():
@@ -1417,7 +1508,7 @@ class AHRSConsole(tk.Frame):
 
     def writeCmdStr(self,cmd):
         try:
-            print("Sending command %s" % ( cmd ))
+            #print("Sending command %s" % ( cmd ))
             cmdInt = self.commandDict[cmd]
             self.writeCmdInt(cmdInt)
         except:
