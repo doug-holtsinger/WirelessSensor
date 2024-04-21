@@ -53,6 +53,53 @@ GNU_VERSION := 9.2.1
 2. Type 'make'
 3. Install Nordic firmware onto board using nRF Connect for Desktop via USB or SEGGER debugger
 
+## Software Installation for AHRS Console GUI
+
+This installation covers Ubuntu 22.04.03 LTS
+Assumes python3.10 is already installed
+
+1. Update OS
+sudo apt update
+sudo apt upgrade
+
+Install bluez
+sudo apt-get install bluez
+
+2. Install pip for python3.10
+sudo apt-get install python3-pip
+
+3. Install glib
+sudo apt-get install libglib2.0-dev
+
+4. Install bluepy
+pip install bluepy
+
+5. Install tkinter
+sudo apt-get install python3-tk
+
+6. Install matplotlib
+pip install matplotlib
+
+7. Install PyOpenGL
+sudo apt install python3-opengl
+pip3 install PyOpenGL
+
+7. Install pyopengltk
+pip install pyopengltk
+
+8. Workaround for PyOpenGL error:
+AttributeError: 'EGLPlatform' object has no attribute 'GLX'. Did you mean: 'GL'?
+
+unset WAYLAND_DISPLAY
+or
+pip3 install --force-reinstall "PyOpenGL==3.1.5"
+
+
+#sudo apt install libgles2
+#sudo apt install libgles2-mesa
+#sudo apt install libegl-dev
+
+
 # Software Architecture
 
 # Operation of the AHRS Device
