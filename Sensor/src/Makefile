@@ -2,7 +2,7 @@ PROJECT_NAME     := WirelessSensor
 TARGETS          := nrf52840_xxaa
 OUTPUT_DIRECTORY := ../_build
 
-SDK_ROOT := C:/NordicSDK/nRF5SDK160098a08e2
+SDK_ROOT := ${HOME}/NordicSDK/nRF5_SDK_17.1.0_ddde560
 
 PROJ_DIR := ./
 PROJ_INC_DIR := .
@@ -321,8 +321,8 @@ INC_FOLDERS += \
 
 # Libraries common to all targets
 LIB_FILES += \
-  $(SDK_ROOT)/external/nrf_cc310/lib/cortex-m4/hard-float/libnrf_cc310_0.9.12.a \
-  $(SDK_ROOT)/external/nrf_oberon/lib/cortex-m4/hard-float/liboberon_3.0.1.a \
+  $(SDK_ROOT)/external/nrf_cc310/lib/cortex-m4/hard-float/libnrf_cc310_0.9.13.a \
+  $(SDK_ROOT)/external/nrf_oberon/lib/cortex-m4/hard-float/liboberon_3.0.8.a \
 
 # Optimization flags
 OPT = -O3 -g3

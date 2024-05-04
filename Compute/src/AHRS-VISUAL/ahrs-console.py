@@ -923,7 +923,6 @@ class AHRSConsole(tk.Frame):
         # Motor Control PID
         elif idx == 36:
             # PID KP
-            #DSH4
             self.pidKPClient = float(data[0])
             self.pidKP.set(data[0])
         elif idx == 37:
@@ -971,14 +970,14 @@ class AHRSConsole(tk.Frame):
             # PID PV
             self.pidPV2.set(data[0])
             self.pidPV2Client = float(data[0])
-            if self.pidPV2Client != 0.0:
-                print(f"PV2 {self.pidPV2Client}")
+            #if self.pidPV2Client != 0.0:
+            #    print(f"PV2 {self.pidPV2Client}")
         elif idx == 47:
             # PID Output
             self.pidOutput2.set(data[0])
             self.pidOutput2Client = float(data[0])
-            if self.pidOutput2Client != 0.0:
-                print(f"Out2 {self.pidOutput2Client}")
+            #if self.pidOutput2Client != 0.0:
+            #    print(f"Out2 {self.pidOutput2Client}")
 
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
@@ -1539,7 +1538,7 @@ class AHRSConsole(tk.Frame):
             self.connect_button.invoke()
         if self.peripheral is None:
             self.stopScanPassive()
-            self.scanner.stop()
+            #self.scanner.stop()
             self.quit()
             sys.exit(0)
 

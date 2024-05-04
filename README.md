@@ -14,7 +14,7 @@ The IMU is not currently available from Adafruit, however I am looking into addi
 1. [Nordic Semiconductor nRF52840 Dongle](https://www.mouser.com/ProductDetail/949-NRF52840-DONGLE)
 2. [Adafruit 4485 -- LSM6DS33 + LIS3MDL - 9 DoF IMU with Accel / Gyro / Mag](https://www.adafruit.com/product/4485) or equivalent
 3. Raspberry Pi3B (may work with other Pis)
-4. Personal computer, Windows or Mac, with USB-A Connector
+4. Personal computer, Ubuntu Linux or Windows running WSL, with USB-A Connector
 5. Optional: [Adafruit #3309 - CP2104 Friend](https://www.adafruit.com/product/3309) - USB to Serial Converter or equivalent, for Serial Console to Nordic chip.
 6. Optional: liPo Battery for Nordic chip
 
@@ -22,30 +22,43 @@ The IMU is not currently available from Adafruit, however I am looking into addi
 
 # Software Requirements
 
-1. [Nordic Semiconductor nRF52 SDK v16.0.0 or later](https://www.nordicsemi.com/Products/Development-software/nrf5-sdk/download)
+1. [Nordic Semiconductor nRF52 SDK v17.1.0 or later](https://www.nordicsemi.com/Products/Development-software/nrf5-sdk/download)
+Select s140 Softdevice support.
 2. [Nordic recommended Development IDE](https://infocenter.nordicsemi.com/index.jsp?topic=%2Fug_nrf52840_dk%2FUG%2Fcommon%2Fnordic_tools.html).  One of the following:
    - [ARM GNU/GCC](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) (Recommended for this project, version 9.2 or later).
    - [SEGGER Embedded Studio (SES)](https://www.segger.com/products/development-tools/embedded-studio/)
    - [MDK-ARM Keil µVision](https://www2.keil.com/mdk5/uvision/)
    - [IAR](https://www.iar.com/iar-embedded-workbench/#!?architecture=ARM)
-3. Python3 for Raspberry Pi
-4. [BlueZ](http://www.bluez.org/) v5.47 or later for Raspberry Pi
-5. [Bluepy](https://github.com/IanHarvey/bluepy/tree/v/1.3.0) v1.3 or later, for Raspberry Pi
+3. Python3
+4. [BlueZ](http://www.bluez.org/) v5.47 or later
+5. [Bluepy](https://github.com/IanHarvey/bluepy/tree/v/1.3.0) v1.3 or later
 
-The Software development platform I've used for the Nordic Semiconductor Board is an x86 Windows PC which has Cygwin installed.  [Cygwin](https://www.cygwin.com/) is a software layer which runs on top of Windows 10/11 and provides functionality similar to a Linux distribution.  You can compile the Nordic Semiconductor source code once you have installed the GNU GCC toolchain (using Cygwin's package manager). It's a very simple way to run Windows and Linux applications on the same box.
+The Software development platform I've used for the Nordic Semiconductor Board is an x86 Windows PC running Windows WSL (Windows Subsystem for Linux).  
+
+I have also used [Cygwin](https://www.cygwin.com/) which is a software layer which runs on top of Windows 10/11 and provides functionality similar to a Linux distribution.  You can compile the Nordic Semiconductor source code once you have installed the GNU GCC toolchain (using Cygwin's package manager). It's a very simple way to run Windows and Linux applications on the same box.
 
 ## Software Installation Steps
+
+Assumes Ubuntu TLS 22.04.04 LTS running under Windows WSL.
+
+## GCC Installation
+
+sudo apt-get install gcc-arm-none-eabi
 
 ## Nordic SDK Installation
 
 In the Nordic nRF52 SDK, edit the file 
 components/toolchain/gcc/Makefile.<platform> 
 and change the following Makefile variables to point to your installation 
-and version of the ARM gcc compiler (Windows example shown).
+and version of the ARM gcc compiler (Linux example shown, Makefile.posix).
 
-GNU_INSTALL_ROOT := C:/Program Files (x86)/GNU Tools ARM Embedded/9 2019-q4-major/bin/
+GNU_INSTALL_ROOT ?= /usr/bin/
+GNU_VERSION ?= 10.3.1
+GNU_PREFIX ?= arm-none-eabi
 
-GNU_VERSION := 9.2.1
+Edit the location of the Nordic SDK in the WirelessSensor/Sensor/src/Makefile:
+
+SDK_ROOT := /home/<user>/NordicSDK/nRF5_SDK_17.1.0_ddde560
 
 ## Nordic Software Compilation and Download
 
@@ -55,39 +68,39 @@ GNU_VERSION := 9.2.1
 
 ## Software Installation for AHRS Console GUI
 
-This installation covers Ubuntu 22.04.03 LTS
+This installation covers Ubuntu 22.04.04 LTS
 Assumes python3.10 is already installed
 
-1. Update OS
+# Update OS
 sudo apt update
 sudo apt upgrade
 
-Install bluez
+# Install bluez
 sudo apt-get install bluez
 
-2. Install pip for python3.10
+# Install pip for python3.10
 sudo apt-get install python3-pip
 
-3. Install glib
+# Install glib
 sudo apt-get install libglib2.0-dev
 
-4. Install bluepy
+# Install bluepy
 pip install bluepy
 
-5. Install tkinter
+# Install tkinter
 sudo apt-get install python3-tk
 
-6. Install matplotlib
+# Install matplotlib
 pip install matplotlib
 
-7. Install PyOpenGL
+# Install PyOpenGL
 sudo apt install python3-opengl
 pip3 install PyOpenGL
 
-7. Install pyopengltk
+# Install pyopengltk
 pip install pyopengltk
 
-8. Workaround for PyOpenGL error:
+# Workaround for PyOpenGL error:
 AttributeError: 'EGLPlatform' object has no attribute 'GLX'. Did you mean: 'GL'?
 
 unset WAYLAND_DISPLAY
