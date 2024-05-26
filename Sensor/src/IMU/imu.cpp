@@ -41,6 +41,7 @@ IMU::IMU() :
 {
     std::fill(display_data, display_data + IMU_SENSOR_MAX, true);
     std::fill(noise_threshold_mult, noise_threshold_mult + IMU_SENSOR_MAX, NOISE_THRESHOLD_MULTIPLIER);
+    noise_threshold_mult[IMU_ACCELEROMETER] = NOISE_THRESHOLD_MULTIPLIER_ACCELEROMETER;
     dev_i2c = new TwoWire();
     AccGyr = new LSM6DS3Sensor(dev_i2c, TWI_ADDRESS_LSM6DS3);
     if (AHRSalgorithm == AHRS_MAHONY)
@@ -450,7 +451,7 @@ void IMU::send_all_client_data()
 
 
     // Euler Angles
-    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMATI PRINTF_FLOAT_FORMATI PRINTF_FLOAT_FORMATI , EULER_ANGLES, PRINTF_FLOAT_VALUEI(roll), PRINTF_FLOAT_VALUEI(pitch), PRINTF_FLOAT_VALUEI(yaw));
+    snprintf(s, NOTIFY_PRINT_STR_MAX_LEN, "%d " PRINTF_FLOAT_FORMAT2 PRINTF_FLOAT_FORMATI PRINTF_FLOAT_FORMATI , EULER_ANGLES, PRINTF_FLOAT_VALUE2(roll), PRINTF_FLOAT_VALUEI(pitch), PRINTF_FLOAT_VALUEI(yaw));
     send_client_data(s);
 
     // Accelerometer

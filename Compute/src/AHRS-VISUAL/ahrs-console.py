@@ -225,7 +225,10 @@ class ScanDelegatePassive(DefaultDelegate):
             #console.setAHRSData( 0, euler_angles)
 
 class AHRSDataFrame():
-    def __init__(self, master, data_group_name, row, column, data_names=None, data_label_width=9, scales=None, spinboxes=None, check_button_names=None, check_button_cmds=None, button_stack="horizontal", buttons=None, sticky=None):
+    """
+    The Data Frame can hold a series of optional Data Items, Scales, Spinboxes, Checkboxes, and Buttons. 
+    """
+    def __init__(self, master, data_group_name, row, column, data_names=None, data_label_width=9, data_plot_names=None, scales=None, spinboxes=None, check_button_names=None, check_button_cmds=None, button_stack="horizontal", buttons=None, sticky=None):
         # Save master object
         self.master = master
         paddingx = 2
@@ -267,14 +270,16 @@ class AHRSDataFrame():
             row_first = row
             for data_name in data_names:
                 if isinstance(data_name, (list)):
+                    # List of separate DataItem objects
                     for dat in data_name:
                         row = row + 1
-                        self.dataItems.append(AHRSDataItem(self.dataFrame, data_group_name, dat, data_label_width, row, column))
+                        self.dataItems.append(AHRSDataItem(self.dataFrame, data_group_name, dat, data_label_width, row, column, data_plot_names))
                     row = row_first
                     column = column + 2
                 else:
+                    # These are related data items which are all updated at the same time.
                     row = row + 1
-                    self.dataItems.append(AHRSDataItem(self.dataFrame, data_group_name, data_name, data_label_width, row, column))
+                    self.dataItems.append(AHRSDataItem(self.dataFrame, data_group_name, data_name, data_label_width, row, column, data_plot_names))
 
         if scales:
             self.scalesFrame = tk.Frame(self.label_frame)
@@ -339,7 +344,7 @@ class AHRSDataFrame():
     def _dataFrameHandler(self, event, clearAxes):
         if clearAxes:
             self.ax.cla()
-        self.setupPlot(self.ax)
+        self.setupPlot()
         self.ax.set_xlabel('Time')
         self.ax.set_ylabel('Value');
         self.ax.legend()
@@ -368,10 +373,10 @@ class AHRSDataFrame():
         for dItem in self.dataItems:
             dItem.setPlotAxes(ax)
 
-    def setupPlot(self, ax, plot_name=None):
-        # setup data plot
+    def setupPlot(self):
+        # setup data plot for each data item
         for dItem in self.dataItems:
-            dItem.setupPlot(plot_name)
+            dItem.setupPlot()
 
     def clearPlot(self):
         # setup data plot
@@ -438,12 +443,13 @@ class AHRSSpinbox():
         tk.Spinbox(frame, command=self.command, from_=self.minValue , to_=self.maxValue, increment=self.increment, textvariable=self.var, width=self.spinbox_width, format=self.fmt).grid(column=col+1, row=row, padx=self.paddingx, pady=self.paddingy)
 
 class AHRSDataItem():
-    def __init__(self, master, data_group_name, data_name, data_label_width, row, column):
+    def __init__(self, master, data_group_name, data_name, data_label_width, row, column, data_plot_names=None):
         self.data_name = data_name
         self.data_group_name = data_group_name
-        self.plot_name = data_group_name + ' ' + data_name
         self.data = tk.StringVar()
         self.data.set(0)
+        self.plot_name = data_group_name + ' ' + data_name
+        self.data_plot_names = data_plot_names
         self.dataFrame = master
         paddingx = 5
         paddingy = 5
@@ -467,7 +473,7 @@ class AHRSDataItem():
         # Initially no data available
         self.dataListLen = 0
 
-        # account for a maximum of 3 data sub-items within a single data label (e.g. X, Y, Z).
+        # account for a maximum of 3 data sub-items within a single data label (for example X, Y, Z).
         self.max_data_subitems = 3
         self.dataplot = np.zeros((self.max_data_subitems,self.xpoints))
         self.line = [None,None,None]
@@ -526,18 +532,23 @@ class AHRSDataItem():
         self.dataplotidx = 0
         self.ax.autoscale_view()
 
-    def setupPlot(self, plot_name=None):
-        if plot_name is None or self.plot_name == plot_name:
-            for idx in range(self.dataListLen):
-                subDataItemLabel = self.plot_name
-                if self.dataListLen == 3:
-                    if idx == 0:
-                        subDataItemLabel = subDataItemLabel + ' X'
-                    elif idx == 1:
-                        subDataItemLabel = subDataItemLabel + ' Y'
-                    elif idx == 2:
-                        subDataItemLabel = subDataItemLabel + ' Z'
-                self.line[idx], = self.ax.plot(np.arange(self.xpoints), self.dataplot[idx], label=subDataItemLabel)
+    def setupPlot(self):
+        for idx in range(self.dataListLen):
+            subDataItemLabel = self.plot_name
+            # if self.dataListLen == 3:
+            if self.dataListLen > 1:
+                sub_data_name = None 
+                if self.data_plot_names:
+                    sub_data_name = self.data_plot_names[idx]
+                elif idx == 0:
+                    sub_data_name = 'X'
+                elif idx == 1:
+                    sub_data_name = 'Y'
+                elif idx == 2:
+                    sub_data_name = 'Z'
+                if sub_data_name:
+                    subDataItemLabel = subDataItemLabel + ' ' + sub_data_name 
+            self.line[idx], = self.ax.plot(np.arange(self.xpoints), self.dataplot[idx], label=subDataItemLabel)
 
 class AHRSConsole(tk.Frame):
     def __init__(self, master=None):
@@ -667,18 +678,20 @@ class AHRSConsole(tk.Frame):
         self.commandDict['PID_SP_UP'] = 49
         self.commandDict['PID_SP_DOWN'] = 50 
         self.commandDict['PID_PARAM_SAVE'] = 51
+        self.commandDict['PID_PARAM_ERASE'] = 52
 
         # PID settings 
-        self.commandDict['PID_NOCMD'] = 52
-        self.commandDict['PID2_KP_UP'] = 53 
-        self.commandDict['PID2_KP_DOWN'] = 54
-        self.commandDict['PID2_KI_UP'] = 55
-        self.commandDict['PID2_KI_DOWN'] = 56
-        self.commandDict['PID2_KD_UP'] = 57
-        self.commandDict['PID2_KD_DOWN'] = 58
-        self.commandDict['PID2_SP_UP'] = 59
-        self.commandDict['PID2_SP_DOWN'] = 60 
-        self.commandDict['PID2_PARAM_SAVE'] = 61
+        self.commandDict['PID_NOCMD'] = 53
+        self.commandDict['PID2_KP_UP'] = 54
+        self.commandDict['PID2_KP_DOWN'] = 55
+        self.commandDict['PID2_KI_UP'] = 56
+        self.commandDict['PID2_KI_DOWN'] = 57
+        self.commandDict['PID2_KD_UP'] = 58
+        self.commandDict['PID2_KD_DOWN'] = 59
+        self.commandDict['PID2_SP_UP'] = 60
+        self.commandDict['PID2_SP_DOWN'] = 61
+        self.commandDict['PID2_PARAM_SAVE'] = 62
+        self.commandDict['PID2_PARAM_ERASE'] = 63
 
         self.startScanPassive()
 
@@ -929,6 +942,7 @@ class AHRSConsole(tk.Frame):
             # PID KI 
             self.pidKI.set(data[0])
             self.pidKIClient = float(data[0])
+            #print(f"PID KI {self.pidKIClient}")
         elif idx == 38:
             # PID KD 
             self.pidKD.set(data[0])
@@ -978,7 +992,11 @@ class AHRSConsole(tk.Frame):
             self.pidOutput2Client = float(data[0])
             #if self.pidOutput2Client != 0.0:
             #    print(f"Out2 {self.pidOutput2Client}")
-
+        elif idx == 48:
+            gidx = 'Performance'
+            # Performance Measure data arrives together as a list of length 3 :
+            #    Roll, Motor Drive, Motor Speed
+            self.data_group[gidx].setData(0, data)
         if self.dataplotcnt & 0xff == 0:
             # draw_idle is very slow, so don't call it too often.
             # It can cause a large backlog of notifications, causing the display to be unresponsive
@@ -992,7 +1010,8 @@ class AHRSConsole(tk.Frame):
         # Canvas
         mpl.use("TkAgg")
 
-        self.fig, self.ax = plt.subplots(figsize=(6, 4.0), constrained_layout=True)
+        # figsize is the Size of the graphical plot in inches 
+        self.fig, self.ax = plt.subplots(figsize=(7, 4.0), constrained_layout=True)
 
         for v in self.data_group.values():
             v.setPlotAxes(self.ax)
@@ -1016,11 +1035,10 @@ class AHRSConsole(tk.Frame):
         row_num = 0
         col_num = 0
 
-        #self.columnconfigure(1, minsize=340)
-
         paddingx = 5
         paddingy = 5
         data_label_width = 9
+        data_label_width_lag = 14
         data_label_width_sensors = 17
         self.spinbox_width = 10
 
@@ -1068,8 +1086,9 @@ class AHRSConsole(tk.Frame):
         self.data_group['Quaternion'] = AHRSDataFrame(self, "Quaternion", row_num, col_num, data_names=["Q0", "Q1", "Q2", "Q3"], check_button_names=["Display"], data_label_width=8, sticky=tk.W)
 
         # Euler Angles
-        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", row_num, col_num, data_names=["Roll", "Pitch", "Yaw"], sticky=tk.E)
-
+        self.data_group['Euler Angles'] = AHRSDataFrame(self, "Euler Angles", row_num, col_num, data_names=["Roll", "Pitch", "Yaw"], sticky=tk.NE)
+        # Performance measurement -- Roll, Motor Drive value, Motor Speed all together
+        self.data_group['Performance'] = AHRSDataFrame(self, "Performance", row_num, col_num, data_label_width=data_label_width_lag, data_names=[""], data_plot_names=["Roll", "Motor", "Speed"], sticky=tk.SE)
 
         # Controls
         col_num = 0
@@ -1125,12 +1144,13 @@ class AHRSConsole(tk.Frame):
         scaleMotor = []
         spinboxMotor = []
         buttonMotor = []
-        scaleMotor.append(AHRSScale("Proportional", self.pidKPSelect, self.pidKP, tk.HORIZONTAL, 200.0, 600.0, 2.0))
+        scaleMotor.append(AHRSScale("Proportional", self.pidKPSelect, self.pidKP, tk.HORIZONTAL, 100.0, 800.0, 2.0))
         scaleMotor.append(AHRSScale("Integral", self.pidKISelect, self.pidKI, tk.HORIZONTAL, 0.0, 400.0, 2.0))
         scaleMotor.append(AHRSScale("Derivative", self.pidKDSelect, self.pidKD, tk.HORIZONTAL, 0.0, 200.0, 2.0))
         spinboxMotor.append(AHRSSpinbox("SetPoint", self.pidSPSelect, self.pidSP, -2.0, 2.0, 0.05, '%1.3f'))
         spinboxMotor.append(AHRSSpinbox("PWM Clock Scale", self.pwmClockSelect, self.pwmClock, 0, 7, 1, '%1.1f'))
         buttonMotor.append(AHRSButton(self, "Save", command="PID_PARAM_SAVE"))
+        buttonMotor.append(AHRSButton(self, "Erase", command="PID_PARAM_ERASE"))
         self.data_group['Motor'] = AHRSDataFrame(self, "Motor", row_num, col_num, data_names=["Driver"], scales=scaleMotor, spinboxes=spinboxMotor, check_button_names=['Enabled', 'Display'], check_button_cmds=["MOTOR_DRIVER_TOGGLE_POWER", "MOTOR_DRIVER_TOGGLE_DISPLAY"], button_stack="horizontal", buttons=buttonMotor, data_label_width=8)
 
         # Speed Control PID
@@ -1143,6 +1163,7 @@ class AHRSConsole(tk.Frame):
         scaleSpeed.append(AHRSScale("Derivative", self.pidKD2Select, self.pidKD2, tk.HORIZONTAL, 0.0, 0.5, 0.005))
         spinboxSpeed.append(AHRSSpinbox("SetPoint", self.pidSP2Select, self.pidSP2, -1.0, 1.0, 0.05, '%1.2f'))
         buttonSpeed.append(AHRSButton(self, "Save", command="PID2_PARAM_SAVE"))
+        buttonSpeed.append(AHRSButton(self, "Erase", command="PID2_PARAM_ERASE"))
         self.data_group['Speed'] = AHRSDataFrame(self, "Speed", row_num, col_num, data_names=None, scales=scaleSpeed, spinboxes=spinboxSpeed, check_button_names=None, check_button_cmds=None, button_stack="horizontal", buttons=buttonSpeed, data_label_width=8)
 
         # Data Plot
@@ -1507,7 +1528,7 @@ class AHRSConsole(tk.Frame):
 
     def writeCmdStr(self,cmd):
         try:
-            #print("Sending command %s" % ( cmd ))
+            print("Sending command %s" % ( cmd ))
             cmdInt = self.commandDict[cmd]
             self.writeCmdInt(cmdInt)
         except:

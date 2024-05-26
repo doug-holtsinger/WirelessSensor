@@ -80,6 +80,31 @@ public:
 
     ~ParamStore() {}
 
+    void erase(void)
+    {
+        ret_code_t rc;
+        fds_record_desc_t desc = {0};
+        fds_find_token_t  tok  = {0};
+
+        rc = fds_record_find(CONFIG_FILE, config_rec_key, &desc, &tok);
+
+        if (rc == NRF_SUCCESS)
+        {
+            NRF_LOG_INFO("Updating Flash");
+
+            rc = check_for_fds_op_busy();
+            APP_ERROR_CHECK(rc);
+
+            /* Erase record . */
+            rc = fds_record_delete(&desc);
+            APP_ERROR_CHECK(rc);
+            NRF_LOG_INFO("Flash Record Erased");
+        } else 
+	{
+            NRF_LOG_INFO("Flash record already erased.");
+	}
+    }
+
     void set(T *param_store_data_ptr)
     {
         ret_code_t rc;
@@ -118,7 +143,7 @@ public:
 
     }
 
-    T get()
+    T get(void)
     {
         return param_data;
     }

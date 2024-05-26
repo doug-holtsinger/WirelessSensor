@@ -138,6 +138,17 @@ void fds_evt_handler_C(fds_evt_t const * p_evt)
             }
         } break;
 
+        case FDS_EVT_DEL_RECORD:
+        {
+            if (p_evt->result == NRF_SUCCESS)
+            {
+                /* NRF_LOG_INFO("Record ID:\t0x%04x",  p_evt->del.record_id);
+                NRF_LOG_INFO("File ID:\t0x%04x",    p_evt->del.file_id);
+                NRF_LOG_INFO("Record key:\t0x%04x", p_evt->del.record_key); */
+                fds_op_busy = false;
+            }
+        } break;
+
         default:
             break;
     }
