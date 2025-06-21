@@ -222,6 +222,7 @@ class ScanDelegatePassive(DefaultDelegate):
             euler_angles[0] = sign_extend(manufacturer_data[3] << 8 | manufacturer_data[2], 16)
             euler_angles[1] = sign_extend(manufacturer_data[5] << 8 | manufacturer_data[4], 16)
             euler_angles[2] = sign_extend(manufacturer_data[7] << 8 | manufacturer_data[6], 16)
+            #print(f"roll {euler_angles[0]} pitch {euler_angles[1]} yaw {euler_angles[2]}")
             #console.setAHRSData( 0, euler_angles)
 
 class AHRSDataFrame():
@@ -632,66 +633,69 @@ class AHRSConsole(tk.Frame):
         self.commandDict['IMU_SENSOR_CALIBRATE_MAGNETOMETER'] = 7
         self.commandDict['IMU_SENSOR_CALIBRATE_GYROSCOPE'] = 8
         self.commandDict['IMU_SENSOR_CALIBRATE_RESET'] = 9
+
         self.commandDict['IMU_SENSOR_CALIBRATE_SAVE'] = 10 
-        self.commandDict['IMU_AHRS_INPUT_TOGGLE'] = 11
-        self.commandDict['IMU_AHRS_YAW_TOGGLE'] = 12
-        self.commandDict['IMU_AHRS_PITCH_TOGGLE'] = 13
-        self.commandDict['IMU_AHRS_ROLL_TOGGLE'] = 14
-        self.commandDict['IMU_SENSOR_DATA_HOLD_TOGGLE'] = 15 
-        self.commandDict['IMU_SENSOR_DATA_IDEAL_TOGGLE'] = 16
-        self.commandDict['IMU_SENSOR_DATA_FIXED_TOGGLE'] = 17
-        self.commandDict['IMU_SENSOR_DATA_DISPLAY_TOGGLE'] = 18
-        self.commandDict['IMU_AHRS_PROP_GAIN_UP'] = 19
-        self.commandDict['IMU_AHRS_PROP_GAIN_DOWN'] = 20
-        self.commandDict['IMU_AHRS_INTEG_GAIN_UP'] = 21
-        self.commandDict['IMU_AHRS_INTEG_GAIN_DOWN'] = 22
-        self.commandDict['IMU_AHRS_SAMPLE_FREQ_UP'] = 23
-        self.commandDict['IMU_AHRS_SAMPLE_FREQ_DOWN'] = 24
-        self.commandDict['IMU_GYROSCOPE_CORRECTION_UP'] = 25
-        self.commandDict['IMU_GYROSCOPE_CORRECTION_DOWN'] = 26
-        self.commandDict['IMU_MAGNETOMETER_STABILITY_TOGGLE'] = 27
-        self.commandDict['IMU_AHRS_BETA_GAIN_UP'] = 28
-        self.commandDict['IMU_AHRS_BETA_GAIN_DOWN'] = 29
-        self.commandDict['IMU_AHRS_ALGORITHM_TOGGLE'] = 30
-        self.commandDict['IMU_GYROSCOPE_ENABLE_TOGGLE'] = 31
-        self.commandDict['IMU_UNCALIBRATED_DISPLAY_TOGGLE'] = 32
-        self.commandDict['IMU_SETTINGS_DISPLAY_TOGGLE'] = 33
-        self.commandDict['IMU_SELECT_ODR'] = 34
-        self.commandDict['NOISE_THRESHOLD_UP'] = 35
-        self.commandDict['NOISE_THRESHOLD_DOWN'] = 36
+        #self.commandDict['IMU_AHRS_INPUT_TOGGLE'] = 11
+        #self.commandDict['IMU_AHRS_YAW_TOGGLE'] = 12
+        #self.commandDict['IMU_AHRS_PITCH_TOGGLE'] = 13
+        #self.commandDict['IMU_AHRS_ROLL_TOGGLE'] = 14
+        self.commandDict['IMU_SENSOR_DATA_HOLD_TOGGLE'] = 11
+        self.commandDict['IMU_SENSOR_DATA_IDEAL_TOGGLE'] = 12
+        self.commandDict['IMU_SENSOR_DATA_FIXED_TOGGLE'] = 13
+        self.commandDict['IMU_SENSOR_DATA_DISPLAY_TOGGLE'] = 14
+        self.commandDict['IMU_AHRS_PROP_GAIN_UP'] = 15
+        self.commandDict['IMU_AHRS_PROP_GAIN_DOWN'] = 16
+        self.commandDict['IMU_AHRS_INTEG_GAIN_UP'] = 17
+        self.commandDict['IMU_AHRS_INTEG_GAIN_DOWN'] = 18
+        self.commandDict['IMU_AHRS_SAMPLE_FREQ_UP'] = 19
+
+        self.commandDict['IMU_AHRS_SAMPLE_FREQ_DOWN'] = 20
+        self.commandDict['IMU_GYROSCOPE_CORRECTION_UP'] = 21
+        self.commandDict['IMU_GYROSCOPE_CORRECTION_DOWN'] = 22
+        self.commandDict['IMU_MAGNETOMETER_STABILITY_TOGGLE'] = 23
+        self.commandDict['IMU_AHRS_BETA_GAIN_UP'] = 24
+        self.commandDict['IMU_AHRS_BETA_GAIN_DOWN'] = 25
+        self.commandDict['IMU_AHRS_ALGORITHM_TOGGLE'] = 26
+        self.commandDict['IMU_GYROSCOPE_ENABLE_TOGGLE'] = 27
+        self.commandDict['IMU_UNCALIBRATED_DISPLAY_TOGGLE'] = 28
+        self.commandDict['IMU_SETTINGS_DISPLAY_TOGGLE'] = 29
+
+        self.commandDict['IMU_SELECT_ODR'] = 30
+        self.commandDict['NOISE_THRESHOLD_UP'] = 31
+        self.commandDict['NOISE_THRESHOLD_DOWN'] = 32
 
         # Motor Driver Settings
-        self.commandDict['MOTOR_DRIVER_NOCMD'] = 37
-        self.commandDict['MOTOR_DRIVER_TOGGLE_POWER'] = 38
-        self.commandDict['MOTOR_DRIVER_TOGGLE_DISPLAY'] = 39
-        self.commandDict['PWM_CLOCK_UP'] = 40
-        self.commandDict['PWM_CLOCK_DOWN'] = 41
+        self.commandDict['MOTOR_DRIVER_NOCMD'] = 33
+        self.commandDict['MOTOR_DRIVER_TOGGLE_POWER'] = 34
+        self.commandDict['MOTOR_DRIVER_TOGGLE_DISPLAY'] = 35
+        self.commandDict['PWM_CLOCK_UP'] = 36
+        self.commandDict['PWM_CLOCK_DOWN'] = 37
 
         # PID settings 
-        self.commandDict['PID_NOCMD'] = 42
-        self.commandDict['PID_KP_UP'] = 43 
-        self.commandDict['PID_KP_DOWN'] = 44
-        self.commandDict['PID_KI_UP'] = 45
-        self.commandDict['PID_KI_DOWN'] = 46
-        self.commandDict['PID_KD_UP'] = 47
-        self.commandDict['PID_KD_DOWN'] = 48
-        self.commandDict['PID_SP_UP'] = 49
-        self.commandDict['PID_SP_DOWN'] = 50 
-        self.commandDict['PID_PARAM_SAVE'] = 51
-        self.commandDict['PID_PARAM_ERASE'] = 52
+        self.commandDict['PID_NOCMD'] = 38
+        self.commandDict['PID_KP_UP'] = 39
+        self.commandDict['PID_KP_DOWN'] = 40
+        self.commandDict['PID_KI_UP'] = 41
+        self.commandDict['PID_KI_DOWN'] = 42
+        self.commandDict['PID_KD_UP'] = 43
+        self.commandDict['PID_KD_DOWN'] = 44
+        self.commandDict['PID_SP_UP'] = 45
+        self.commandDict['PID_SP_DOWN'] = 46 
+        self.commandDict['PID_PARAM_SAVE'] = 47
+        self.commandDict['PID_PARAM_ERASE'] = 48
 
         # PID settings 
-        self.commandDict['PID_NOCMD'] = 53
-        self.commandDict['PID2_KP_UP'] = 54
-        self.commandDict['PID2_KP_DOWN'] = 55
-        self.commandDict['PID2_KI_UP'] = 56
-        self.commandDict['PID2_KI_DOWN'] = 57
-        self.commandDict['PID2_KD_UP'] = 58
-        self.commandDict['PID2_KD_DOWN'] = 59
-        self.commandDict['PID2_SP_UP'] = 60
-        self.commandDict['PID2_SP_DOWN'] = 61
-        self.commandDict['PID2_PARAM_SAVE'] = 62
-        self.commandDict['PID2_PARAM_ERASE'] = 63
+        self.commandDict['PID_NOCMD'] = 49
+        self.commandDict['PID2_KP_UP'] = 50
+        self.commandDict['PID2_KP_DOWN'] = 51
+        self.commandDict['PID2_KI_UP'] = 52
+        self.commandDict['PID2_KI_DOWN'] = 53
+        self.commandDict['PID2_KD_UP'] = 54
+        self.commandDict['PID2_KD_DOWN'] = 55
+        self.commandDict['PID2_SP_UP'] = 56
+        self.commandDict['PID2_SP_DOWN'] = 57
+        self.commandDict['PID2_PARAM_SAVE'] = 58
+        self.commandDict['PID2_PARAM_ERASE'] = 59
 
         self.startScanPassive()
 
@@ -1202,7 +1206,7 @@ class AHRSConsole(tk.Frame):
         if not self.connected.get():
             print("Not connected to AHRS")
         else:
-            print("Proportional Gain %f" % ( self.twoKp.get()) )
+            print("Proportional Gain Client %f Server %f" % ( self.twoKpClient, self.twoKp.get()) )
             if self.twoKpClient < self.twoKp.get():
                 # Send up
                 print("Prop Gain Up from %f" % ( self.twoKpClient) )
@@ -1449,7 +1453,7 @@ class AHRSConsole(tk.Frame):
             self.startScanPassive()
 
     def getBLEState(self):
-        if self.peripheral:
+        if self.peripheral is not None:
             try:
                 ble_state = self.peripheral.getState()
                 print("Current State %s" % ( ble_state ))
@@ -1483,11 +1487,12 @@ class AHRSConsole(tk.Frame):
         dev_addr = self.scanForAHRS()
         if dev_addr == None:
             print("Could not find AHRS")
+            self.connected.set(False)
             return
 
         connected = False
         connectCount = 0
-        connectCountLimit = 35
+        connectCountLimit = 30
         # FIXME: temporary workaround for intermittent connection failures
         while not connected:
             try:
@@ -1508,9 +1513,11 @@ class AHRSConsole(tk.Frame):
         # Value is defined Inside ble_nus_c.h as NUS_BASE_UUID
         srv = self.peripheral.getServiceByUUID('6e400001-b5a3-f393-e0a9-e50e24dcca9e')
         ch = srv.getCharacteristics()
-        # Enable notifications
+        # Enable notifications on TX characteristic
         for c in ch:
-            for d in c.getDescriptors():
+            if 'NOTIFY' in c.propertiesToString():
+                print(f"Enabling notifications on {c}")
+                d = c.getDescriptors()[0]
                 val = d.read()
                 #print("    Value:  ", binascii.b2a_hex(val).decode('utf-8'))
                 d.write(b"\x01\x00",withResponse=True)
@@ -1540,17 +1547,23 @@ class AHRSConsole(tk.Frame):
 
     def writeCmd(self,cmd):
         try:
+            print(f'writeCmd0 {cmd}')
             srv = self.peripheral.getServiceByUUID('6e400001-b5a3-f393-e0a9-e50e24dcca9e')
+            print(f'writeCmd1 {cmd}')
             uuid_write = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
             uart_write = srv.getCharacteristics(forUUID = uuid_write)
+            print(f'writeCmd2 {cmd} {uart_write[0]} {type(uart_write)} {type(uart_write[0])}')
             uart_write[0].write(cmd, withResponse=True)
+            print(f'writeCmd3 {cmd} {uart_write[0]} {type(uart_write)} {type(uart_write[0])}')
         except BTLEException as e:
+            print(f'writeCmd4 {cmd}')
             self.disconnect()
 
     def disconnect(self):
         print("Disconnect...")
         # disable delegate from flooding app with notifications
-        self.peripheral.setDelegate(None)
+        if self.peripheral is not None:
+            self.peripheral.setDelegate(None)
         # if already connected, set connect button variable
         self.connected.set(False)
 
