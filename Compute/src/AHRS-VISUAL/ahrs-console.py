@@ -682,7 +682,7 @@ class AHRSConsole(tk.Frame):
         self.commandDict['PID_SP_UP'] = 45
         self.commandDict['PID_SP_DOWN'] = 46 
         self.commandDict['PID_PARAM_SAVE'] = 47
-        self.commandDict['PID_PARAM_ERASE'] = 48
+        self.commandDict['PID_PARAM_RESET'] = 48
 
         # PID settings 
         self.commandDict['PID_NOCMD'] = 49
@@ -695,7 +695,7 @@ class AHRSConsole(tk.Frame):
         self.commandDict['PID2_SP_UP'] = 56
         self.commandDict['PID2_SP_DOWN'] = 57
         self.commandDict['PID2_PARAM_SAVE'] = 58
-        self.commandDict['PID2_PARAM_ERASE'] = 59
+        self.commandDict['PID2_PARAM_RESET'] = 59
 
         self.startScanPassive()
 
@@ -1154,7 +1154,7 @@ class AHRSConsole(tk.Frame):
         spinboxMotor.append(AHRSSpinbox("SetPoint", self.pidSPSelect, self.pidSP, -2.0, 2.0, 0.05, '%1.3f'))
         spinboxMotor.append(AHRSSpinbox("PWM Clock Scale", self.pwmClockSelect, self.pwmClock, 0, 7, 1, '%1.1f'))
         buttonMotor.append(AHRSButton(self, "Save", command="PID_PARAM_SAVE"))
-        buttonMotor.append(AHRSButton(self, "Erase", command="PID_PARAM_ERASE"))
+        buttonMotor.append(AHRSButton(self, "Reset", command="PID_PARAM_RESET"))
         self.data_group['Motor'] = AHRSDataFrame(self, "Motor", row_num, col_num, data_names=["Driver"], scales=scaleMotor, spinboxes=spinboxMotor, check_button_names=['Enabled', 'Display'], check_button_cmds=["MOTOR_DRIVER_TOGGLE_POWER", "MOTOR_DRIVER_TOGGLE_DISPLAY"], button_stack="horizontal", buttons=buttonMotor, data_label_width=8)
 
         # Speed Control PID
@@ -1167,7 +1167,7 @@ class AHRSConsole(tk.Frame):
         scaleSpeed.append(AHRSScale("Derivative", self.pidKD2Select, self.pidKD2, tk.HORIZONTAL, 0.0, 0.5, 0.005))
         spinboxSpeed.append(AHRSSpinbox("SetPoint", self.pidSP2Select, self.pidSP2, -1.0, 1.0, 0.05, '%1.2f'))
         buttonSpeed.append(AHRSButton(self, "Save", command="PID2_PARAM_SAVE"))
-        buttonSpeed.append(AHRSButton(self, "Erase", command="PID2_PARAM_ERASE"))
+        buttonSpeed.append(AHRSButton(self, "Reset", command="PID2_PARAM_RESET"))
         self.data_group['Speed'] = AHRSDataFrame(self, "Speed", row_num, col_num, data_names=None, scales=scaleSpeed, spinboxes=spinboxSpeed, check_button_names=None, check_button_cmds=None, button_stack="horizontal", buttons=buttonSpeed, data_label_width=8)
 
         # Data Plot
@@ -1523,6 +1523,7 @@ class AHRSConsole(tk.Frame):
                 d.write(b"\x01\x00",withResponse=True)
                 val = d.read()
                 #print("    Value:  ", binascii.b2a_hex(val).decode('utf-8'))
+                break
         print("Wait for notifications")
         while self.connected.get():
             try:
@@ -1537,26 +1538,29 @@ class AHRSConsole(tk.Frame):
         try:
             print("Sending command %s" % ( cmd ))
             cmdInt = self.commandDict[cmd]
-            self.writeCmdInt(cmdInt)
+            self._writeCmdInt(cmdInt)
         except:
             print("ERROR: Trouble sending command %s" % (cmd))
             self.disconnect()
 
-    def writeCmdInt(self,cmd):
-        self.writeCmd(cmd.to_bytes(1, byteorder=sys.byteorder))
+    def _writeCmdInt(self,cmd):
+        self._writeCmd(cmd.to_bytes(1, byteorder=sys.byteorder))
+        # FIXME: delay to try to workaround issue with requests getting dropped
+        # somewhere inside BLE stack before they ever make it out on the air.
+        time.sleep(0.2)
 
-    def writeCmd(self,cmd):
+    def _writeCmd(self,cmd):
         try:
-            print(f'writeCmd0 {cmd}')
+            #print(f'writeCmd0 {cmd}')
             srv = self.peripheral.getServiceByUUID('6e400001-b5a3-f393-e0a9-e50e24dcca9e')
-            print(f'writeCmd1 {cmd}')
+            #print(f'writeCmd1 {cmd}')
             uuid_write = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
             uart_write = srv.getCharacteristics(forUUID = uuid_write)
-            print(f'writeCmd2 {cmd} {uart_write[0]} {type(uart_write)} {type(uart_write[0])}')
+            #print(f'writeCmd2 {cmd} {uart_write[0]} {type(uart_write)} {type(uart_write[0])}')
             uart_write[0].write(cmd, withResponse=True)
-            print(f'writeCmd3 {cmd} {uart_write[0]} {type(uart_write)} {type(uart_write[0])}')
+            #print(f'writeCmd3 {cmd} {uart_write[0]} {type(uart_write)} {type(uart_write[0])}')
         except BTLEException as e:
-            print(f'writeCmd4 {cmd}')
+            #print(f'writeCmd4 {cmd}')
             self.disconnect()
 
     def disconnect(self):
